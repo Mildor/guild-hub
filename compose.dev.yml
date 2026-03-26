@@ -1,0 +1,80 @@
+services:
+    db:
+        image: postgres:15-alpine
+        container_name: guild-hub-db
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: guild-hub
+        ports:
+            - "5432:5432"
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - guild-hub-network
+
+    redis:
+        image: redis:7-alpine
+        container_name: guild-hub-redis
+        ports:
+            - "6379:6379"
+        networks:
+            - guild-hub-network
+
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        container_name: guild-hub-backend
+        environment:
+            DB_HOST: db
+            DB_PORT: 5432
+            DB_USERNAME: postgres
+            DB_PASSWORD: postgres
+            DB_NAME: guild-hub
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+        ports:
+            - "3000:3000"
+        volumes:
+            - ./backend:/app
+            - /app/node_modules
+        depends_on:
+            - db
+            - redis
+        networks:
+            - guild-hub-network
+
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: guild-hub-frontend
+        ports:
+            - "5173:5173"
+        volumes:
+            - ./frontend:/app
+            - /app/node_modules
+        depends_on:
+            - backend
+        networks:
+            - guild-hub-network
+
+    adminer:
+        image: adminer
+        container_name: guild-hub-adminer
+        environment:
+            ADMINER_DEFAULT_SERVER: db
+        ports:
+            - "5051:8080"
+        depends_on:
+            - db
+        networks:
+            - guild-hub-network
+
+networks:
+    guild-hub-network:
+        driver: bridge
+
+volumes:
+    pgdata:

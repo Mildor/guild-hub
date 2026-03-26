@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AppRole {
+  ADMIN
+  OFFICER
+  MEMBER
+  GUEST
+}
+
+enum GameRole {
+  TANK
+  HEALER
+  DPS
+}
+
+enum AttendanceStatus {
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+  LATE
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  bnetId          Int      @unique
+  battletag       String
+  bnetAccessToken String?
+  discordId       String?
+  appRole    AppRole  @default(GUEST)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  characters Character[]
+  events     Event[]
+  attendances Attendance[]
+}
+
+model Character {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  name       String
+  realm      String
+  class      String
+  activeSpec String
+  gameRole   GameRole
+  ilvl       Float    @default(0)
+  isMain     Boolean  @default(false)
+  guildRank  Int?
+  lastSyncAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  attendances Attendance[]
+
+  @@unique([userId, name, realm])
+}
+
+model Event {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  eventDate   DateTime
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  attendances Attendance[]
+}
+
+model Attendance {
+  eventId     String   @db.Uuid
+  userId      String   @db.Uuid
+  characterId String?  @db.Uuid
+  status      AttendanceStatus
+
+  event       Event    @relation(fields: [eventId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+  character   Character? @relation(fields: [characterId], references: [id])
+
+  @@id([eventId, userId])
+}
