@@ -1,0 +1,287 @@
+@import "tailwindcss";
+@import "tailwind-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* ── shadcn semantic tokens ── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ── WoW Semantic Colors ── */
+  --color-legendary: #f59e0b;
+  --color-epic: #8b5cf6;
+
+  /* ── WoW Class Colors ── */
+  --color-wow-mage: #3FC7EB;
+  --color-wow-warlock: #8788EE;
+  --color-wow-paladin: #F48CBA;
+  --color-wow-warrior: #C69B6D;
+  --color-wow-druid: #FF7C0A;
+  --color-wow-rogue: #FFF468;
+  --color-wow-hunter: #AAD372;
+  --color-wow-priest: #FFFFFF;
+  --color-wow-shaman: #0070DD;
+  --color-wow-monk: #00FF98;
+  --color-wow-death-knight: #C41E3A;
+  --color-wow-demon-hunter: #A330C9;
+  --color-wow-evoker: #33937F;
+}
+
+/* ── Light mode (fallback) ── */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.714);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+}
+
+/* ── Rich Dark Slate (WarcraftLogs Enhanced) ── */
+.dark {
+  /* background: hsl(222.2, 84%, 4.9%) → Rich Slate très sombre */
+  --background: oklch(0.13 0.028 261);
+  --foreground: oklch(0.96 0.01 240);
+
+  /* card & popover: même fond sombre */
+  --card: oklch(0.13 0.028 261);
+  --card-foreground: oklch(0.96 0.01 240);
+  --popover: oklch(0.13 0.028 261);
+  --popover-foreground: oklch(0.96 0.01 240);
+
+  /* primary: Legendary Orange — hsl(38, 92%, 50%) */
+  --primary: oklch(0.75 0.18 65);
+  --primary-foreground: oklch(0.15 0.02 65);
+
+  /* secondary: Epic Violet — hsl(258, 90%, 66%) */
+  --secondary: oklch(0.55 0.25 295);
+  --secondary-foreground: oklch(0.96 0.01 240);
+
+  /* muted: hsl(217.2, 32.6%, 17.5%) */
+  --muted: oklch(0.27 0.03 250);
+  --muted-foreground: oklch(0.65 0.02 250);
+
+  /* accent: même gris sombre que muted */
+  --accent: oklch(0.27 0.03 250);
+  --accent-foreground: oklch(0.96 0.01 240);
+
+  /* destructive: hsl(0, 84.2%, 60.2%) */
+  --destructive: oklch(0.63 0.24 25);
+  --destructive-foreground: oklch(0.96 0.01 240);
+
+  /* border / input: même gris sombre que muted */
+  --border: oklch(0.27 0.03 250);
+  --input: oklch(0.27 0.03 250);
+
+  /* ring: Legendary Orange pour les focus */
+  --ring: oklch(0.75 0.18 65);
+
+  /* charts: palette WoW-inspired */
+  --chart-1: oklch(0.75 0.18 65);
+  --chart-2: oklch(0.55 0.25 295);
+  --chart-3: oklch(0.63 0.24 25);
+  --chart-4: oklch(0.72 0.15 165);
+  --chart-5: oklch(0.70 0.14 220);
+
+  /* sidebar */
+  --sidebar: oklch(0.16 0.025 261);
+  --sidebar-foreground: oklch(0.96 0.01 240);
+  --sidebar-primary: oklch(0.75 0.18 65);
+  --sidebar-primary-foreground: oklch(0.15 0.02 65);
+  --sidebar-accent: oklch(0.27 0.03 250);
+  --sidebar-accent-foreground: oklch(0.96 0.01 240);
+  --sidebar-border: oklch(0.27 0.03 250);
+  --sidebar-ring: oklch(0.75 0.18 65);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ── Custom Animations ── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes shimmer-loading {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s infinite;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.4s ease-out;
+  }
+
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .transition-smooth-lg {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Button glow effect */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn-glow:hover::before {
+    left: 100%;
+  }
+
+  /* Interactive elements cursor */
+  button {
+    @apply cursor-pointer;
+  }
+
+  [role='button'] {
+    @apply cursor-pointer;
+  }
+}
