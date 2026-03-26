@@ -10,6 +10,7 @@ interface BnetCharacter {
   realm: { slug: string };
   playable_class: { name: string };
   level: number;
+  guild?: { name: string };
 }
 
 interface BnetWowAccount {
@@ -23,6 +24,7 @@ interface BnetProfileResponse {
 interface BnetCharacterProfile {
   equipped_item_level: number;
   active_spec?: { name: string };
+  guild?: { name: string };
 }
 
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
@@ -81,6 +83,96 @@ export class BlizzardService {
     private readonly httpService: HttpService,
     private readonly prisma: PrismaService,
   ) {}
+
+  async verifyGuildMembership(
+    userId: string,
+    characterName: string,
+    targetGuild: string = 'The Good Place',
+  ): Promise<BnetCharacter> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user?.bnetAccessToken) {
+      throw new UnauthorizedException(
+        'Aucun token Battle.net trouvé. Veuillez vous reconnecter via Battle.net.',
+      );
+    }
+
+    let response;
+    try {
+      response = await firstValueFrom(
+        this.httpService.get<BnetProfileResponse>(
+          'https://eu.api.blizzard.com/profile/user/wow',
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${user.bnetAccessToken}`,
+            },
+          },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        this.logger.error(
+          `Blizzard API error: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`,
+        );
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          throw new UnauthorizedException(
+            'Token Battle.net expiré ou invalide. Veuillez vous reconnecter via /auth/bnet.',
+          );
+        }
+      }
+      throw new BadGatewayException(
+        'Erreur lors de la communication avec l\'API Blizzard.',
+      );
+    }
+
+    const allCharacters = response.data.wow_accounts.flatMap(
+      (account) => account.characters ?? [],
+    );
+
+    // Chercher le personnage (case-insensitive)
+    const character = allCharacters.find(
+      (char) => char.name.toLowerCase() === characterName.toLowerCase(),
+    );
+
+    if (!character) {
+      throw new UnauthorizedException({
+        message: 'Ce personnage n\'appartient pas à ce compte Battle.net.',
+        guildName: null,
+      } as any);
+    }
+
+    // Récupérer les infos détaillées du perso pour la guilde
+    const characterDetails = await this.fetchCharacterProfile(
+      character.realm.slug,
+      character.name.toLowerCase(),
+      user.bnetAccessToken,
+    );
+
+    const characterGuild = characterDetails?.guild?.name;
+
+    // Vérifier la guilde
+    if (!characterGuild) {
+      throw new UnauthorizedException({
+        message: 'Ce personnage n\'est pas dans une guilde.',
+        guildName: null,
+      } as any);
+    }
+
+    const targetGuildLower = targetGuild.toLowerCase();
+
+    if (characterGuild.toLowerCase() !== targetGuildLower) {
+      throw new UnauthorizedException({
+        message: `Ce personnage est dans la guilde "${characterGuild}", pas dans "${targetGuild}".`,
+        guildName: characterGuild,
+      } as any);
+    }
+
+    return character;
+  }
 
   async syncUserCharacters(userId: string): Promise<Character[]> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -206,3 +298,4 @@ export class BlizzardService {
     }
   }
 }
+

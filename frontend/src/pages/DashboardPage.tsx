@@ -14,7 +14,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import type { Character, GameRole } from '@/types/character';
+import type { GameRole } from '@/types/character';
 
 // Mapping des couleurs WoW (couleurs officielles)
 const classColorMap: Record<string, { style: React.CSSProperties }> = {
