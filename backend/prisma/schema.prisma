@@ -57,6 +57,18 @@ model Character {
   guildRank  Int?
   lastSyncAt DateTime @default(now())
 
+  // Photos
+  avatarUrl  String?
+  renderUrl  String?
+  insetUrl   String?
+
+  // Spécialisation détails
+  activeSpecName String?
+  activeSpecIcon String?
+
+  // Équipement complet
+  equipment  Json?
+
   user       User     @relation(fields: [userId], references: [id])
   attendances Attendance[]
 

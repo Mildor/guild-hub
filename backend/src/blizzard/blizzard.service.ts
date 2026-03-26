@@ -27,6 +27,54 @@ interface BnetCharacterProfile {
   guild?: { name: string };
 }
 
+interface BnetMediaResponse {
+  assets?: Array<{
+    key: string;
+    value: string;
+  }>;
+}
+
+interface BnetEquipmentItem {
+  slot: {
+    type: string;
+    name: string;
+  };
+  item: {
+    id: number;
+    name: string;
+  };
+  level?: {
+    value: number;
+  };
+  quality?: {
+    type: string;
+    name: string;
+  };
+  is_equipped?: boolean;
+}
+
+interface BnetEquipmentResponse {
+  equipped_items?: BnetEquipmentItem[];
+}
+
+interface BnetSpecializationChoice {
+  specialization?: {
+    id: number;
+    name: string;
+    icon: string;
+  };
+  is_active?: boolean;
+}
+
+interface BnetSpecializationsResponse {
+  specializations?: BnetSpecializationChoice[];
+  active_specialization?: {
+    id: number;
+    name: string;
+    icon: string;
+  };
+}
+
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
   // Chevalier de la mort
   'Sang': 'TANK',
@@ -236,6 +284,27 @@ export class BlizzardService {
       const ilvl = details?.equipped_item_level ?? 0;
       const gameRole = SPEC_TO_ROLE[activeSpec] ?? 'DPS';
 
+      // Récupérer les médias (photos)
+      const media = await this.fetchMediaUrls(
+        char.realm.slug,
+        char.name.toLowerCase(),
+        user.bnetAccessToken,
+      );
+
+      // Récupérer l'équipement
+      const equipmentData = await this.fetchEquipment(
+        char.realm.slug,
+        char.name.toLowerCase(),
+        user.bnetAccessToken,
+      );
+
+      // Récupérer les spécialisations détaillées
+      const specializationInfo = await this.fetchSpecializations(
+        char.realm.slug,
+        char.name.toLowerCase(),
+        user.bnetAccessToken,
+      );
+
       const synced = await this.prisma.character.upsert({
         where: {
           userId_name_realm: {
@@ -249,6 +318,12 @@ export class BlizzardService {
           activeSpec,
           ilvl,
           gameRole,
+          avatarUrl: media.avatarUrl,
+          renderUrl: media.renderUrl,
+          insetUrl: media.insetUrl,
+          activeSpecName: specializationInfo.activeSpecName,
+          activeSpecIcon: specializationInfo.activeSpecIcon,
+          equipment: equipmentData as any,
           lastSyncAt: new Date(),
         },
         create: {
@@ -259,6 +334,12 @@ export class BlizzardService {
           activeSpec,
           gameRole,
           ilvl,
+          avatarUrl: media.avatarUrl,
+          renderUrl: media.renderUrl,
+          insetUrl: media.insetUrl,
+          activeSpecName: specializationInfo.activeSpecName,
+          activeSpecIcon: specializationInfo.activeSpecIcon,
+          equipment: equipmentData as any,
           lastSyncAt: new Date(),
         },
       });
@@ -295,6 +376,125 @@ export class BlizzardService {
         `Impossible de récupérer le profil de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status}`,
       );
       return null;
+    }
+  }
+
+  private async fetchMediaUrls(
+    realmSlug: string,
+    characterName: string,
+    token: string,
+  ): Promise<{ avatarUrl?: string; renderUrl?: string; insetUrl?: string }> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://eu.api.blizzard.com/profile/wow/character/${realmSlug}/${encodeURIComponent(characterName)}/character-media`,
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ),
+      );
+
+      this.logger.debug(`Media response for ${characterName}: ${JSON.stringify(response.data)}`);
+
+      const assets = response.data.assets || [];
+      const media: { avatarUrl?: string; renderUrl?: string; insetUrl?: string } = {};
+
+      for (const asset of assets) {
+        if (asset.key === 'avatar') {
+          media.avatarUrl = asset.value;
+        } else if (asset.key === 'main' || asset.key === 'bust' || asset.key === 'full') {
+          media.renderUrl = asset.value;
+        } else if (asset.key === 'inset') {
+          media.insetUrl = asset.value;
+        }
+      }
+
+      this.logger.debug(`Parsed media: ${JSON.stringify(media)}`);
+
+      return media;
+    } catch (error) {
+      this.logger.error(
+        `Erreur médias de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status} - ${JSON.stringify((error as AxiosError).response?.data)}`,
+      );
+      return {};
+    }
+  }
+
+  private async fetchEquipment(
+    realmSlug: string,
+    characterName: string,
+    token: string,
+  ): Promise<BnetEquipmentItem[] | undefined> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://eu.api.blizzard.com/profile/wow/character/${realmSlug}/${encodeURIComponent(characterName)}/equipment`,
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ),
+      );
+
+      this.logger.debug(`Equipment response for ${characterName}: ${JSON.stringify(response.data)}`);
+
+      return response.data.equipped_items || undefined;
+    } catch (error) {
+      this.logger.error(
+        `Erreur équipement de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status} - ${JSON.stringify((error as AxiosError).response?.data)}`,
+      );
+      return undefined;
+    }
+  }
+
+  private async fetchSpecializations(
+    realmSlug: string,
+    characterName: string,
+    token: string,
+  ): Promise<{ activeSpecName?: string; activeSpecIcon?: string }> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://eu.api.blizzard.com/profile/wow/character/${realmSlug}/${encodeURIComponent(characterName)}/specializations`,
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ),
+      );
+
+      this.logger.debug(`Specializations response for ${characterName}: ${JSON.stringify(response.data)}`);
+
+      const activeSpec = response.data.active_specialization;
+      if (activeSpec) {
+        return {
+          activeSpecName: activeSpec.name,
+          activeSpecIcon: activeSpec.icon,
+        };
+      }
+
+      return {};
+    } catch (error) {
+      this.logger.error(
+        `Erreur spécialisations de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status} - ${JSON.stringify((error as AxiosError).response?.data)}`,
+      );
+      return {};
     }
   }
 }

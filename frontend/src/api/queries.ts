@@ -25,9 +25,7 @@ export const useGetMyCharacters = (userId: string | null | undefined) => {
     queryKey: ['characters', userId],
     queryFn: async () => {
       if (!userId) throw new Error('User ID is required');
-      console.log('📡 Fetching characters for userId:', userId);
       const { data } = await api.get<Character[]>(`/characters/user/${userId}`);
-      console.log('✅ Characters fetched:', data);
       return data;
     },
     enabled: !!userId, // Ne faire la requête que si userId existe
@@ -38,9 +36,7 @@ export const useGetMyCharacters = (userId: string | null | undefined) => {
 
 // Synchronise les personnages avec l'API Blizzard
 const syncCharacters = async () => {
-  console.log('🔄 Syncing characters...');
   const { data } = await api.post('/characters/sync');
-  console.log('✅ Sync successful, response:', data);
   return data;
 };
 
@@ -51,12 +47,10 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
   return useMutation({
     mutationFn: syncCharacters,
     onSuccess: async () => {
-      console.log('🔄 Refetching characters after sync...');
       // Refetch immédiatement les personnages
       await queryClient.refetchQueries({
         queryKey: ['characters', userId],
       });
-      console.log('✅ Refetch completed');
     },
     onError: (error) => {
       console.error('❌ Erreur sync:', error);
@@ -66,9 +60,7 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
 
 // Lance un personnage en tant que Main
 const setMainCharacter = async (characterId: string) => {
-  console.log('⭐ Setting main character:', characterId);
   const { data } = await api.patch(`/characters/${characterId}/main`);
-  console.log('✅ Main character set:', data);
   return data;
 };
 
@@ -79,12 +71,10 @@ export const useSetMainCharacter = (userId: string | null | undefined) => {
   return useMutation({
     mutationFn: setMainCharacter,
     onSuccess: async () => {
-      console.log('⭐ Refetching characters after main change...');
       // Refetch immédiatement les personnages
       await queryClient.refetchQueries({
         queryKey: ['characters', userId],
       });
-      console.log('✅ Refetch completed');
     },
     onError: (error) => {
       console.error('❌ Erreur setting main:', error);

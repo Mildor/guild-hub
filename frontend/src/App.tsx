@@ -29,14 +29,6 @@ function AppContent() {
   const user = useAuthStore((s) => s.user);
   const { data: meData, isLoading: isMeLoading, error: meError } = useGetMe();
 
-  console.log('🔍 AppContent Debug:', {
-    token: token ? `${token.slice(0, 20)}...` : null,
-    user,
-    meData,
-    isMeLoading,
-    meError: meError?.message,
-  });
-
   // Vérifier si le JWT est expiré au démarrage
   useEffect(() => {
     if (token && !isJwtValid(token)) {

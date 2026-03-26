@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import React from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useGetMyCharacters, useSyncCharacters, useSetMainCharacter } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,11 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { WowIcon } from '@/components/ui/WowIcon';
+import { classIcons, roleIcons } from '@/lib/wowData';
 import type { GameRole } from '@/types/character';
+import { CharacterDetailPanel } from '@/components/characters/CharacterDetailPanel';
 
 // Mapping des couleurs WoW (couleurs officielles)
 const classColorMap: Record<string, { style: React.CSSProperties }> = {
@@ -46,9 +50,9 @@ const getNormalizedClass = (classStr: string): string => {
 
 // Mapping des badges pour les rôles
 const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  TANK: { label: '🛡️ Tank', variant: 'default' },
-  HEALER: { label: '✨ Healer', variant: 'secondary' },
-  DPS: { label: '⚔️ DPS', variant: 'outline' },
+  TANK: { label: 'Tank', variant: 'outline' },
+  HEALER: { label: 'Healer', variant: 'outline' },
+  DPS: { label: 'DPS', variant: 'outline' },
 };
 
 // Skeleton Loader
@@ -69,21 +73,18 @@ function CharactersTableSkeleton() {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { data: characters, isLoading, error, refetch } = useGetMyCharacters(user?.userId);
+  const { data: characters, isLoading, error } = useGetMyCharacters(user?.userId);
   const syncMutation = useSyncCharacters(user?.userId);
   const setMainMutation = useSetMainCharacter(user?.userId);
-
-  // Debug logging
-  console.log('🔍 DashboardPage Debug:', {
-    userId: user?.userId,
-    charactersCount: characters?.length,
-    isLoading,
-    errorMsg: error?.message,
-  });
+  const [expandedCharacterId, setExpandedCharacterId] = useState<string | null>(null);
 
   if (error) {
     console.error('❌ Erreur API:', error);
   }
+
+  const toggleRow = (id: string) => {
+    setExpandedCharacterId((prev) => (prev === id ? null : id));
+  };
 
   const charactersSorted = useMemo(() => {
     return characters?.sort((a, b) => {
@@ -174,66 +175,95 @@ export function DashboardPage() {
                   {charactersSorted.map((character, idx) => {
                     const normalizedClass = getNormalizedClass(character.class);
                     const classColor = classColorMap[normalizedClass]?.style?.color;
-                    console.log('Character:', character.name, 'Class:', character.class, 'Normalized:', normalizedClass, 'Color:', classColor);
+                    const isExpanded = expandedCharacterId === character.id;
                     return (
-                    <TableRow
-                      key={character.id}
-                      className={`border-border/50 hover:bg-primary/5 transition-colors ${
-                        idx !== charactersSorted.length - 1 ? 'border-b' : ''
-                      }`}
-                      style={{
-                        animation: `fade-in-up 0.3s ease-out ${idx * 0.05}s both`,
-                        color: classColor,
-                      }}
-                    >
-                      <TableCell className="font-medium">
-                        <span className="font-semibold">
-                          {character.name}
-                        </span>
-                        <span className="text-xs opacity-70 ml-1">
-                          {character.realm}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {character.class}
-                      </TableCell>
-                      <TableCell>
-                        {character.activeSpec}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {character.ilvl}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={roleConfig[character.gameRole]?.variant || 'outline'}>
-                          {roleConfig[character.gameRole]?.label || character.gameRole}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <button
-                          onClick={() => !character.isMain && setMainMutation.mutate(character.id)}
-                          disabled={character.isMain || setMainMutation.isPending}
-                          className="cursor-pointer transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
-                          title={character.isMain ? 'Personnage principal' : 'Cliquez pour définir comme principal'}
+                      <React.Fragment key={character.id}>
+                        <TableRow
+                          className={`border-border/50 hover:bg-primary/5 transition-colors cursor-pointer ${
+                            idx !== charactersSorted.length - 1 ? 'border-b' : ''
+                          }`}
+                          style={{
+                            animation: `fade-in-up 0.3s ease-out ${idx * 0.05}s both`,
+                            color: classColor,
+                          }}
+                          onClick={() => toggleRow(character.id)}
                         >
-                          {character.isMain ? (
-                            <Badge
-                              className="bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 dark:text-yellow-400 gap-1"
-                              style={{ color: '#FFD700' }}
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4 flex-shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                              )}
+                              <div>
+                                <span className="font-semibold">
+                                  {character.name}
+                                </span>
+                                <span className="text-xs opacity-70 ml-1">
+                                  {character.realm}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <WowIcon name={classIcons[character.class] || 'inv_misc_questionmark'} size={20} />
+                              {character.class}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {character.activeSpec}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {character.ilvl}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center gap-2 justify-center">
+                              <WowIcon name={roleIcons[character.gameRole] || 'inv_misc_questionmark'} size={20} />
+                              <Badge variant={roleConfig[character.gameRole]?.variant || 'outline'}>
+                                {roleConfig[character.gameRole]?.label || character.gameRole}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                !character.isMain && setMainMutation.mutate(character.id);
+                              }}
+                              disabled={character.isMain || setMainMutation.isPending}
+                              className="cursor-pointer transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
+                              title={character.isMain ? 'Personnage principal' : 'Cliquez pour définir comme principal'}
                             >
-                              ⭐ Main
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="gap-1 cursor-pointer hover:bg-primary/10"
-                              style={{ color: classColorMap[getNormalizedClass(character.class)]?.style?.color }}
-                            >
-                              Reroll
-                            </Badge>
-                          )}
-                        </button>
-                      </TableCell>
-                    </TableRow>
+                              {character.isMain ? (
+                                <Badge
+                                  className="bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 dark:text-yellow-400 gap-1"
+                                  style={{ color: '#FFD700' }}
+                                >
+                                  ⭐ Main
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1 cursor-pointer hover:bg-primary/10"
+                                  style={{ color: classColorMap[getNormalizedClass(character.class)]?.style?.color }}
+                                >
+                                  Reroll
+                                </Badge>
+                              )}
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow className="border-border/50 bg-slate-900/30">
+                            <TableCell colSpan={6} className="p-0">
+                              <div className="p-6">
+                                <CharacterDetailPanel data={character} />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>

@@ -20,6 +20,35 @@ export enum GameRole {
   DPS = 'DPS',
 }
 
+export interface EquipmentItem {
+  slot: {
+    type: string;
+    name: string;
+  };
+  item: {
+    id: number;
+  };
+  name: string;  // Nom de l'item
+  level?: {
+    value: number;
+  };
+  quality?: {
+    type: string;
+    name: string;
+  };
+  armor?: {
+    value: number;
+  };
+  media?: {
+    key: { href: string };
+  };
+  set?: {
+    item_set: {
+      name: string;
+    };
+  };
+}
+
 export interface Character {
   id: string;
   userId: string;
@@ -32,4 +61,16 @@ export interface Character {
   isMain: boolean;
   guildRank?: number | null;
   lastSyncAt: string;
+
+  // Media
+  avatarUrl?: string;
+  renderUrl?: string;
+  insetUrl?: string;
+
+  // Spécialisation
+  activeSpecName?: string;
+  activeSpecIcon?: string;
+
+  // Équipement
+  equipment?: EquipmentItem[] | null;
 }
