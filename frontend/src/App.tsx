@@ -1,20 +1,110 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage } from './pages/LoginPage';
-import { AuthCallbackPage } from './pages/AuthCallbackPage';
-import { DashboardPage } from './pages/DashboardPage';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/authStore';
+import { useGetMe } from '@/api/queries';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { LoginPage } from '@/pages/LoginPage';
+import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { Skeleton } from '@/components/ui/skeleton';
+import { isJwtValid } from '@/lib/jwt';
 
-function App() {
+// Créez une instance QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+    },
+  },
+});
+
+// Wrapper pour le fetch utilisateur
+function AppContent() {
+  const token = useAuthStore((s) => s.token);
+  const setUser = useAuthStore((s) => s.setUser);
+  const logout = useAuthStore((s) => s.logout);
+  const user = useAuthStore((s) => s.user);
+  const { data: meData, isLoading: isMeLoading, error: meError } = useGetMe();
+
+  console.log('🔍 AppContent Debug:', {
+    token: token ? `${token.slice(0, 20)}...` : null,
+    user,
+    meData,
+    isMeLoading,
+    meError: meError?.message,
+  });
+
+  // Vérifier si le JWT est expiré au démarrage
+  useEffect(() => {
+    if (token && !isJwtValid(token)) {
+      console.warn('JWT expiré, déconnexion automatique');
+      logout();
+    }
+  }, [token, logout]);
+
+  // Update user dans le store quand les données arrivent
+  useEffect(() => {
+    if (meData && !isMeLoading) {
+      setUser(meData);
+    }
+  }, [meData, isMeLoading, setUser]);
+
+  // Si erreur lors du fetch me, logout (401 unauthorized, 404 user deleted, etc)
+  useEffect(() => {
+    if (meError && token) {
+      const error = meError as any;
+      const status = error?.response?.status;
+
+      // Logout si erreur d'authentification (401) ou utilisateur introuvable (404)
+      // ou toute autre erreur qui indique que le compte n'est pas valide
+      if (status === 401 || status === 404) {
+        console.warn(`Logout automatique - Erreur ${status}: compte invalide ou supprimé`);
+        logout();
+      }
+    }
+  }, [meError, token, logout]);
+
+  // Loading screen
+  if (token && isMeLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md px-4">
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/login/success" element={<AuthCallbackPage />} />
+
+        {/* Layout avec les pages protégées */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
   );
 }
 

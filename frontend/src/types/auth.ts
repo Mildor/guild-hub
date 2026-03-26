@@ -1,5 +1,12 @@
+export enum AppRole {
+  ADMIN = 'ADMIN',
+  OFFICER = 'OFFICER',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST',
+}
+
 export interface User {
-  id: string;
-  battletag: string;
-  appRole: string;
+  userId: string;
+  battletag?: string;
+  appRole: AppRole;
 }

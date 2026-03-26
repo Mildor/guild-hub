@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CharactersService } from './characters.service';
 import { BlizzardService } from '../blizzard/blizzard.service';
@@ -32,10 +32,16 @@ export class CharactersController {
   }
 
   @Get('user/:userId')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Retourne tous les personnages d'un joueur" })
   @ApiResponse({ status: 200, description: 'Liste des personnages du joueur.' })
+  @ApiResponse({ status: 403, description: 'Accès non autorisé.' })
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
-  findByUserId(@Param('userId') userId: string) {
+  findByUserId(@Param('userId') userId: string, @Req() req: { user: { userId: string } }) {
+    // Vérifier que l'utilisateur accède seulement ses propres personnages
+    if (req.user.userId !== userId) {
+      throw new ForbiddenException('Vous ne pouvez accéder qu\'à vos propres personnages');
+    }
     return this.charactersService.findByUserId(userId);
   }
 
@@ -45,6 +51,15 @@ export class CharactersController {
   @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
   update(@Param('id') id: string, @Body() dto: UpdateCharacterDto) {
     return this.charactersService.update(id, dto);
+  }
+
+  @Patch(':id/main')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Défini un personnage comme principal' })
+  @ApiResponse({ status: 200, description: 'Personnage défini comme principal.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  setMainCharacter(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
+    return this.charactersService.setMainCharacter(req.user.userId, id);
   }
 
   @Delete(':id')

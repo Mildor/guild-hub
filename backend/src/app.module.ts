@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,17 +24,9 @@ import { BlizzardModule } from './blizzard/blizzard.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // Should be false in production
     }),
-    CacheModule.registerAsync({
-      isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          socket: {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379', 10),
-          },
-        }),
-      }),
-    }),
+    // Redis cache disabled for development
+    // TODO: Enable when Redis is available
+    // CacheModule.registerAsync({...}),
     PrismaModule,
     UsersModule,
     CharactersModule,

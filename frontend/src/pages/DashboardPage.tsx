@@ -1,70 +1,292 @@
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useGetMyCharacters, useSyncCharacters, useSetMainCharacter } from '@/api/queries';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import type { Character, GameRole } from '@/types/character';
+
+// Mapping des couleurs WoW (couleurs officielles)
+const classColorMap: Record<string, { style: React.CSSProperties }> = {
+  'Warrior': { style: { color: '#C69B6D' } },
+  'Paladin': { style: { color: '#F48CBA' } },
+  'Hunter': { style: { color: '#ABD473' } },
+  'Rogue': { style: { color: '#FFE51A' } },
+  'Priest': { style: { color: '#FFFFFF' } },
+  'DeathKnight': { style: { color: '#C41F3B' } },
+  'Shaman': { style: { color: '#0070DD' } },
+  'Mage': { style: { color: '#3FC7EB' } },
+  'Warlock': { style: { color: '#9482CA' } },
+  'Monk': { style: { color: '#00FF98' } },
+  'Druid': { style: { color: '#FF8000' } },
+  'DemonHunter': { style: { color: '#A335EE' } },
+  'Evoker': { style: { color: '#33937F' } },
+};
+
+// Normaliser le nom de classe pour le lookup
+const getNormalizedClass = (classStr: string): string => {
+  if (!classStr) return '';
+  // Si c'est "WARRIOR" en majuscules, on le convertit en "Warrior"
+  return classStr
+    .toLowerCase()
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+};
+
+// Mapping des badges pour les rôles
+const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  TANK: { label: '🛡️ Tank', variant: 'default' },
+  HEALER: { label: '✨ Healer', variant: 'secondary' },
+  DPS: { label: '⚔️ DPS', variant: 'outline' },
+};
+
+// Skeleton Loader
+function CharactersTableSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-6 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function DashboardPage() {
-  const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
+  const user = useAuthStore((s) => s.user);
+  const { data: characters, isLoading, error, refetch } = useGetMyCharacters(user?.userId);
+  const syncMutation = useSyncCharacters(user?.userId);
+  const setMainMutation = useSetMainCharacter(user?.userId);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/', { replace: true });
-  };
+  // Debug logging
+  console.log('🔍 DashboardPage Debug:', {
+    userId: user?.userId,
+    charactersCount: characters?.length,
+    isLoading,
+    errorMsg: error?.message,
+  });
+
+  if (error) {
+    console.error('❌ Erreur API:', error);
+  }
+
+  const charactersSorted = useMemo(() => {
+    return characters?.sort((a, b) => {
+      if (a.isMain === b.isMain) {
+        return b.ilvl - a.ilvl;
+      }
+      return a.isMain ? -1 : 1;
+    }) || [];
+  }, [characters]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50 animate-slide-in-right">
-        <div className="container mx-auto px-4 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 animate-glow-pulse"></div>
-            <h1 className="text-2xl font-bold">Guild Hub</h1>
+    <div className="min-h-full bg-background">
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="animate-fade-in-up flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
+              Mes Personnages
+            </h1>
+            <p className="text-muted-foreground">
+              Gérez et consultez tous vos personnages World of Warcraft
+            </p>
           </div>
           <Button
-            onClick={handleLogout}
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
             variant="outline"
-            className="btn-glow transition-smooth hover:border-primary/50 active:scale-95 cursor-pointer"
+            className="flex items-center gap-2"
           >
-            Se déconnecter
+            <RefreshCw
+              className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
+            />
+            {syncMutation.isPending ? 'Synchronisation...' : 'Synchroniser'}
           </Button>
         </div>
-      </header>
 
-      {/* Content */}
-      <main className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl animate-fade-in-up">
-          <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            Bienvenue sur le Guild Hub
-          </h2>
-          <p className="text-lg text-muted-foreground mb-10">
-            Vous êtes maintenant connecté à votre guilde World of Warcraft.
-          </p>
+        {/* Characters Table */}
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Erreur lors du chargement des personnages. Veuillez réessayer.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {isLoading ? (
+            <CharactersTableSkeleton />
+          ) : charactersSorted.length === 0 ? (
+            <div className="space-y-4">
+              <Alert className="border-dashed bg-card/50 border-border/50">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Aucun personnage trouvé. Synchronisez vos personnages avec votre compte Battle.net.
+                </AlertDescription>
+              </Alert>
+              <Button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                variant="default"
+                className="w-full flex items-center gap-2 justify-center"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
+                />
+                {syncMutation.isPending ? 'Synchronisation...' : 'Synchroniser mes personnages'}
+              </Button>
+            </div>
+          ) : (
+            <div className="border border-border/50 rounded-lg overflow-hidden bg-card/30 backdrop-blur-sm hover:border-primary/30 transition-colors">
+              <Table>
+                <TableHeader className="bg-primary/5">
+                  <TableRow className="border-border/50 hover:bg-transparent">
+                    <TableHead className="font-semibold text-foreground w-32">Nom</TableHead>
+                    <TableHead className="font-semibold text-foreground w-32">Classe</TableHead>
+                    <TableHead className="font-semibold text-foreground w-40">Spécialisation</TableHead>
+                    <TableHead className="font-semibold text-foreground w-20 text-right">iLvl</TableHead>
+                    <TableHead className="font-semibold text-foreground w-24 text-center">Rôle</TableHead>
+                    <TableHead className="font-semibold text-foreground w-24 text-center">Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {charactersSorted.map((character, idx) => (
+                    <TableRow
+                      key={character.id}
+                      className={`border-border/50 hover:bg-primary/5 transition-colors ${
+                        idx !== charactersSorted.length - 1 ? 'border-b' : ''
+                      }`}
+                      style={{
+                        animation: `fade-in-up 0.3s ease-out ${idx * 0.05}s both`,
+                        color: classColorMap[getNormalizedClass(character.class)]?.style?.color,
+                      }}
+                    >
+                      <TableCell className="font-medium">
+                        <span
+                          className="font-semibold"
+                          style={classColorMap[getNormalizedClass(character.class)]?.style || {}}
+                        >
+                          {character.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {character.realm}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span style={classColorMap[getNormalizedClass(character.class)]?.style || {}}>
+                          {character.class}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {character.activeSpec}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        <span className="text-primary">{character.ilvl}</span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={roleConfig[character.gameRole]?.variant || 'outline'}>
+                          {roleConfig[character.gameRole]?.label || character.gameRole}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => !character.isMain && setMainMutation.mutate(character.id)}
+                          disabled={character.isMain || setMainMutation.isPending}
+                          className="cursor-pointer transition-opacity hover:opacity-80 disabled:cursor-default disabled:opacity-100"
+                          title={character.isMain ? 'Personnage principal' : 'Cliquez pour définir comme principal'}
+                        >
+                          {character.isMain ? (
+                            <Badge
+                              className="bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 dark:text-yellow-400 gap-1"
+                              style={{ color: '#FFD700' }}
+                            >
+                              ⭐ Main
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 cursor-pointer hover:bg-primary/10"
+                              style={{ color: classColorMap[getNormalizedClass(character.class)]?.style?.color }}
+                            >
+                              Reroll
+                            </Badge>
+                          )}
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+
+        {/* Stats */}
+        {charactersSorted.length > 0 && (
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up"
+            style={{ animationDelay: '0.2s' }}
+          >
             {[
-              { label: 'Membres', value: 'N/A' },
-              { label: 'Raids', value: 'N/A' },
-              { label: 'Événements', value: 'N/A' },
+              {
+                label: 'Total',
+                value: charactersSorted.length,
+                gradient: 'from-blue-500/30 to-blue-600/30',
+                textGradient: 'from-blue-400 to-blue-500',
+              },
+              {
+                label: 'iLvl Moyen',
+                value: (
+                  charactersSorted.reduce((sum, c) => sum + c.ilvl, 0) /
+                  charactersSorted.length
+                ).toFixed(0),
+                gradient: 'from-green-500/30 to-green-600/30',
+                textGradient: 'from-green-400 to-green-500',
+              },
+              {
+                label: 'Principal',
+                value: charactersSorted.find((c) => c.isMain)?.name || '—',
+                gradient: 'from-yellow-500/30 to-yellow-600/30',
+                textGradient: 'from-yellow-400 to-yellow-500',
+              },
             ].map((stat, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-lg bg-card/50 border border-border/50 hover:border-primary/30 transition-smooth hover:bg-card/80 cursor-pointer"
+                className={`p-4 rounded-lg bg-gradient-to-br ${stat.gradient} border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80 cursor-pointer`}
                 style={{
-                  animation: `fade-in-up 0.5s ease-out ${idx * 0.1}s both`,
+                  animation: `fade-in-up 0.3s ease-out ${(idx + 3) * 0.1}s both`,
                 }}
               >
-                <p className="text-muted-foreground text-sm mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold">{stat.value}</p>
+                <p className="text-muted-foreground text-sm mb-2">{stat.label}</p>
+                <p className={`text-2xl font-bold bg-gradient-to-r ${stat.textGradient} bg-clip-text text-transparent`}>
+                  {stat.value}
+                </p>
               </div>
             ))}
           </div>
-
-          <p className="text-sm text-muted-foreground italic">
-            Plus de fonctionnalités à venir...
-          </p>
-        </div>
-      </main>
+        )}
+      </div>
     </div>
   );
 }
