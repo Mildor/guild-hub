@@ -18,18 +18,18 @@ import type { Character, GameRole } from '@/types/character';
 
 // Mapping des couleurs WoW (couleurs officielles)
 const classColorMap: Record<string, { style: React.CSSProperties }> = {
-  'Warrior': { style: { color: '#C69B6D' } },
+  'Guerrier': { style: { color: '#C69B6D' } },
   'Paladin': { style: { color: '#F48CBA' } },
-  'Hunter': { style: { color: '#ABD473' } },
-  'Rogue': { style: { color: '#FFE51A' } },
-  'Priest': { style: { color: '#FFFFFF' } },
-  'DeathKnight': { style: { color: '#C41F3B' } },
-  'Shaman': { style: { color: '#0070DD' } },
+  'Chasseur': { style: { color: '#ABD473' } },
+  'Voleur': { style: { color: '#FFE51A' } },
+  'Prêtre': { style: { color: '#FFFFFF' } },
+  'Chevalier de la mort': { style: { color: '#C41F3B' } },
+  'Chaman': { style: { color: '#0070DD' } },
   'Mage': { style: { color: '#3FC7EB' } },
-  'Warlock': { style: { color: '#9482CA' } },
-  'Monk': { style: { color: '#00FF98' } },
-  'Druid': { style: { color: '#FF8000' } },
-  'DemonHunter': { style: { color: '#A335EE' } },
+  'Démoniste': { style: { color: '#9482CA' } },
+  'Moine': { style: { color: '#00FF98' } },
+  'Druide': { style: { color: '#FF8000' } },
+  'Chasseur de démons': { style: { color: '#A335EE' } },
   'Evoker': { style: { color: '#33937F' } },
 };
 
@@ -171,7 +171,11 @@ export function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {charactersSorted.map((character, idx) => (
+                  {charactersSorted.map((character, idx) => {
+                    const normalizedClass = getNormalizedClass(character.class);
+                    const classColor = classColorMap[normalizedClass]?.style?.color;
+                    console.log('Character:', character.name, 'Class:', character.class, 'Normalized:', normalizedClass, 'Color:', classColor);
+                    return (
                     <TableRow
                       key={character.id}
                       className={`border-border/50 hover:bg-primary/5 transition-colors ${
@@ -179,30 +183,25 @@ export function DashboardPage() {
                       }`}
                       style={{
                         animation: `fade-in-up 0.3s ease-out ${idx * 0.05}s both`,
-                        color: classColorMap[getNormalizedClass(character.class)]?.style?.color,
+                        color: classColor,
                       }}
                     >
                       <TableCell className="font-medium">
-                        <span
-                          className="font-semibold"
-                          style={classColorMap[getNormalizedClass(character.class)]?.style || {}}
-                        >
+                        <span className="font-semibold">
                           {character.name}
                         </span>
-                        <span className="text-xs text-muted-foreground ml-1">
+                        <span className="text-xs opacity-70 ml-1">
                           {character.realm}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span style={classColorMap[getNormalizedClass(character.class)]?.style || {}}>
-                          {character.class}
-                        </span>
+                        {character.class}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell>
                         {character.activeSpec}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
-                        <span className="text-primary">{character.ilvl}</span>
+                        {character.ilvl}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={roleConfig[character.gameRole]?.variant || 'outline'}>
@@ -235,7 +234,8 @@ export function DashboardPage() {
                         </button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
