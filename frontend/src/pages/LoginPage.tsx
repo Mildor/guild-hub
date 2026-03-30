@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,55 +33,61 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md animate-fade-in-up shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            Guild Hub
-          </CardTitle>
-          <CardDescription className="text-base mt-3">
-            Connectez-vous pour accéder au hub de votre guilde World of Warcraft
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Nom de votre personnage WoW
-            </label>
-            <Input
-              placeholder="Ex: Arthas"
-              value={characterName}
-              onChange={(e) => {
-                setCharacterName(e.target.value);
-                setError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleLoginClick();
-                }
-              }}
-              className="w-full"
-            />
-            {error && <p className="text-xs text-destructive">{error}</p>}
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-md space-y-4">
+        <Link to="/" className="text-slate-400 transition-colors hover:text-white">
+          ← Retour à l&apos;accueil
+        </Link>
 
-          <p className="text-sm text-muted-foreground text-center">
-            Utilisez votre compte Battle.net pour continuer
-          </p>
+        <Card className="w-full animate-fade-in-up shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-4xl font-bold text-transparent">
+              Guild Hub
+            </CardTitle>
+            <CardDescription className="mt-3 text-base">
+              Connectez-vous pour acceder au hub de votre guilde World of Warcraft
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Nom de votre personnage WoW
+              </label>
+              <Input
+                placeholder="Ex: Arthas"
+                value={characterName}
+                onChange={(e) => {
+                  setCharacterName(e.target.value);
+                  setError('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleLoginClick();
+                  }
+                }}
+                className="w-full"
+              />
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </div>
 
-          <Button
-            onClick={handleLoginClick}
-            size="lg"
-            className="w-full btn-glow hover:scale-105 active:scale-95 transition-smooth-lg cursor-pointer"
-          >
-            Se connecter avec Battle.net
-          </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Utilisez votre compte Battle.net pour continuer
+            </p>
 
-          <p className="text-xs text-muted-foreground text-center opacity-60">
-            Sécurisé par Battle.net OAuth
-          </p>
-        </CardContent>
-      </Card>
+            <Button
+              onClick={handleLoginClick}
+              size="lg"
+              className="w-full cursor-pointer btn-glow transition-smooth-lg hover:scale-105 active:scale-95"
+            >
+              Se connecter avec Battle.net
+            </Button>
+
+            <p className="text-center text-xs text-muted-foreground opacity-60">
+              Securise par Battle.net OAuth
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

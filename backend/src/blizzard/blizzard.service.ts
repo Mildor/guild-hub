@@ -549,8 +549,8 @@ export class BlizzardService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get<any>(
-          `https://www.wowhead.com/ajax/item/${itemId}?dataEnv=live`,
+        this.httpService.get<{ icon?: string }>(
+          `https://nether.wowhead.com/tooltip/item/${itemId}`,
         ),
       );
 
@@ -565,8 +565,9 @@ export class BlizzardService {
       this.logger.warn(
         `Failed to fetch icon for item ${itemId}, using fallback`,
       );
-      // Fallback: utiliser wowdev.wiki
-      const fallbackUrl = `https://render.wowdev.wiki/eu/item/${itemId}/icon.jpg`;
+      // Fallback statique fiable pour garantir un affichage.
+      const fallbackUrl =
+        'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
       this.itemIconCache.set(itemId, fallbackUrl);
       return fallbackUrl;
     }

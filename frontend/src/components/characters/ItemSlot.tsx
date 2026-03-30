@@ -9,6 +9,8 @@ interface ItemSlotProps {
   emptyIcon: ReactNode;
 }
 
+const FALLBACK_ICON_URL = 'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
+
 // Cache pour les icônes d'items
 const iconCache: Record<number, string> = {};
 
@@ -36,22 +38,46 @@ async function fetchItemIcon(itemId: number): Promise<string> {
     throw new Error('No icon found');
   } catch (error) {
     console.error(`Failed to fetch icon for item ${itemId}:`, error);
-    // Fallback avec wowdev.wiki
-    return `https://render.wowdev.wiki/eu/item/${itemId}/icon.jpg`;
+    return FALLBACK_ICON_URL;
   }
 }
 
 function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
   const [iconUrl, setIconUrl] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(item));
 
   useEffect(() => {
-    if (item) {
-      fetchItemIcon(item.item.id).then((url) => {
-        setIconUrl(url);
-        setLoading(false);
-      });
+    let cancelled = false;
+
+    if (!item) {
+      setIconUrl('');
+      setLoading(false);
+      return;
     }
+
+    setLoading(true);
+    setIconUrl('');
+
+    fetchItemIcon(item.item.id)
+      .then((url) => {
+        if (!cancelled) {
+          setIconUrl(url);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIconUrl(FALLBACK_ICON_URL);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [item?.item.id]);
 
   if (item) {
@@ -75,7 +101,9 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
               alt={item.name}
               className="w-12 h-12 rounded border border-slate-600 group-hover:border-slate-500 transition-colors"
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.src !== FALLBACK_ICON_URL) {
+                  e.currentTarget.src = FALLBACK_ICON_URL;
+                }
               }}
             />
           )}
