@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { WowIcon } from '@/components/ui/WowIcon';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { classIcons, roleIcons } from '@/lib/wowData';
 import type { GameRole } from '@/types/character';
 import { CharacterDetailPanel } from '@/components/characters/CharacterDetailPanel';
@@ -53,6 +54,17 @@ const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'second
   TANK: { label: 'Tank', variant: 'outline' },
   HEALER: { label: 'Healer', variant: 'outline' },
   DPS: { label: 'DPS', variant: 'outline' },
+};
+
+const getCharacterInitials = (name: string): string => {
+  if (!name) return '?';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 };
 
 // Skeleton Loader
@@ -202,9 +214,15 @@ export function DashboardPage() {
                                 <ChevronDown className="h-4 w-4 flex-shrink-0" />
                               )}
                               <div className="flex items-center gap-2">
-                                <span className="text-xs opacity-70 ml-1">
-                                    <img src={character.avatarUrl} alt="" />
-                                </span>
+                                <Avatar className="h-8 w-8 ring-1 ring-border/70 shadow-sm">
+                                  <AvatarImage
+                                    src={character.avatarUrl || undefined}
+                                    alt={`Avatar de ${character.name}`}
+                                  />
+                                  <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
+                                    {getCharacterInitials(character.name)}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <span className="font-semibold">
                                   {character.name}
                                 </span>

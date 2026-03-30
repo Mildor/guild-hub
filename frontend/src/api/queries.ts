@@ -68,6 +68,7 @@ export interface CreateEventPayload {
   title: string;
   description: string;
   eventDate: string;
+  autoInviteRoster?: boolean;
 }
 
 // Récupère l'utilisateur actuel

@@ -1,39 +1,14 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useCreateEvent } from '@/api/queries';
-import { CalendarIcon, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
-
-
-function formatSelectedDate(date: Date) {
-  return new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
 
 export function CreateEventDialog() {
   const createEventMutation = useCreateEvent();
   const [open, setOpen] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [eventDay, setEventDay] = useState<Date | undefined>();
+  const [eventDay, setEventDay] = useState('');
   const [eventTime, setEventTime] = useState('21:00');
+  const [autoInviteRoster, setAutoInviteRoster] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => {
@@ -41,7 +16,7 @@ export function CreateEventDialog() {
       !createEventMutation.isPending &&
       !!eventDay &&
       title.trim().length >= 3 &&
-      description.trim().length >= 5 &&
+      description.trim().length >= 10 &&
       !!eventTime
     );
   }, [createEventMutation.isPending, eventDay, title, description, eventTime]);
@@ -49,19 +24,10 @@ export function CreateEventDialog() {
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setEventDay(undefined);
+    setEventDay('');
     setEventTime('21:00');
-    setIsDatePickerOpen(false);
+    setAutoInviteRoster(false);
     setFormError(null);
-  };
-
-  
-
-  const handleDateSelect = (value: Date | undefined) => {
-    setEventDay(value);
-    if (value) {
-      setIsDatePickerOpen(false);
-    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -84,7 +50,7 @@ export function CreateEventDialog() {
     }
 
     const [hours = 0, minutes = 0] = eventTime.split(':').map(Number);
-    const dateTime = new Date(eventDay);
+    const dateTime = new Date(`${eventDay}T00:00:00`);
     dateTime.setHours(hours, minutes, 0, 0);
 
     try {
@@ -92,112 +58,132 @@ export function CreateEventDialog() {
         title: title.trim(),
         description: description.trim(),
         eventDate: dateTime.toISOString(),
+        autoInviteRoster,
       });
 
       resetForm();
-
-      wait().then(() => setOpen(false));
+      setOpen(false);
     } catch {
       setFormError("Impossible de creer l'evenement. Reessaie dans un instant.");
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2" /> Créer un événement
-        </Button>
-      </DialogTrigger>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center rounded-lg border border-amber-500 bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+      >
+        + Créer un événement
+      </button>
 
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Créer un nouvel événement</DialogTitle>
-          <DialogDescription>
-            Planifie un raid et ouvre les inscriptions de la guilde.
-          </DialogDescription>
-        </DialogHeader>
+      {open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-100">Créer un nouvel événement</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Planifie un raid et ouvre les inscriptions de la guilde.
+              </p>
+            </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label htmlFor="event-title" className="text-sm font-medium">
-              Titre
-            </label>
-            <Input
-              id="event-title"
-              required
-              minLength={3}
-              maxLength={120}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Raid Heroique - Palais des Nerubiens"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Jour</label>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(
-                'w-full justify-start text-left font-normal',
-                !eventDay && 'text-muted-foreground',
-              )}
-              onClick={() => setIsDatePickerOpen((prev) => !prev)}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {eventDay
-                ? formatSelectedDate(eventDay)
-                : 'Choisir une date'}
-            </Button>
-            {isDatePickerOpen && (
-              <div className="rounded-md border p-0">
-                <Calendar
-                  mode="single"
-                  selected={eventDay}
-                  onSelect={handleDateSelect}
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <label htmlFor="event-title" className="text-sm font-medium text-slate-200">
+                  Titre
+                </label>
+                <input
+                  id="event-title"
+                  required
+                  minLength={3}
+                  maxLength={120}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Raid Heroique - Palais des Nerubiens"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-500"
                 />
               </div>
-            )}
+
+              <div className="space-y-2">
+                <label htmlFor="event-day" className="text-sm font-medium text-slate-200">
+                  Jour
+                </label>
+                <input
+                  id="event-day"
+                  required
+                  type="date"
+                  value={eventDay}
+                  onChange={(e) => setEventDay(e.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="event-time" className="text-sm font-medium text-slate-200">
+                  Heure
+                </label>
+                <input
+                  id="event-time"
+                  required
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="event-description" className="text-sm font-medium text-slate-200">
+                  Description
+                </label>
+                <textarea
+                  id="event-description"
+                  required
+                  minLength={10}
+                  maxLength={1000}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Venez avec vos compos, on vise le clean !"
+                  className="min-h-28 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 mt-4 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="autoInvite"
+                  className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-950 cursor-pointer"
+                  checked={autoInviteRoster}
+                  onChange={(e) => setAutoInviteRoster(e.target.checked)}
+                />
+                <label htmlFor="autoInvite" className="text-sm font-medium text-slate-200 cursor-pointer select-none">
+                  Pré-inscrire automatiquement les membres du Roster (Présent)
+                </label>
+              </div>
+
+              {formError ? <p className="text-sm text-rose-400">{formError}</p> : null}
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {createEventMutation.isPending ? 'Creation...' : "Créer l'événement"}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="event-time" className="text-sm font-medium">
-              Heure
-            </label>
-            <Input
-              id="event-time"
-              required
-              type="time"
-              value={eventTime}
-              onChange={(e) => setEventTime(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="event-description" className="text-sm font-medium">
-              Description
-            </label>
-            <Textarea
-              id="event-description"
-              required
-              minLength={10}
-              maxLength={1000}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Venez avec vos compos, on vise le clean !"
-            />
-          </div>
-
-          {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
-
-          <DialogFooter>
-            <Button type="submit" disabled={!canSubmit}>
-              {createEventMutation.isPending ? 'Creation...' : 'Créer l\'événement'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      ) : null}
+    </>
   );
 }

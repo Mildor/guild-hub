@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateEventDto {
@@ -15,4 +15,9 @@ export class CreateEventDto {
   @ApiProperty({ example: '2026-04-01T20:00:00.000Z' })
   @IsDateString()
   eventDate: string;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  autoInviteRoster?: boolean;
 }

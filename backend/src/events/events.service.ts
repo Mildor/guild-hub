@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AttendanceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -7,8 +8,8 @@ import { UpdateEventDto } from './dto/update-event.dto';
 export class EventsService {
   constructor(private prisma: PrismaService) {}
 
-  createEvent(userId: string, data: CreateEventDto) {
-    return this.prisma.event.create({
+  async createEvent(userId: string, data: CreateEventDto) {
+    const event = await this.prisma.event.create({
       data: {
         title: data.title,
         description: data.description,
@@ -16,6 +17,27 @@ export class EventsService {
         createdById: userId,
       },
     });
+
+    if (data.autoInviteRoster) {
+      const roster = await this.prisma.character.findMany({ where: { inRoster: true } });
+
+      const uniqueByUser = new Map(roster.map((char) => [char.userId, char]));
+      const attendancesToCreate = Array.from(uniqueByUser.values()).map((char) => ({
+        eventId: event.id,
+        userId: char.userId,
+        characterId: char.id,
+        status: AttendanceStatus.ACCEPTED,
+      }));
+
+      if (attendancesToCreate.length > 0) {
+        await this.prisma.attendance.createMany({
+          data: attendancesToCreate,
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return event;
   }
 
   findUpcoming() {
