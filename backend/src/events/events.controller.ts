@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AppRole } from '@prisma/client';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -21,22 +36,39 @@ export class EventsController {
   @ApiResponse({ status: 201, description: 'Événement créé avec succès.' })
   @ApiResponse({ status: 400, description: 'Données invalides.' })
   @ApiResponse({ status: 403, description: 'Accès interdit.' })
-  create(@Body() dto: CreateEventDto) {
-    return this.eventsService.create(dto);
+  create(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: CreateEventDto,
+  ) {
+    return this.eventsService.createEvent(req.user.userId, dto);
+  }
+
+  @Get('upcoming')
+  @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
+  @ApiOperation({ summary: 'Retourne les événements à venir triés par date' })
+  @ApiResponse({ status: 200, description: 'Liste des événements à venir.' })
+  findUpcoming() {
+    return this.eventsService.findUpcoming();
   }
 
   @Get()
   @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
-  @ApiOperation({ summary: 'Retourne les événements futurs triés par date' })
-  @ApiResponse({ status: 200, description: 'Liste des événements futurs.' })
+  @ApiOperation({ summary: 'Retourne tous les événements triés par date' })
+  @ApiResponse({ status: 200, description: 'Liste des événements.' })
   findAll() {
     return this.eventsService.findAll();
   }
 
   @Get(':id')
   @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
-  @ApiOperation({ summary: 'Retourne un événement avec le roster complet (attendances + user + character)' })
-  @ApiResponse({ status: 200, description: 'Événement trouvé avec son roster complet.' })
+  @ApiOperation({
+    summary:
+      'Retourne un événement avec le roster complet (attendances + user + character)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Événement trouvé avec son roster complet.',
+  })
   @ApiResponse({ status: 404, description: 'Événement introuvable.' })
   findOne(@Param('id') id: string) {
     return this.eventsService.findOne(id);
@@ -45,7 +77,10 @@ export class EventsController {
   @Patch(':id')
   @Roles(AppRole.ADMIN, AppRole.OFFICER)
   @ApiOperation({ summary: 'Met à jour un événement' })
-  @ApiResponse({ status: 200, description: 'Événement mis à jour avec succès.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Événement mis à jour avec succès.',
+  })
   @ApiResponse({ status: 404, description: 'Événement introuvable.' })
   @ApiResponse({ status: 403, description: 'Accès interdit.' })
   update(@Param('id') id: string, @Body() dto: UpdateEventDto) {

@@ -104,12 +104,18 @@ export function DashboardPage() {
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="animate-fade-in-up flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-5">
               Mes Personnages
             </h1>
             <p className="text-muted-foreground">
               Gérez et consultez tous vos personnages World of Warcraft
+            </p>
+            <p className="text-muted-foreground">
+              Vôtre personnage définit en Main sera celui utilisé par défaut dans les autres sections du site (roster, raids, etc).
+            </p>
+            <p className="text-muted-foreground">
+              Vous pouvez synchroniser vos personnages à tout moment pour mettre à jour leurs informations et équipements.
             </p>
           </div>
           <Button
@@ -195,7 +201,10 @@ export function DashboardPage() {
                               ) : (
                                 <ChevronDown className="h-4 w-4 flex-shrink-0" />
                               )}
-                              <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs opacity-70 ml-1">
+                                    <img src={character.avatarUrl} alt="" />
+                                </span>
                                 <span className="font-semibold">
                                   {character.name}
                                 </span>

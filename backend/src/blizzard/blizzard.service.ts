@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, BadGatewayException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadGatewayException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
@@ -6,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Character } from '@prisma/client';
 
 interface BnetCharacter {
+  id: number;
   name: string;
   realm: { slug: string };
   playable_class: { name: string };
@@ -77,55 +83,56 @@ interface BnetSpecializationsResponse {
 
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
   // Chevalier de la mort
-  'Sang': 'TANK',
-  'Givre': 'DPS',
-  'Impie': 'DPS',
+  Sang: 'TANK',
+  Givre: 'DPS',
+  Impie: 'DPS',
   // Chasseur de démons
-  'Dévastation': 'DPS',
-  'Vengeance': 'TANK',
+  Dévastation: 'DPS',
+  Vengeance: 'TANK',
   // Druide
-  'Équilibre': 'DPS',
-  'Féral': 'DPS',
-  'Gardien': 'TANK',
-  'Restauration': 'HEALER',
+  Équilibre: 'DPS',
+  Féral: 'DPS',
+  Gardien: 'TANK',
+  Restauration: 'HEALER',
   // Guerrier
-  'Armes': 'DPS',
-  'Furie': 'DPS',
-  'Protection': 'TANK',
+  Armes: 'DPS',
+  Furie: 'DPS',
+  Protection: 'TANK',
   // Moine
   'Maître brasseur': 'TANK',
   'Marche-vent': 'DPS',
   'Tisse-brume': 'HEALER',
   // Paladin
-  'Sacré': 'HEALER',
-  'Vindicte': 'DPS',
+  Sacré: 'HEALER',
+  Vindicte: 'DPS',
   // Prêtre
-  'Discipline': 'HEALER',
-  'Ombre': 'DPS',
+  Discipline: 'HEALER',
+  Ombre: 'DPS',
   // Voleur
-  'Assassinat': 'DPS',
+  Assassinat: 'DPS',
   'Hors-la-loi': 'DPS',
-  'Subtilité': 'DPS',
+  Subtilité: 'DPS',
   // Chaman
   // Chasseur
   'Maîtrise des bêtes': 'DPS',
-  'Précision': 'DPS',
-  'Survie': 'DPS',
+  Précision: 'DPS',
+  Survie: 'DPS',
   // Mage
-  'Arcanes': 'DPS',
-  'Feu': 'DPS',
+  Arcanes: 'DPS',
+  Feu: 'DPS',
   // Démoniste
-  'Affliction': 'DPS',
-  'Démonologie': 'DPS',
-  'Destruction': 'DPS',
+  Affliction: 'DPS',
+  Démonologie: 'DPS',
+  Destruction: 'DPS',
   // Évocateur
-  'Augmentation': 'DPS',
-  'Préservation': 'HEALER',
+  Augmentation: 'DPS',
+  Préservation: 'HEALER',
 };
 
 @Injectable()
 export class BlizzardService {
   private readonly logger = new Logger(BlizzardService.name);
+  private readonly itemIconCache: Map<number, string> = new Map();
 
   constructor(
     private readonly httpService: HttpService,
@@ -173,7 +180,7 @@ export class BlizzardService {
         }
       }
       throw new BadGatewayException(
-        'Erreur lors de la communication avec l\'API Blizzard.',
+        "Erreur lors de la communication avec l'API Blizzard.",
       );
     }
 
@@ -188,7 +195,7 @@ export class BlizzardService {
 
     if (!character) {
       throw new UnauthorizedException({
-        message: 'Ce personnage n\'appartient pas à ce compte Battle.net.',
+        message: "Ce personnage n'appartient pas à ce compte Battle.net.",
         guildName: null,
       } as any);
     }
@@ -205,7 +212,7 @@ export class BlizzardService {
     // Vérifier la guilde
     if (!characterGuild) {
       throw new UnauthorizedException({
-        message: 'Ce personnage n\'est pas dans une guilde.',
+        message: "Ce personnage n'est pas dans une guilde.",
         guildName: null,
       } as any);
     }
@@ -259,7 +266,7 @@ export class BlizzardService {
         }
       }
       throw new BadGatewayException(
-        'Erreur lors de la communication avec l\'API Blizzard.',
+        "Erreur lors de la communication avec l'API Blizzard.",
       );
     }
 
@@ -267,11 +274,10 @@ export class BlizzardService {
       (account) => account.characters ?? [],
     );
 
-    const maxLevelCharacters = allCharacters.filter(
-      (char) => char.level >= 80,
-    );
+    const maxLevelCharacters = allCharacters.filter((char) => char.level >= 80);
 
     const syncedCharacters: Character[] = [];
+    const syncedCharacterIds: string[] = [];
 
     for (const char of maxLevelCharacters) {
       const details = await this.fetchCharacterProfile(
@@ -305,47 +311,70 @@ export class BlizzardService {
         user.bnetAccessToken,
       );
 
-      const synced = await this.prisma.character.upsert({
+      let existingCharacter = await this.prisma.character.findFirst({
         where: {
-          userId_name_realm: {
-            userId,
-            name: char.name,
-            realm: char.realm.slug,
-          },
-        },
-        update: {
-          class: char.playable_class.name,
-          activeSpec,
-          ilvl,
-          gameRole,
-          avatarUrl: media.avatarUrl,
-          renderUrl: media.renderUrl,
-          insetUrl: media.insetUrl,
-          activeSpecName: specializationInfo.activeSpecName,
-          activeSpecIcon: specializationInfo.activeSpecIcon,
-          equipment: equipmentData as any,
-          lastSyncAt: new Date(),
-        },
-        create: {
           userId,
-          name: char.name,
-          realm: char.realm.slug,
-          class: char.playable_class.name,
-          activeSpec,
-          gameRole,
-          ilvl,
-          avatarUrl: media.avatarUrl,
-          renderUrl: media.renderUrl,
-          insetUrl: media.insetUrl,
-          activeSpecName: specializationInfo.activeSpecName,
-          activeSpecIcon: specializationInfo.activeSpecIcon,
-          equipment: equipmentData as any,
-          lastSyncAt: new Date(),
+          blizzardId: char.id,
         },
       });
 
+      if (!existingCharacter) {
+        existingCharacter = await this.prisma.character.findFirst({
+          where: {
+            userId,
+            name: {
+              equals: char.name,
+              mode: 'insensitive',
+            },
+            realm: {
+              equals: char.realm.slug,
+              mode: 'insensitive',
+            },
+          },
+        });
+      }
+
+      const characterPayload = {
+        blizzardId: char.id,
+        name: char.name,
+        realm: char.realm.slug,
+        class: char.playable_class.name,
+        activeSpec,
+        ilvl,
+        gameRole,
+        avatarUrl: media.avatarUrl,
+        renderUrl: media.renderUrl,
+        insetUrl: media.insetUrl,
+        activeSpecName: specializationInfo.activeSpecName,
+        activeSpecIcon: specializationInfo.activeSpecIcon,
+        equipment: equipmentData as any,
+        lastSyncAt: new Date(),
+      };
+
+      const synced = existingCharacter
+        ? await this.prisma.character.update({
+            where: { id: existingCharacter.id },
+            data: characterPayload,
+          })
+        : await this.prisma.character.create({
+            data: {
+              userId,
+              ...characterPayload,
+            },
+          });
+
       syncedCharacters.push(synced);
+      syncedCharacterIds.push(synced.id);
     }
+
+    await this.prisma.character.deleteMany({
+      where: {
+        userId: user.id,
+        id: {
+          notIn: syncedCharacterIds,
+        },
+      },
+    });
 
     return syncedCharacters;
   }
@@ -400,15 +429,25 @@ export class BlizzardService {
         ),
       );
 
-      this.logger.debug(`Media response for ${characterName}: ${JSON.stringify(response.data)}`);
+      this.logger.debug(
+        `Media response for ${characterName}: ${JSON.stringify(response.data)}`,
+      );
 
       const assets = response.data.assets || [];
-      const media: { avatarUrl?: string; renderUrl?: string; insetUrl?: string } = {};
+      const media: {
+        avatarUrl?: string;
+        renderUrl?: string;
+        insetUrl?: string;
+      } = {};
 
       for (const asset of assets) {
         if (asset.key === 'avatar') {
           media.avatarUrl = asset.value;
-        } else if (asset.key === 'main' || asset.key === 'bust' || asset.key === 'full') {
+        } else if (
+          asset.key === 'main' ||
+          asset.key === 'bust' ||
+          asset.key === 'full'
+        ) {
           media.renderUrl = asset.value;
         } else if (asset.key === 'inset') {
           media.insetUrl = asset.value;
@@ -447,7 +486,9 @@ export class BlizzardService {
         ),
       );
 
-      this.logger.debug(`Equipment response for ${characterName}: ${JSON.stringify(response.data)}`);
+      this.logger.debug(
+        `Equipment response for ${characterName}: ${JSON.stringify(response.data)}`,
+      );
 
       return response.data.equipped_items || undefined;
     } catch (error) {
@@ -479,7 +520,9 @@ export class BlizzardService {
         ),
       );
 
-      this.logger.debug(`Specializations response for ${characterName}: ${JSON.stringify(response.data)}`);
+      this.logger.debug(
+        `Specializations response for ${characterName}: ${JSON.stringify(response.data)}`,
+      );
 
       const activeSpec = response.data.active_specialization;
       if (activeSpec) {
@@ -497,5 +540,35 @@ export class BlizzardService {
       return {};
     }
   }
-}
 
+  async fetchItemIcon(itemId: number): Promise<string> {
+    // Vérifier le cache
+    if (this.itemIconCache.has(itemId)) {
+      return this.itemIconCache.get(itemId)!;
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://www.wowhead.com/ajax/item/${itemId}?dataEnv=live`,
+        ),
+      );
+
+      if (response.data?.icon) {
+        const iconUrl = `https://wow.zamimg.com/images/wow/icons/large/${response.data.icon}.jpg`;
+        this.itemIconCache.set(itemId, iconUrl);
+        return iconUrl;
+      }
+
+      throw new Error('No icon found');
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch icon for item ${itemId}, using fallback`,
+      );
+      // Fallback: utiliser wowdev.wiki
+      const fallbackUrl = `https://render.wowdev.wiki/eu/item/${itemId}/icon.jpg`;
+      this.itemIconCache.set(itemId, fallbackUrl);
+      return fallbackUrl;
+    }
+  }
+}

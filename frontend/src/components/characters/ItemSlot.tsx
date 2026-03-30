@@ -1,6 +1,7 @@
 import { EquipmentItem } from '@/types/character';
 import { itemQualityColors, qualityNameToId, slotNames } from '@/lib/wowData';
-import { ReactNode } from 'react';
+import api from '@/lib/api';
+import { ReactNode, useState, useEffect } from 'react';
 
 interface ItemSlotProps {
   item?: EquipmentItem;
@@ -8,18 +9,51 @@ interface ItemSlotProps {
   emptyIcon: ReactNode;
 }
 
+// Cache pour les icônes d'items
+const iconCache: Record<number, string> = {};
+
 // Récupérer la qualité d'un item
 function getQualityId(item?: EquipmentItem): number {
   if (!item?.quality) return 1;
   return qualityNameToId[item.quality.name] ?? 1;
 }
 
-// Récupérer l'icon d'un item via WoW CDN
-function getItemIcon(item: EquipmentItem): string {
-  return `https://render.worldofwarcraft.com/eu/item/${item.item.id}/icon.jpg`;
+// Récupérer l'icon d'un item via le backend proxy
+async function fetchItemIcon(itemId: number): Promise<string> {
+  // Vérifier le cache
+  if (iconCache[itemId]) {
+    return iconCache[itemId];
+  }
+
+  try {
+    const response = await api.get(`/items/${itemId}/icon`);
+
+    if (response.data?.iconUrl) {
+      iconCache[itemId] = response.data.iconUrl;
+      return response.data.iconUrl;
+    }
+
+    throw new Error('No icon found');
+  } catch (error) {
+    console.error(`Failed to fetch icon for item ${itemId}:`, error);
+    // Fallback avec wowdev.wiki
+    return `https://render.wowdev.wiki/eu/item/${itemId}/icon.jpg`;
+  }
 }
 
-export function ItemSlot({ item, slotName, emptyIcon }: ItemSlotProps) {
+function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
+  const [iconUrl, setIconUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (item) {
+      fetchItemIcon(item.item.id).then((url) => {
+        setIconUrl(url);
+        setLoading(false);
+      });
+    }
+  }, [item?.item.id]);
+
   if (item) {
     const qualityId = getQualityId(item);
     const colorClass = itemQualityColors[qualityId] || 'text-white';
@@ -33,14 +67,18 @@ export function ItemSlot({ item, slotName, emptyIcon }: ItemSlotProps) {
       >
         {/* Item Icon */}
         <div className="flex-shrink-0">
-          <img
-            src={getItemIcon(item)}
-            alt={item.name}
-            className="w-12 h-12 rounded border border-slate-600 group-hover:border-slate-500 transition-colors"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+          {loading ? (
+            <div className="w-12 h-12 rounded border border-slate-600 bg-slate-800 animate-pulse" />
+          ) : (
+            <img
+              src={iconUrl}
+              alt={item.name}
+              className="w-12 h-12 rounded border border-slate-600 group-hover:border-slate-500 transition-colors"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
         </div>
 
         {/* Item Info */}
@@ -65,4 +103,8 @@ export function ItemSlot({ item, slotName, emptyIcon }: ItemSlotProps) {
       </p>
     </div>
   );
+}
+
+export function ItemSlot(props: ItemSlotProps) {
+  return <ItemSlotContent {...props} />;
 }

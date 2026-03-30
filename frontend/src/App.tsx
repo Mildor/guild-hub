@@ -8,6 +8,10 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { CalendarPage } from '@/pages/CalendarPage';
+import { EventDetailPage } from '@/pages/EventDetailPage';
+import { RosterPage } from '@/pages/RosterPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isJwtValid } from '@/lib/jwt';
 
@@ -85,6 +89,10 @@ function AppContent() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/roster" element={<RosterPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>
       </Routes>

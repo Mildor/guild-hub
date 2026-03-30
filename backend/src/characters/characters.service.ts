@@ -15,6 +15,51 @@ export class CharactersService {
     return this.prisma.character.findMany({ where: { userId } });
   }
 
+  getRoster() {
+    return this.prisma.character.findMany({
+      where: { inRoster: true },
+      include: { user: true },
+      orderBy: [{ gameRole: 'asc' }, { ilvl: 'desc' }],
+    });
+  }
+
+  getAllCharacters() {
+    return this.prisma.character.findMany({
+      include: { user: true },
+      orderBy: [{ name: 'asc' }, { ilvl: 'desc' }],
+    });
+  }
+
+  async toggleRosterStatus(id: string, inRoster: boolean) {
+    const character = await this.findOneOrFail(id);
+
+    if (!inRoster) {
+      return this.prisma.character.update({
+        where: { id },
+        data: { inRoster: false },
+        include: { user: true },
+      });
+    }
+
+    const [, updatedCharacter] = await this.prisma.$transaction([
+      this.prisma.character.updateMany({
+        where: {
+          userId: character.userId,
+          inRoster: true,
+          id: { not: id },
+        },
+        data: { inRoster: false },
+      }),
+      this.prisma.character.update({
+        where: { id },
+        data: { inRoster: true },
+        include: { user: true },
+      }),
+    ]);
+
+    return updatedCharacter;
+  }
+
   async update(id: string, dto: UpdateCharacterDto) {
     await this.findOneOrFail(id);
     return this.prisma.character.update({ where: { id }, data: dto });
@@ -27,9 +72,13 @@ export class CharactersService {
 
   async setMainCharacter(userId: string, characterId: string) {
     // Vérifier que le personnage existe et appartient à cet utilisateur
-    const character = await this.prisma.character.findUnique({ where: { id: characterId } });
+    const character = await this.prisma.character.findUnique({
+      where: { id: characterId },
+    });
     if (!character || character.userId !== userId) {
-      throw new NotFoundException(`Character #${characterId} not found or does not belong to user`);
+      throw new NotFoundException(
+        `Character #${characterId} not found or does not belong to user`,
+      );
     }
 
     // Transaction: désactiver tous les isMain pour cet user, puis activer celui-ci

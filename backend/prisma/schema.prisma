@@ -46,6 +46,7 @@ model User {
 
 model Character {
   id         String   @id @default(uuid()) @db.Uuid
+  blizzardId Int?     @unique
   userId     String   @db.Uuid
   name       String
   realm      String
@@ -54,6 +55,7 @@ model Character {
   gameRole   GameRole
   ilvl       Float    @default(0)
   isMain     Boolean  @default(false)
+  inRoster   Boolean  @default(false)
   guildRank  Int?
   lastSyncAt DateTime @default(now())
 
@@ -96,7 +98,7 @@ model Attendance {
 
   event       Event    @relation(fields: [eventId], references: [id])
   user        User     @relation(fields: [userId], references: [id])
-  character   Character? @relation(fields: [characterId], references: [id])
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
 
   @@id([eventId, userId])
 }

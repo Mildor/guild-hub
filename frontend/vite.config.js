@@ -13,12 +13,12 @@ export default defineConfig({
     },
     server: {
         host: '0.0.0.0',
-        port: 5173,
+        port: 8073,
         strictPort: true,
         hmr: {
             host: 'localhost',
-            port: 5173,
-            clientPort: 5173,
+            port: 8073,
+            clientPort: 8073,
             protocol: 'ws',
         },
         proxy: {

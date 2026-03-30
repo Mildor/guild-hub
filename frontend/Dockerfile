@@ -16,7 +16,7 @@ RUN pnpm install
 COPY . .
 
 # Expose Vite default port
-EXPOSE 5173
+EXPOSE 8073
 
 # Start Vite in dev mode with host flag to allow access outside container
 CMD ["pnpm", "run", "dev", "--host"]

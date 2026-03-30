@@ -1,7 +1,15 @@
-import { Controller, Get, Post, Req, Res, UseGuards, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+  Body,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
-import { User } from '@prisma/client';
+import { AppRole, User } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { BlizzardService } from '../blizzard/blizzard.service';
@@ -30,7 +38,7 @@ export class AuthController {
   bnetCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as User;
     const token = this.authService.generateJwt(user);
-    res.redirect(`http://localhost:5173/login/success?token=${token}`);
+    res.redirect(`http://localhost:8073/login/success?token=${token}`);
   }
 
   @Post('verify-guild')
@@ -48,14 +56,24 @@ export class AuthController {
         'The Good Place',
       );
 
-      // Mettre à jour le rôle de l'utilisateur en MEMBER
-      const updatedUser = await this.prisma.user.update({
+      const currentUser = await this.prisma.user.findUnique({
         where: { id: userId },
-        data: { appRole: 'MEMBER' },
       });
 
-      // Générer un nouveau token avec le nouveau rôle
-      const newToken = this.authService.generateJwt(updatedUser);
+      if (!currentUser) {
+        throw new Error('Utilisateur introuvable');
+      }
+
+      const effectiveUser =
+        currentUser.appRole === AppRole.GUEST
+          ? await this.prisma.user.update({
+              where: { id: userId },
+              data: { appRole: AppRole.MEMBER },
+            })
+          : currentUser;
+
+      // Générer un nouveau token avec le rôle effectif
+      const newToken = this.authService.generateJwt(effectiveUser);
 
       return {
         token: newToken,

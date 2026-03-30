@@ -7,10 +7,6 @@ export class UpsertAttendanceDto {
   @IsUUID()
   eventId: string;
 
-  @ApiProperty()
-  @IsUUID()
-  userId: string;
-
   @ApiProperty({ enum: AttendanceStatus })
   @IsEnum(AttendanceStatus)
   status: AttendanceStatus;

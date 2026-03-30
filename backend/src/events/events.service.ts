@@ -7,18 +7,46 @@ import { UpdateEventDto } from './dto/update-event.dto';
 export class EventsService {
   constructor(private prisma: PrismaService) {}
 
-  create(dto: CreateEventDto) {
+  createEvent(userId: string, data: CreateEventDto) {
     return this.prisma.event.create({
       data: {
-        ...dto,
-        eventDate: new Date(dto.eventDate),
+        title: data.title,
+        description: data.description,
+        eventDate: new Date(data.eventDate),
+        createdById: userId,
       },
+    });
+  }
+
+  findUpcoming() {
+    return this.prisma.event.findMany({
+      where: {
+        eventDate: {
+          gte: new Date(),
+        },
+      },
+      include: {
+        createdBy: true,
+        _count: {
+          select: {
+            attendances: true,
+          },
+        },
+      },
+      orderBy: { eventDate: 'asc' },
     });
   }
 
   findAll() {
     return this.prisma.event.findMany({
-      where: { eventDate: { gte: new Date() } },
+      include: {
+        createdBy: true,
+        _count: {
+          select: {
+            attendances: true,
+          },
+        },
+      },
       orderBy: { eventDate: 'asc' },
     });
   }
@@ -27,6 +55,7 @@ export class EventsService {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
+        createdBy: true,
         attendances: {
           include: {
             user: true,

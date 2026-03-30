@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
-import { ChevronDown, Menu, X, Home, Calendar, Users } from 'lucide-react';
+import { ChevronDown, Menu, X, Home, Calendar, Users, Shield } from 'lucide-react';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -28,8 +28,11 @@ export function DashboardLayout() {
 
   const navItems = [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
-    { icon: Calendar, label: 'Calendrier', href: '/events' },
+    { icon: Calendar, label: 'Calendrier', href: '/calendar' },
     { icon: Users, label: 'Roster', href: '/roster' },
+    ...(user?.appRole === 'ADMIN'
+      ? [{ icon: Shield, label: 'Administration', href: '/admin' }]
+      : []),
   ];
 
   const initials = user?.battletag
