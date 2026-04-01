@@ -289,7 +289,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                                         data.avatarUrl
                                     }
                                     alt={data.name}
-                                    className={`h-full w-full rounded-lg ${data.renderUrl ? "object-contain" : "object-cover"}`}
+                                    className={`h-full w-full rounded-lg ${data.renderUrl ? "object-contain" : "object-scale-down"}`}
                                     onError={(e) => {
                                         e.currentTarget.style.display = "none";
                                     }}
