@@ -25,8 +25,6 @@ const SLOT_LAYOUT = {
         "SHOULDER",
         "BACK",
         "CHEST",
-        "SHIRT",
-        "TABARD",
         "WRIST",
     ],
     RIGHT: [
@@ -220,6 +218,16 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
         },
     ];
 
+    const allArmorSlots = [...SLOT_LAYOUT.LEFT, ...SLOT_LAYOUT.RIGHT, ...SLOT_LAYOUT.BOTTOM];
+    const renderSlot = (slotType: string) => (
+        <ItemSlot
+            key={slotType}
+            item={getItemBySlotType(slotType, equipment)}
+            slotName={slotType}
+            emptyIcon={SLOT_ICONS[slotType] || SLOT_ICONS["CHEST"]}
+        />
+    );
+
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
         return (
@@ -234,110 +242,113 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     }
 
     return (
-        <div className="rounded-lg overflow-hidden bg-gradient-to-b from-card to-background border border-border/50 p-6">
-            {/* Main Paperdoll Grid Layout */}
-            <div className="grid grid-cols-3 gap-6 mb-6">
-                {/* LEFT COLUMN - 8 slots */}
-                <div className="flex flex-col gap-3">
-                    {SLOT_LAYOUT.LEFT.map((slotType) => (
-                        <ItemSlot
-                            key={slotType}
-                            item={getItemBySlotType(slotType, equipment)}
-                            slotName={slotType}
-                            emptyIcon={
-                                SLOT_ICONS[slotType] || SLOT_ICONS["CHEST"]
-                            }
-                        />
-                    ))}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950/60 via-slate-900/35 to-background p-4 md:p-5">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-indigo-500/10 blur-3xl" />
+
+            <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
+                <div className="min-w-0">
+                    <h3 className="truncate text-xl font-semibold text-foreground">
+                        {data.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {data.class}
+                        {data.activeSpecName ? ` • ${data.activeSpecName}` : ""}
+                        {data.realm ? ` • ${data.realm}` : ""}
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 font-semibold text-sky-200">
+                        iLvl {Math.round(data.ilvl)}
+                    </span>
+                    {data.activeSpecName && (
+                        <span className="rounded-full border border-border/70 bg-card/60 px-2.5 py-1 font-medium text-muted-foreground">
+                            {data.activeSpecName}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <div className="relative mt-4 grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-start">
+                <div className="hidden xl:flex xl:flex-col xl:gap-2">
+                    {SLOT_LAYOUT.LEFT.map(renderSlot)}
+                    <div className="mt-2 space-y-2 border-t border-border/50 pt-2">
+                        {renderSlot("MAIN_HAND")}
+                        {renderSlot("OFF_HAND")}
+                    </div>
                 </div>
 
-                {/* CENTER - Character Render */}
-                <div className="flex flex-col items-center justify-center gap-4">
+                <div className="space-y-4">
                     {data.renderUrl || data.insetUrl || data.avatarUrl ? (
-                        <div className="w-full h-full">
-                            <img
-                                src={
-                                    data.renderUrl ||
-                                    data.insetUrl ||
-                                    data.avatarUrl
-                                }
-                                alt={data.name}
-                                className={`w-full h-full ${data.renderUrl ? "object-contain" : "object-cover"}`}
-                                onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                }}
-                            />
-                            {/* Badge spécialisation */}
+                        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2">
+                            <div className="h-[320px] sm:h-[420px]">
+                                <img
+                                    src={
+                                        data.renderUrl ||
+                                        data.insetUrl ||
+                                        data.avatarUrl
+                                    }
+                                    alt={data.name}
+                                    className={`h-full w-full rounded-lg ${data.renderUrl ? "object-contain" : "object-cover"}`}
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = "none";
+                                    }}
+                                />
+                            </div>
                             {data.activeSpecIcon && data.activeSpecName && (
-                                <div className="absolute top-3 right-3 flex items-center gap-2 glass px-3 py-1.5 rounded-lg">
+                                <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-border/70 bg-black/50 px-3 py-1.5 backdrop-blur">
                                     <img
                                         src={`https://render.worldofwarcraft.com/eu/spell/${data.activeSpecIcon}.jpg`}
                                         alt={data.activeSpecName}
-                                        className="w-5 h-5 rounded"
+                                        className="h-5 w-5 rounded"
                                     />
-                                    <span className="text-xs font-semibold text-white">
+                                    <span className="text-xs font-semibold text-slate-100">
                                         {data.activeSpecName}
                                     </span>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-center justify-center w-full h-96 rounded-lg bg-muted border border-border text-muted-foreground overflow-hidden">
-                            <GalleryVertical className="w-12 h-12 opacity-30" />
+                        <div className="flex h-[320px] sm:h-[420px] w-full items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-muted/30 text-muted-foreground">
+                            <GalleryVertical className="h-12 w-12 opacity-30" />
                         </div>
                     )}
 
-                    <div className="flex flex-wrap justify-center gap-3 mt-1 w-full">
-                        {quickLinks.map((link) => (
-                            <a
-                                key={link.label}
-                                href={link.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full border border-slate-700 transition-colors flex items-center gap-2"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                <span>{link.label}</span>
-                            </a>
-                        ))}
+                    <div className="rounded-xl border border-border/60 bg-card/30 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Liens utiles
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {quickLinks.map((link) => (
+                                <a
+                                    key={link.label}
+                                    href={link.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-sky-400/40 hover:bg-sky-500/10"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>{link.label}</span>
+                                </a>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN - 8 slots */}
-                <div className="flex flex-col gap-3">
-                    {SLOT_LAYOUT.RIGHT.map((slotType) => (
-                        <ItemSlot
-                            key={slotType}
-                            item={getItemBySlotType(slotType, equipment)}
-                            slotName={slotType}
-                            emptyIcon={
-                                SLOT_ICONS[slotType] || SLOT_ICONS["CHEST"]
-                            }
-                        />
-                    ))}
+                <div className="hidden xl:flex xl:flex-col xl:gap-2">
+                    {SLOT_LAYOUT.RIGHT.map(renderSlot)}
+                </div>
+
+                <div className="xl:hidden rounded-xl border border-border/60 bg-card/30 p-3">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Équipement
+                    </p>
+                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
+                        {allArmorSlots.map(renderSlot)}
+                    </div>
                 </div>
             </div>
 
-            {/* BOTTOM ROW - Weapons (centered) */}
-            <div className="border-t border-border/50 pt-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 text-center">
-                    Armes
-                </p>
-                <div className="flex justify-center gap-6 max-w-md mx-auto">
-                    {SLOT_LAYOUT.BOTTOM.map((slotType) => (
-                        <div key={slotType} className="flex-1">
-                            <ItemSlot
-                                item={getItemBySlotType(slotType, equipment)}
-                                slotName={slotType}
-                                emptyIcon={
-                                    SLOT_ICONS[slotType] ||
-                                    SLOT_ICONS["MAIN_HAND"]
-                                }
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

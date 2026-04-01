@@ -82,40 +82,37 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
 
   if (item) {
     const qualityId = getQualityId(item);
-    const colorClass = itemQualityColors[qualityId] || 'text-white';
+    const qualityClass = itemQualityColors[qualityId] || 'text-white';
 
     return (
       <a
         href={`https://www.wowhead.com/fr/item=${item.item.id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-3 hover:bg-muted/60 p-1 rounded-md transition-colors cursor-pointer group"
+        title={`${slotNames[slotName] || slotName}${item.level?.value ? ` - ilvl ${item.level.value}` : ''}`}
+        className="block rounded-md transition-transform duration-150 hover:scale-[1.03] cursor-pointer group"
       >
-        {/* Item Icon */}
-        <div className="flex-shrink-0">
+        <div className="relative w-12 h-12">
           {loading ? (
             <div className="w-12 h-12 rounded border border-border bg-muted animate-pulse" />
           ) : (
-            <img
-              src={iconUrl}
-              alt={item.name}
-              className="w-12 h-12 rounded border border-border group-hover:border-primary/40 transition-colors"
-              onError={(e) => {
-                if (e.currentTarget.src !== FALLBACK_ICON_URL) {
-                  e.currentTarget.src = FALLBACK_ICON_URL;
-                }
-              }}
-            />
-          )}
-        </div>
-
-        {/* Item Info */}
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${colorClass} truncate`}>
-            {item.name}
-          </p>
-          {item.level?.value && (
-            <p className="text-xs text-muted-foreground">ilvl {item.level.value}</p>
+            <>
+              <img
+                src={iconUrl}
+                alt={item.name}
+                className={`w-12 h-12 rounded border ${qualityClass} group-hover:border-primary/40 transition-colors`}
+                onError={(e) => {
+                  if (e.currentTarget.src !== FALLBACK_ICON_URL) {
+                    e.currentTarget.src = FALLBACK_ICON_URL;
+                  }
+                }}
+              />
+              {item.level?.value && (
+                <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] leading-none font-semibold text-white px-1 py-0.5 rounded-sm">
+                  {item.level.value}
+                </span>
+              )}
+            </>
           )}
         </div>
       </a>
@@ -124,11 +121,11 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
 
   // Slot vide
   return (
-    <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-border/50 bg-muted/15 text-muted-foreground/50 hover:border-primary/30 hover:text-muted-foreground/70 transition-colors">
-      <div className="opacity-60">{emptyIcon}</div>
-      <p className="text-xs text-center font-medium opacity-60">
-        {slotNames[slotName] || slotName}
-      </p>
+    <div
+      title={slotNames[slotName] || slotName}
+      className="w-12 h-12 flex items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-muted-foreground/45 hover:border-primary/30 transition-colors"
+    >
+      <div className="opacity-60 scale-75">{emptyIcon}</div>
     </div>
   );
 }
