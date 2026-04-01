@@ -9,14 +9,22 @@ export class EventsService {
   constructor(private prisma: PrismaService) {}
 
   async createEvent(userId: string, data: CreateEventDto) {
+    const parsedDate = new Date(data.eventDate);
+    console.log('📅 createEvent - Received eventDate:', data.eventDate);
+    console.log('📅 createEvent - Parsed to:', parsedDate);
+    console.log('📅 createEvent - Server NOW:', new Date());
+    console.log('📅 createEvent - Is future?', parsedDate > new Date());
+    
     const event = await this.prisma.event.create({
       data: {
         title: data.title,
         description: data.description,
-        eventDate: new Date(data.eventDate),
+        eventDate: parsedDate,
         createdById: userId,
       },
     });
+    
+    console.log('✅ Event created:', event);
 
     if (data.autoInviteRoster) {
       const roster = await this.prisma.character.findMany({ where: { inRoster: true } });
@@ -40,13 +48,13 @@ export class EventsService {
     return event;
   }
 
-  findUpcoming() {
-    return this.prisma.event.findMany({
-      where: {
-        eventDate: {
-          gte: new Date(),
-        },
-      },
+  async findUpcoming() {
+    const now = new Date();
+    console.log('🔍 findUpcoming - Server time NOW:', now);
+    console.log('🔍 findUpcoming - Server timezone offset:', new Date().getTimezoneOffset());
+    
+    // TEMPORAIRE: Test avec findAll() au lieu de filter
+    const events = await this.prisma.event.findMany({
       include: {
         createdBy: true,
         _count: {
@@ -57,6 +65,13 @@ export class EventsService {
       },
       orderBy: { eventDate: 'asc' },
     });
+    
+    console.log('🔍 findUpcoming - All events found:', events.length);
+    events.forEach(e => {
+      console.log(`  - ${e.title} at ${e.eventDate} (diff from now: ${e.eventDate.getTime() - now.getTime()}ms)`);
+    });
+    
+    return events;
   }
 
   findAll() {

@@ -256,7 +256,8 @@ export const useCreateEvent = () => {
   return useMutation({
     mutationFn: createEvent,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] });
+      // Invalider tous les caches d'événements
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 };

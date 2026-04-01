@@ -38,7 +38,7 @@ export class AuthController {
   bnetCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as User;
     const token = this.authService.generateJwt(user);
-    res.redirect(`http://localhost:8073/login/success?token=${token}`);
+    res.redirect(`http://192.168.1.106:8073/login/success?token=${token}`);
   }
 
   @Post('verify-guild')

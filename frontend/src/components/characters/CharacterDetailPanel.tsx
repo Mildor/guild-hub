@@ -107,15 +107,6 @@ function getItemBySlotType(
 export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     const equipment = data.equipment || [];
 
-    console.log("📋 CharacterDetailPanel - Data received:", {
-        name: data.name,
-        renderUrl: data.renderUrl,
-        activeSpecName: data.activeSpecName,
-        activeSpecIcon: data.activeSpecIcon,
-        equipmentCount: equipment?.length,
-        equipmentData: equipment,
-    });
-
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
         return (
