@@ -262,7 +262,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                                     data.avatarUrl
                                 }
                                 alt={data.name}
-                                className={`w-full h-full ${data.renderUrl ? "object-contain" : "object-cover"} group-hover:scale-105 transition-transform duration-300`}
+                                className={`w-full h-full ${data.renderUrl ? "object-contain" : "object-cover"}`}
                                 onError={(e) => {
                                     e.currentTarget.style.display = "none";
                                 }}
