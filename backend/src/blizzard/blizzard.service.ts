@@ -449,7 +449,7 @@ export class BlizzardService {
           asset.key === 'full'
         ) {
           media.renderUrl = asset.value;
-        } else if (asset.key === 'inset') {
+        } else if (asset.key === 'main-raw') {
           media.insetUrl = asset.value;
         }
       }

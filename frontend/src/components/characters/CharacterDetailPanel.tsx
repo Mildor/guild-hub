@@ -254,7 +254,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                 {/* CENTER - Character Render */}
                 <div className="flex flex-col items-center justify-center gap-4">
                     {data.renderUrl || data.insetUrl || data.avatarUrl ? (
-                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-b from-muted to-card border border-border w-full h-96 group">
+                        <div className="w-full h-full">
                             <img
                                 src={
                                     data.renderUrl ||
@@ -300,16 +300,6 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                                 <span>{link.label}</span>
                             </a>
                         ))}
-                    </div>
-
-                    {/* Talents Section */}
-                    <div className="p-3 rounded-lg bg-muted/30 border border-border/50 w-full text-center">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                            Talents
-                        </p>
-                        <div className="text-xs text-muted-foreground/60">
-                            Bientôt disponible
-                        </div>
                     </div>
                 </div>
 
