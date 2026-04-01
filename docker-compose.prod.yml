@@ -1,0 +1,61 @@
+services:
+    db:
+        image: postgres:15-alpine
+        container_name: guild-hub-db-prod
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        volumes:
+            - db_data:/var/lib/postgresql/data
+        networks:
+            - guild-hub-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile.prod
+        container_name: guild-hub-backend-prod
+        restart: unless-stopped
+        env_file:
+            - ./backend/.env.prod
+        volumes:
+            # Persistance des images uploadées (Sharp / avatars)
+            - ./uploads:/app/public/uploads
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - guild-hub-network
+        expose:
+            - "3000"
+
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile.prod
+            args:
+                # URL de l'API injectée au moment du build Vite
+                VITE_API_URL: https://thegoodplace-wow.xyz/api
+        container_name: guild-hub-frontend-prod
+        restart: unless-stopped
+        ports:
+            # Port exposé localement pour le tunnel Cloudflare
+            - "8080:80"
+        depends_on:
+            - backend
+        networks:
+            - guild-hub-network
+
+networks:
+    guild-hub-network:
+        driver: bridge
+
+volumes:
+    db_data:
