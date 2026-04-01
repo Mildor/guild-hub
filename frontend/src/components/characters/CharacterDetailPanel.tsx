@@ -1,6 +1,7 @@
 import { Character, EquipmentItem } from "@/types/character";
 import { ItemSlot } from "@/components/characters/ItemSlot";
 import { slotNames } from "@/lib/wowData";
+import { formatForUrl } from "@/lib/utils";
 import {
     Brain,
     Shirt,
@@ -13,6 +14,7 @@ import {
     GalleryVertical,
     Backpack,
     Wand,
+    ExternalLink,
 } from "lucide-react";
 
 // Mapping des slots Blizzard vers noms standard (left column, right column, bottom)
@@ -65,6 +67,88 @@ const SLOT_ICONS: Record<string, React.ReactNode> = {
     RANGED: <Wand className="w-6 h-6" />,
 };
 
+const ARCHON_CLASS_MAP: Record<string, string> = {
+    warrior: "warrior",
+    guerrier: "warrior",
+    paladin: "paladin",
+    hunter: "hunter",
+    chasseur: "hunter",
+    rogue: "rogue",
+    voleur: "rogue",
+    priest: "priest",
+    pretre: "priest",
+    "chevalier-de-la-mort": "death-knight",
+    deathknight: "death-knight",
+    "death-knight": "death-knight",
+    shaman: "shaman",
+    chamane: "shaman",
+    mage: "mage",
+    warlock: "warlock",
+    demoniste: "warlock",
+    monk: "monk",
+    moine: "monk",
+    druid: "druid",
+    druide: "druid",
+    demonhunter: "demon-hunter",
+    "demon-hunter": "demon-hunter",
+    "chasseur-de-demons": "demon-hunter",
+    evoker: "evoker",
+    "evoqueur": "evoker",
+};
+
+const ARCHON_SPEC_MAP: Record<string, string> = {
+    // Warrior
+    armes: "arms",
+    fury: "fury",
+    fureur: "fury",
+    protection: "protection",
+    // Paladin
+    sacre: "holy",
+    vindicte: "retribution",
+    retribution: "retribution",
+    // Hunter
+    "maitrise-des-betes": "beast-mastery",
+    "precision": "marksmanship",
+    survie: "survival",
+    // Rogue
+    assassinat: "assassination",
+    horslaloi: "outlaw",
+    "hors-la-loi": "outlaw",
+    subtilite: "subtlety",
+    // Priest
+    discipline: "discipline",
+    ombre: "shadow",
+    // Death Knight
+    sang: "blood",
+    givre: "frost",
+    impie: "unholy",
+    // Shaman
+    elementaire: "elemental",
+    amelioration: "enhancement",
+    restauration: "restoration",
+    // Mage
+    arcane: "arcane",
+    feu: "fire",
+    // Warlock
+    affliction: "affliction",
+    demonologie: "demonology",
+    destruction: "destruction",
+    // Monk
+    "maitre-brasseur": "brewmaster",
+    "marche-vent": "windwalker",
+    tissebrume: "mistweaver",
+    // Druid
+    equilibre: "balance",
+    farouche: "feral",
+    gardien: "guardian",
+    // Demon Hunter
+    devastation: "havoc",
+    vengeance: "vengeance",
+    // Evoker
+    preservation: "preservation",
+    augmentation: "augmentation",
+};
+
 interface CharacterDetailPanelProps {
     data: Character;
 }
@@ -106,6 +190,35 @@ function getItemBySlotType(
 
 export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     const equipment = data.equipment || [];
+    const formattedRealm = formatForUrl(data.realm);
+    const formattedName = formatForUrl(data.name);
+    const rawSpec = formatForUrl(data.activeSpecName || data.activeSpec);
+    const archonSpec = ARCHON_SPEC_MAP[rawSpec] || rawSpec;
+    const archonClass =
+        ARCHON_CLASS_MAP[formatForUrl(data.class)] || formatForUrl(data.class);
+
+    const quickLinks = [
+        {
+            label: "Armurerie",
+            href: `https://worldofwarcraft.blizzard.com/fr-fr/character/eu/${formattedRealm}/${formattedName}`,
+        },
+        {
+            label: "Warcraft Logs",
+            href: `https://www.warcraftlogs.com/character/eu/${formattedRealm}/${formattedName}`,
+        },
+        {
+            label: "Raider.IO",
+            href: `https://raider.io/characters/eu/${formattedRealm}/${formattedName}`,
+        },
+        {
+            label: "Archon M+",
+            href: `https://www.archon.gg/wow/builds/${archonSpec}/${archonClass}/mythic-plus/overview/10/all-dungeons/this-week`,
+        },
+        {
+            label: "Archon Raid",
+            href: `https://www.archon.gg/wow/builds/${archonSpec}/${archonClass}/raid/overview/mythic/all-bosses`,
+        },
+    ];
 
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
@@ -173,6 +286,21 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                             <GalleryVertical className="w-12 h-12 opacity-30" />
                         </div>
                     )}
+
+                    <div className="flex flex-wrap justify-center gap-3 mt-1 w-full">
+                        {quickLinks.map((link) => (
+                            <a
+                                key={link.label}
+                                href={link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full border border-slate-700 transition-colors flex items-center gap-2"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>{link.label}</span>
+                            </a>
+                        ))}
+                    </div>
 
                     {/* Talents Section */}
                     <div className="p-3 rounded-lg bg-muted/30 border border-border/50 w-full text-center">
