@@ -10,6 +10,8 @@ import { EventsModule } from './events/events.module';
 import { AttendancesModule } from './attendances/attendances.module';
 import { AuthModule } from './auth/auth.module';
 import { BlizzardModule } from './blizzard/blizzard.module';
+import { StrategiesModule } from './strategies/strategies.module';
+import { DiscordModule } from './discord/discord.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { BlizzardModule } from './blizzard/blizzard.module';
     AttendancesModule,
     AuthModule,
     BlizzardModule,
+    StrategiesModule,
+    DiscordModule,
   ],
   controllers: [AppController],
   providers: [AppService],

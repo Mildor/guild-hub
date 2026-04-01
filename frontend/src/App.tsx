@@ -13,6 +13,7 @@ import { CalendarPage } from '@/pages/CalendarPage';
 import { EventDetailPage } from '@/pages/EventDetailPage';
 import { RosterPage } from '@/pages/RosterPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { StrategiesPage } from '@/pages/StrategiesPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isJwtValid } from '@/lib/jwt';
 
@@ -94,6 +95,8 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/roster" element={<RosterPage />} />
+            <Route path="/strategies" element={<StrategiesPage />} />
+            <Route path="/strategies/:id" element={<StrategiesPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>

@@ -12,7 +12,7 @@ export function WowIcon({ name, size = 24, className = '', ...props }: WowIconPr
       alt={name}
       width={size}
       height={size}
-      className={`rounded-md border border-slate-700 ${className}`}
+      className={`rounded-md border border-border ${className}`}
       {...props}
     />
   );

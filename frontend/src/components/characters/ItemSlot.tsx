@@ -89,17 +89,17 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
         href={`https://www.wowhead.com/fr/item=${item.item.id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-3 hover:bg-slate-800 p-1 rounded-md transition-colors cursor-pointer group"
+        className="flex items-center gap-3 hover:bg-muted/60 p-1 rounded-md transition-colors cursor-pointer group"
       >
         {/* Item Icon */}
         <div className="flex-shrink-0">
           {loading ? (
-            <div className="w-12 h-12 rounded border border-slate-600 bg-slate-800 animate-pulse" />
+            <div className="w-12 h-12 rounded border border-border bg-muted animate-pulse" />
           ) : (
             <img
               src={iconUrl}
               alt={item.name}
-              className="w-12 h-12 rounded border border-slate-600 group-hover:border-slate-500 transition-colors"
+              className="w-12 h-12 rounded border border-border group-hover:border-primary/40 transition-colors"
               onError={(e) => {
                 if (e.currentTarget.src !== FALLBACK_ICON_URL) {
                   e.currentTarget.src = FALLBACK_ICON_URL;
@@ -115,7 +115,7 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
             {item.name}
           </p>
           {item.level?.value && (
-            <p className="text-xs text-slate-400">ilvl {item.level.value}</p>
+            <p className="text-xs text-muted-foreground">ilvl {item.level.value}</p>
           )}
         </div>
       </a>
@@ -124,7 +124,7 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
 
   // Slot vide
   return (
-    <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-slate-700/50 bg-slate-900/20 text-muted-foreground/50 hover:border-slate-600 hover:text-muted-foreground/70 transition-colors">
+    <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-border/50 bg-muted/15 text-muted-foreground/50 hover:border-primary/30 hover:text-muted-foreground/70 transition-colors">
       <div className="opacity-60">{emptyIcon}</div>
       <p className="text-xs text-center font-medium opacity-60">
         {slotNames[slotName] || slotName}

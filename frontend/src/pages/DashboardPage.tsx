@@ -253,7 +253,7 @@ export function DashboardPage() {
                           </TableCell>
                         </TableRow>
                         {isExpanded && (
-                          <TableRow className="border-border/50 bg-slate-900/30">
+                          <TableRow className="border-border/50 bg-muted/20">
                             <TableCell colSpan={6} className="p-0">
                               <div className="p-6">
                                 <CharacterDetailPanel data={character} />

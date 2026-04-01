@@ -18,6 +18,9 @@ COPY . .
 # Generate Prisma Client
 RUN pnpm exec prisma generate
 
+# Build the application
+RUN pnpm run build
+
 # Expose backend port
 EXPOSE 3000
 

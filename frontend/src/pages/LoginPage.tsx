@@ -35,7 +35,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md space-y-4">
-        <Link to="/" className="text-slate-400 transition-colors hover:text-white">
+        <Link to="/" className="text-muted-foreground transition-colors hover:text-foreground">
           ← Retour à l&apos;accueil
         </Link>
 

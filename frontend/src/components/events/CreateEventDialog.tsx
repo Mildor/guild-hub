@@ -73,24 +73,24 @@ export function CreateEventDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center rounded-lg border border-amber-500 bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+        className="inline-flex items-center rounded-lg border border-primary bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/85 glow-gold"
       >
         + Créer un événement
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl animate-scale-in">
             <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-100">Créer un nouvel événement</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-xl font-semibold text-foreground">Créer un nouvel événement</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Planifie un raid et ouvre les inscriptions de la guilde.
               </p>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <label htmlFor="event-title" className="text-sm font-medium text-slate-200">
+                <label htmlFor="event-title" className="text-sm font-medium text-foreground/90">
                   Titre
                 </label>
                 <input
@@ -101,12 +101,12 @@ export function CreateEventDialog() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Raid Heroique - Palais des Nerubiens"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-500"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-primary"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="event-day" className="text-sm font-medium text-slate-200">
+                <label htmlFor="event-day" className="text-sm font-medium text-foreground/90">
                   Jour
                 </label>
                 <input
@@ -115,12 +115,12 @@ export function CreateEventDialog() {
                   type="date"
                   value={eventDay}
                   onChange={(e) => setEventDay(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-amber-500"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none transition focus:border-primary"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="event-time" className="text-sm font-medium text-slate-200">
+                <label htmlFor="event-time" className="text-sm font-medium text-foreground/90">
                   Heure
                 </label>
                 <input
@@ -129,12 +129,12 @@ export function CreateEventDialog() {
                   type="time"
                   value={eventTime}
                   onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-amber-500"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none transition focus:border-primary"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="event-description" className="text-sm font-medium text-slate-200">
+                <label htmlFor="event-description" className="text-sm font-medium text-foreground/90">
                   Description
                 </label>
                 <textarea
@@ -145,37 +145,37 @@ export function CreateEventDialog() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Venez avec vos compos, on vise le clean !"
-                  className="min-h-28 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-500"
+                  className="min-h-28 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-primary"
                 />
               </div>
 
-              <div className="flex items-center gap-3 mt-4 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+              <div className="flex items-center gap-3 mt-4 p-3 bg-muted/40 border border-border rounded-lg">
                 <input
                   type="checkbox"
                   id="autoInvite"
-                  className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-950 cursor-pointer"
+                  className="w-5 h-5 rounded border-border bg-background text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
                   checked={autoInviteRoster}
                   onChange={(e) => setAutoInviteRoster(e.target.checked)}
                 />
-                <label htmlFor="autoInvite" className="text-sm font-medium text-slate-200 cursor-pointer select-none">
+                <label htmlFor="autoInvite" className="text-sm font-medium text-foreground/90 cursor-pointer select-none">
                   Pré-inscrire automatiquement les membres du Roster (Présent)
                 </label>
               </div>
 
-              {formError ? <p className="text-sm text-rose-400">{formError}</p> : null}
+              {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
               <div className="mt-6 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground/90 transition hover:bg-muted/60"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/85 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {createEventMutation.isPending ? 'Creation...' : "Créer l'événement"}
                 </button>

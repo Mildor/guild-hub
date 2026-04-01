@@ -297,6 +297,134 @@ export const useToggleRoster = () => {
   });
 };
 
+// ==================== STRATEGIES ====================
+
+export interface Strategy {
+  id: string;
+  bossName: string;
+  raidName: string;
+  positioningImageUrl: string | null;
+  generalMechanics: string;
+  tankNotes: string | null;
+  healerNotes: string | null;
+  dpsNotes: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: {
+    id: string;
+    battletag: string;
+  };
+}
+
+export interface CreateStrategyPayload {
+  bossName: string;
+  raidName: string;
+  positioningImageUrl?: string;
+  generalMechanics: string;
+  tankNotes?: string;
+  healerNotes?: string;
+  dpsNotes?: string;
+  imageFile?: File;
+}
+
+export interface UpdateStrategyPayload extends Partial<CreateStrategyPayload> {}
+
+export const useGetStrategies = () => {
+  return useQuery({
+    queryKey: ['strategies'],
+    queryFn: async () => {
+      const { data } = await api.get<Strategy[]>('/strategies');
+      return data;
+    },
+    retry: 1,
+  });
+};
+
+export const useCreateStrategy = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreateStrategyPayload & { imageFile?: File }) => {
+      const { imageFile, ...strategyData } = payload;
+
+      if (imageFile) {
+        // Si fichier présent, envoyer FormData
+        const formData = new FormData();
+        formData.append('bossName', strategyData.bossName);
+        formData.append('raidName', strategyData.raidName);
+        formData.append('generalMechanics', strategyData.generalMechanics);
+        if (strategyData.positioningImageUrl) {
+          formData.append('positioningImageUrl', strategyData.positioningImageUrl);
+        }
+        if (strategyData.tankNotes) formData.append('tankNotes', strategyData.tankNotes);
+        if (strategyData.healerNotes) formData.append('healerNotes', strategyData.healerNotes);
+        if (strategyData.dpsNotes) formData.append('dpsNotes', strategyData.dpsNotes);
+        formData.append('imageFile', imageFile);
+
+        const { data } = await api.post<Strategy>('/strategies', formData);
+        return data;
+      } else {
+        // Sinon, envoyer JSON normal
+        const { data } = await api.post<Strategy>('/strategies', strategyData);
+        return data;
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
+    },
+  });
+};
+
+export const useUpdateStrategy = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: (UpdateStrategyPayload & { id: string; imageFile?: File }) | (UpdateStrategyPayload & { id: string })) => {
+      const p = payload as any;
+      const { imageFile, ...strategyData } = p;
+
+      if (imageFile) {
+        // Si fichier présent, envoyer FormData
+        const formData = new FormData();
+        if (strategyData.bossName) formData.append('bossName', strategyData.bossName);
+        if (strategyData.raidName) formData.append('raidName', strategyData.raidName);
+        if (strategyData.generalMechanics) formData.append('generalMechanics', strategyData.generalMechanics);
+        if (strategyData.positioningImageUrl) {
+          formData.append('positioningImageUrl', strategyData.positioningImageUrl);
+        }
+        if (strategyData.tankNotes) formData.append('tankNotes', strategyData.tankNotes);
+        if (strategyData.healerNotes) formData.append('healerNotes', strategyData.healerNotes);
+        if (strategyData.dpsNotes) formData.append('dpsNotes', strategyData.dpsNotes);
+        formData.append('imageFile', imageFile);
+
+        const { data } = await api.patch<Strategy>(`/strategies/${id}`, formData);
+        return data;
+      } else {
+        // Sinon, envoyer JSON normal
+        const { data } = await api.patch<Strategy>(`/strategies/${id}`, strategyData);
+        return data;
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
+    },
+  });
+};
+
+export const useDeleteStrategy = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/strategies/${id}`);
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
+    },
+  });
+};
+
+// ==================== USERS ====================
+
 export const useGetAllUsers = () => {
   return useQuery({
     queryKey: ['users'],

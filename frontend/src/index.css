@@ -43,8 +43,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* ── WoW Semantic Colors ── */
-  --color-legendary: #f59e0b;
-  --color-epic: #8b5cf6;
+  --color-legendary: #d4a44a;
+  --color-epic: #a855f7;
 
   /* ── WoW Class Colors ── */
   --color-wow-mage: #3FC7EB;
@@ -96,64 +96,71 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 }
 
-/* ── Rich Dark Slate (WarcraftLogs Enhanced) ── */
+/*
+ * ════════════════════════════════════════════════
+ *   AZEROTH NIGHTFALL — Premium Dark Theme
+ * ════════════════════════════════════════════════
+ *
+ * Deep indigo-black backgrounds with warm gold accents.
+ * Multiple depth layers, luminous borders, glass surfaces.
+ */
 .dark {
-  /* background: hsl(222.2, 84%, 4.9%) → Rich Slate très sombre */
-  --background: oklch(0.13 0.028 261);
-  --foreground: oklch(0.96 0.01 240);
+  /* ── Depth Layer 0: Abyss ── */
+  --background: oklch(0.105 0.025 275);
+  --foreground: oklch(0.93 0.01 75);
 
-  /* card & popover: même fond sombre */
-  --card: oklch(0.13 0.028 261);
-  --card-foreground: oklch(0.96 0.01 240);
-  --popover: oklch(0.13 0.028 261);
-  --popover-foreground: oklch(0.96 0.01 240);
+  /* ── Depth Layer 1: Raised surfaces ── */
+  --card: oklch(0.14 0.02 275);
+  --card-foreground: oklch(0.93 0.01 75);
+  --popover: oklch(0.15 0.025 275);
+  --popover-foreground: oklch(0.93 0.01 75);
 
-  /* primary: Legendary Orange — hsl(38, 92%, 50%) */
-  --primary: oklch(0.75 0.18 65);
-  --primary-foreground: oklch(0.15 0.02 65);
+  /* ── Primary: Refined Gold ── */
+  --primary: oklch(0.80 0.145 75);
+  --primary-foreground: oklch(0.12 0.02 75);
 
-  /* secondary: Epic Violet — hsl(258, 90%, 66%) */
-  --secondary: oklch(0.55 0.25 295);
-  --secondary-foreground: oklch(0.96 0.01 240);
+  /* ── Secondary: Deep Amethyst ── */
+  --secondary: oklch(0.48 0.22 295);
+  --secondary-foreground: oklch(0.92 0.015 290);
 
-  /* muted: hsl(217.2, 32.6%, 17.5%) */
-  --muted: oklch(0.27 0.03 250);
-  --muted-foreground: oklch(0.65 0.02 250);
+  /* ── Muted: Fog ── */
+  --muted: oklch(0.19 0.02 275);
+  --muted-foreground: oklch(0.58 0.02 260);
 
-  /* accent: même gris sombre que muted */
-  --accent: oklch(0.27 0.03 250);
-  --accent-foreground: oklch(0.96 0.01 240);
+  /* ── Accent: Subtle purple glow ── */
+  --accent: oklch(0.21 0.035 285);
+  --accent-foreground: oklch(0.93 0.01 75);
 
-  /* destructive: hsl(0, 84.2%, 60.2%) */
-  --destructive: oklch(0.63 0.24 25);
-  --destructive-foreground: oklch(0.96 0.01 240);
+  /* ── Destructive: Crimson ── */
+  --destructive: oklch(0.58 0.23 22);
+  --destructive-foreground: oklch(0.95 0.01 75);
 
-  /* border / input: même gris sombre que muted */
-  --border: oklch(0.27 0.03 250);
-  --input: oklch(0.27 0.03 250);
+  /* ── Borders: Luminous edge ── */
+  --border: oklch(0.25 0.03 280);
+  --input: oklch(0.20 0.025 278);
 
-  /* ring: Legendary Orange pour les focus */
-  --ring: oklch(0.75 0.18 65);
+  /* ── Ring: Gold focus ── */
+  --ring: oklch(0.80 0.145 75);
 
-  /* charts: palette WoW-inspired */
-  --chart-1: oklch(0.75 0.18 65);
-  --chart-2: oklch(0.55 0.25 295);
-  --chart-3: oklch(0.63 0.24 25);
-  --chart-4: oklch(0.72 0.15 165);
-  --chart-5: oklch(0.70 0.14 220);
+  /* ── Charts: WoW-inspired spectrum ── */
+  --chart-1: oklch(0.80 0.145 75);   /* Gold */
+  --chart-2: oklch(0.55 0.22 295);   /* Amethyst */
+  --chart-3: oklch(0.62 0.22 22);    /* Crimson */
+  --chart-4: oklch(0.70 0.17 160);   /* Emerald */
+  --chart-5: oklch(0.68 0.14 230);   /* Sapphire */
 
-  /* sidebar */
-  --sidebar: oklch(0.16 0.025 261);
-  --sidebar-foreground: oklch(0.96 0.01 240);
-  --sidebar-primary: oklch(0.75 0.18 65);
-  --sidebar-primary-foreground: oklch(0.15 0.02 65);
-  --sidebar-accent: oklch(0.27 0.03 250);
-  --sidebar-accent-foreground: oklch(0.96 0.01 240);
-  --sidebar-border: oklch(0.27 0.03 250);
-  --sidebar-ring: oklch(0.75 0.18 65);
+  /* ── Sidebar: Deeper than deep ── */
+  --sidebar: oklch(0.085 0.025 275);
+  --sidebar-foreground: oklch(0.93 0.01 75);
+  --sidebar-primary: oklch(0.80 0.145 75);
+  --sidebar-primary-foreground: oklch(0.12 0.02 75);
+  --sidebar-accent: oklch(0.17 0.025 280);
+  --sidebar-accent-foreground: oklch(0.93 0.01 75);
+  --sidebar-border: oklch(0.22 0.03 280);
+  --sidebar-ring: oklch(0.80 0.145 75);
 }
 
 @layer base {
@@ -179,10 +186,10 @@
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 0 0 oklch(0.80 0.145 75 / 0.35);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    box-shadow: 0 0 20px 4px oklch(0.80 0.145 75 / 0);
   }
 }
 
@@ -226,13 +233,22 @@
   }
 }
 
+@keyframes subtle-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px -3px oklch(0.48 0.22 295 / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px -3px oklch(0.48 0.22 295 / 0.25);
+  }
+}
+
 @layer utilities {
   .animate-fade-in-up {
     animation: fade-in-up 0.5s ease-out;
   }
 
   .animate-glow-pulse {
-    animation: glow-pulse 2s infinite;
+    animation: glow-pulse 2.5s ease-in-out infinite;
   }
 
   .animate-float {
@@ -247,6 +263,10 @@
     animation: slide-in-right 0.4s ease-out;
   }
 
+  .animate-subtle-glow {
+    animation: subtle-glow 4s ease-in-out infinite;
+  }
+
   /* Smooth transitions for interactive elements */
   .transition-smooth {
     @apply transition-all duration-200 ease-out;
@@ -254,6 +274,50 @@
 
   .transition-smooth-lg {
     @apply transition-all duration-300 ease-out;
+  }
+
+  /* ── Glass morphism surfaces ── */
+  .glass {
+    background: oklch(0.14 0.02 275 / 0.6);
+    backdrop-filter: blur(12px) saturate(1.4);
+    border: 1px solid oklch(0.30 0.04 280 / 0.3);
+  }
+
+  .glass-subtle {
+    background: oklch(0.12 0.02 275 / 0.4);
+    backdrop-filter: blur(8px) saturate(1.2);
+    border: 1px solid oklch(0.28 0.03 280 / 0.2);
+  }
+
+  /* ── Gold glow for primary actions ── */
+  .glow-gold {
+    box-shadow:
+      0 0 12px -2px oklch(0.80 0.145 75 / 0.3),
+      0 0 4px -1px oklch(0.80 0.145 75 / 0.15);
+  }
+
+  .glow-gold-lg {
+    box-shadow:
+      0 0 24px -4px oklch(0.80 0.145 75 / 0.35),
+      0 0 8px -2px oklch(0.80 0.145 75 / 0.2);
+  }
+
+  /* ── Amethyst glow for secondary/epic elements ── */
+  .glow-epic {
+    box-shadow:
+      0 0 12px -2px oklch(0.48 0.22 295 / 0.3),
+      0 0 4px -1px oklch(0.48 0.22 295 / 0.15);
+  }
+
+  /* ── Luminous border on hover ── */
+  .border-glow {
+    border-color: oklch(0.35 0.05 280 / 0.4);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .border-glow:hover {
+    border-color: oklch(0.80 0.145 75 / 0.4);
+    box-shadow: 0 0 8px -3px oklch(0.80 0.145 75 / 0.2);
   }
 
   /* Button glow effect */
@@ -268,7 +332,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.15), transparent);
     transition: left 0.5s;
   }
 

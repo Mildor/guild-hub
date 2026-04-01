@@ -42,6 +42,7 @@ model User {
   characters Character[]
   events     Event[]
   attendances Attendance[]
+  strategies Strategy[]
 }
 
 model Character {
@@ -101,4 +102,21 @@ model Attendance {
   character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
 
   @@id([eventId, userId])
+}
+
+model Strategy {
+  id                  String   @id @default(uuid()) @db.Uuid
+  bossName            String
+  raidName            String
+  positioningImageUrl String?
+  generalMechanics    String   @db.Text
+  tankNotes           String?  @db.Text
+  healerNotes         String?  @db.Text
+  dpsNotes            String?  @db.Text
+  createdById         String   @db.Uuid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  createdBy           User     @relation(fields: [createdById], references: [id])
+  @@unique([raidName, bossName])
 }

@@ -110,7 +110,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
         return (
-            <div className="p-8 text-center rounded-lg bg-slate-800/20 border border-slate-700/50">
+            <div className="p-8 text-center rounded-lg bg-muted/30 border border-border/50">
                 <GalleryVertical className="w-12 h-12 opacity-30 mx-auto mb-3" />
                 <p className="text-muted-foreground">
                     Données de personnage non synchronisées. Cliquez sur
@@ -121,7 +121,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     }
 
     return (
-        <div className="rounded-lg overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-700/50 p-6">
+        <div className="rounded-lg overflow-hidden bg-gradient-to-b from-card to-background border border-border/50 p-6">
             {/* Main Paperdoll Grid Layout */}
             <div className="grid grid-cols-3 gap-6 mb-6">
                 {/* LEFT COLUMN - 8 slots */}
@@ -141,7 +141,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                 {/* CENTER - Character Render */}
                 <div className="flex flex-col items-center justify-center gap-4">
                     {data.renderUrl || data.insetUrl || data.avatarUrl ? (
-                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 w-full h-96 group">
+                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-b from-muted to-card border border-border w-full h-96 group">
                             <img
                                 src={
                                     data.renderUrl ||
@@ -156,7 +156,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                             />
                             {/* Badge spécialisation */}
                             {data.activeSpecIcon && data.activeSpecName && (
-                                <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-600">
+                                <div className="absolute top-3 right-3 flex items-center gap-2 glass px-3 py-1.5 rounded-lg">
                                     <img
                                         src={`https://render.worldofwarcraft.com/eu/spell/${data.activeSpecIcon}.jpg`}
                                         alt={data.activeSpecName}
@@ -169,13 +169,13 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-center justify-center w-full h-96 rounded-lg bg-slate-800 border border-slate-700 text-muted-foreground overflow-hidden">
+                        <div className="flex items-center justify-center w-full h-96 rounded-lg bg-muted border border-border text-muted-foreground overflow-hidden">
                             <GalleryVertical className="w-12 h-12 opacity-30" />
                         </div>
                     )}
 
                     {/* Talents Section */}
-                    <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/50 w-full text-center">
+                    <div className="p-3 rounded-lg bg-muted/30 border border-border/50 w-full text-center">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
                             Talents
                         </p>
@@ -201,7 +201,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
             </div>
 
             {/* BOTTOM ROW - Weapons (centered) */}
-            <div className="border-t border-slate-700/50 pt-6">
+            <div className="border-t border-border/50 pt-6">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 text-center">
                     Armes
                 </p>

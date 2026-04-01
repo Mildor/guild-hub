@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AttendanceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DiscordService } from '../discord/discord.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 
 @Injectable()
 export class EventsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private discordService: DiscordService,
+  ) {}
 
   async createEvent(userId: string, data: CreateEventDto) {
     const parsedDate = new Date(data.eventDate);
@@ -44,6 +48,17 @@ export class EventsService {
         });
       }
     }
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { battletag: true },
+    });
+
+    void this.discordService
+      .announceNewEvent(event, creator)
+      .catch((error: unknown) => {
+        console.error('Failed to announce new event on Discord:', error);
+      });
 
     return event;
   }
