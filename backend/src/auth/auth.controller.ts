@@ -10,6 +10,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { AppRole, User } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { BlizzardService } from '../blizzard/blizzard.service';
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly blizzardService: BlizzardService,
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('bnet')
@@ -38,7 +40,8 @@ export class AuthController {
   bnetCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as User;
     const token = this.authService.generateJwt(user);
-    res.redirect(`http://192.168.1.106:8073/login/success?token=${token}`);
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    res.redirect(`${frontendUrl}/login/success?token=${token}`);
   }
 
   @Post('verify-guild')

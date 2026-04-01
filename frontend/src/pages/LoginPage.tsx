@@ -29,7 +29,7 @@ export function LoginPage() {
     localStorage.setItem('pendingCharacter', characterName.trim());
 
     // Rediriger vers l'OAuth Battle.net
-    window.location.href = 'http://192.168.1.106:3000/auth/bnet';
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/bnet`;
   };
 
   return (

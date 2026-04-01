@@ -18,36 +18,9 @@ import { AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { WowIcon } from '@/components/ui/WowIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { classIcons, roleIcons } from '@/lib/wowData';
+import { getClassColorStyle } from '@/lib/wowColors';
 import type { GameRole } from '@/types/character';
 import { CharacterDetailPanel } from '@/components/characters/CharacterDetailPanel';
-
-// Mapping des couleurs WoW (couleurs officielles)
-const classColorMap: Record<string, { style: React.CSSProperties }> = {
-  'Guerrier': { style: { color: '#C69B6D' } },
-  'Paladin': { style: { color: '#F48CBA' } },
-  'Chasseur': { style: { color: '#ABD473' } },
-  'Voleur': { style: { color: '#FFE51A' } },
-  'Prêtre': { style: { color: '#FFFFFF' } },
-  'Chevalier de la mort': { style: { color: '#C41F3B' } },
-  'Chaman': { style: { color: '#0070DD' } },
-  'Mage': { style: { color: '#3FC7EB' } },
-  'Démoniste': { style: { color: '#9482CA' } },
-  'Moine': { style: { color: '#00FF98' } },
-  'Druide': { style: { color: '#FF8000' } },
-  'Chasseur de démons': { style: { color: '#A335EE' } },
-  'Evoker': { style: { color: '#33937F' } },
-};
-
-// Normaliser le nom de classe pour le lookup
-const getNormalizedClass = (classStr: string): string => {
-  if (!classStr) return '';
-  // Si c'est "WARRIOR" en majuscules, on le convertit en "Warrior"
-  return classStr
-    .toLowerCase()
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('');
-};
 
 // Mapping des badges pour les rôles
 const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -191,8 +164,6 @@ export function DashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {charactersSorted.map((character, idx) => {
-                    const normalizedClass = getNormalizedClass(character.class);
-                    const classColor = classColorMap[normalizedClass]?.style?.color;
                     const isExpanded = expandedCharacterId === character.id;
                     return (
                       <React.Fragment key={character.id}>
@@ -202,7 +173,7 @@ export function DashboardPage() {
                           }`}
                           style={{
                             animation: `fade-in-up 0.3s ease-out ${idx * 0.05}s both`,
-                            color: classColor,
+                            ...getClassColorStyle(character.class),
                           }}
                           onClick={() => toggleRow(character.id)}
                         >
@@ -273,7 +244,7 @@ export function DashboardPage() {
                                 <Badge
                                   variant="outline"
                                   className="gap-1 cursor-pointer hover:bg-primary/10"
-                                  style={{ color: classColorMap[getNormalizedClass(character.class)]?.style?.color }}
+                                  style={getClassColorStyle(character.class)}
                                 >
                                   Reroll
                                 </Badge>

@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { classIcons } from '@/lib/wowData';
+import { getClassColorClass, ROLE_STYLES, STATUS_STYLES } from '@/lib/wowColors';
 import { useAuthStore } from '@/store/authStore';
 import { GameRole } from '@/types/character';
 
@@ -24,19 +25,6 @@ const STATUS_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
   { value: 'LATE', label: 'En retard' },
   { value: 'DECLINED', label: 'Absent' },
 ];
-
-const STATUS_STYLES: Record<AttendanceStatus, string> = {
-  ACCEPTED: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300',
-  TENTATIVE: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-  LATE: 'bg-orange-500/15 border-orange-500/40 text-orange-300',
-  DECLINED: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
-};
-
-const ROLE_STYLES: Record<GameRole, { title: string; accent: string }> = {
-  TANK: { title: 'Tanks', accent: 'border-sky-500/35 bg-sky-500/10 text-sky-200' },
-  HEALER: { title: 'Healers', accent: 'border-emerald-500/35 bg-emerald-500/10 text-emerald-200' },
-  DPS: { title: 'DPS', accent: 'border-rose-500/35 bg-rose-500/10 text-rose-200' },
-};
 
 function formatEventDate(value: string) {
   const date = new Date(value);
@@ -48,26 +36,6 @@ function formatEventDate(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function getClassColor(characterClass: string) {
-  const classColorMap: Record<string, string> = {
-    Warrior: 'text-[var(--color-wow-warrior)]',
-    Paladin: 'text-[var(--color-wow-paladin)]',
-    Hunter: 'text-[var(--color-wow-hunter)]',
-    Rogue: 'text-[var(--color-wow-rogue)]',
-    Priest: 'text-[var(--color-wow-priest)]',
-    DeathKnight: 'text-[var(--color-wow-death-knight)]',
-    Shaman: 'text-[var(--color-wow-shaman)]',
-    Mage: 'text-[var(--color-wow-mage)]',
-    Warlock: 'text-[var(--color-wow-warlock)]',
-    Monk: 'text-[var(--color-wow-monk)]',
-    Druid: 'text-[var(--color-wow-druid)]',
-    DemonHunter: 'text-[var(--color-wow-demon-hunter)]',
-    Evoker: 'text-[var(--color-wow-evoker)]',
-  };
-
-  return classColorMap[characterClass] ?? 'text-foreground';
 }
 
 function RosterGroup({ role, entries }: { role: GameRole; entries: EventAttendance[] }) {
@@ -106,7 +74,7 @@ function RosterGroup({ role, entries }: { role: GameRole; entries: EventAttendan
                           {character.name}
                           <span className="text-muted-foreground"> - {attendance.user.battletag}</span>
                         </p>
-                        <p className={`text-xs truncate ${getClassColor(character.class)}`}>
+                        <p className={`text-xs truncate ${getClassColorClass(character.class)}`}>
                           {character.class} {character.activeSpec ? `(${character.activeSpec})` : ''} -{' '}
                           {Math.round(character.ilvl)} iLvl
                         </p>

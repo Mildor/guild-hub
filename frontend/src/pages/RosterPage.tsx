@@ -23,32 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, ChevronRight } from "lucide-react";
-
-const classColorMap: Record<string, string> = {
-    Warrior: "#C69B6D",
-    Paladin: "#F48CBA",
-    Hunter: "#ABD473",
-    Rogue: "#FFF468",
-    Priest: "#FFFFFF",
-    DeathKnight: "#C41E3A",
-    Shaman: "#0070DD",
-    Mage: "#3FC7EB",
-    Warlock: "#8788EE",
-    Monk: "#00FF98",
-    Druid: "#FF7C0A",
-    DemonHunter: "#A330C9",
-    Evoker: "#33937F",
-    Guerrier: "#C69B6D",
-    Voleur: "#FFF468",
-    Pretre: "#FFFFFF",
-    Chasseur: "#ABD473",
-    PaladinFr: "#F48CBA",
-    Chaman: "#0070DD",
-    MageFr: "#3FC7EB",
-    Demoniste: "#8788EE",
-    Moine: "#00FF98",
-    Druide: "#FF7C0A",
-};
+import { getClassColorStyle } from "@/lib/wowColors";
 
 const roleLabels: Record<GameRole, string> = {
     TANK: "Tanks",
@@ -56,18 +31,7 @@ const roleLabels: Record<GameRole, string> = {
     DPS: "DPS",
 };
 
-function normalizeClassName(className: string): string {
-    return className
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "")
-        .replace(/_/g, "");
-}
-
 function CharacterCard({ character }: { character: CharacterWithUser }) {
-    const normalizedClass = normalizeClassName(character.class);
-    const classColor = classColorMap[normalizedClass] || "#E5E7EB";
-
     return (
         <div className="rounded-lg border border-border/60 bg-card/70 p-4 space-y-2">
             <div className="flex items-center justify-between gap-3">
@@ -78,7 +42,7 @@ function CharacterCard({ character }: { character: CharacterWithUser }) {
                     iLvl {Math.round(character.ilvl)}
                 </Badge>
             </div>
-            <p className="text-sm" style={{ color: classColor }}>
+            <p className="text-sm" style={getClassColorStyle(character.class)}>
                 {character.class}
             </p>
             <p className="text-xs text-muted-foreground truncate">

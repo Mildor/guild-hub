@@ -23,6 +23,7 @@ import {
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trash2 } from "lucide-react";
+import { getClassColorClass, ROLE_BADGE_STYLES } from "@/lib/wowColors";
 
 const availableRoles: AppRole[] = [
     AppRole.ADMIN,
@@ -31,47 +32,12 @@ const availableRoles: AppRole[] = [
     AppRole.GUEST,
 ];
 
-const roleBadgeClassMap: Record<AppRole, string> = {
-    [AppRole.ADMIN]:
-        "bg-red-500/20 text-red-700 border border-red-400/40 dark:text-red-300",
-    [AppRole.OFFICER]:
-        "bg-blue-500/20 text-blue-700 border border-blue-400/40 dark:text-blue-300",
-    [AppRole.MEMBER]:
-        "bg-green-500/20 text-green-700 border border-green-400/40 dark:text-green-300",
-    [AppRole.GUEST]:
-        "bg-slate-500/20 text-slate-700 border border-slate-400/40 dark:text-slate-300",
-};
-
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString("fr-FR", {
         year: "numeric",
         month: "long",
         day: "numeric",
     });
-}
-
-const classTextColorMap: Record<string, string> = {
-    Guerrier: "text-[#C69B6D]",
-    Paladin: "text-[#F48CBA]",
-    Chasseur: "text-[#ABD473]",
-    Voleur: "text-[#FFF468]",
-    Pretre: "text-[#FFFFFF]",
-    "Chevalier de la mort": "text-[#C41E3A]",
-    Chaman: "text-[#0070DD]",
-    Mage: "text-[#3FC7EB]",
-    Demoniste: "text-[#8788EE]",
-    Moine: "text-[#00FF98]",
-    Druide: "text-[#FF7C0A]",
-    DemonHunter: "text-[#A330C9]",
-    Evoker: "text-[#33937F]",
-};
-
-function normalizeClassName(className: string): string {
-    return className
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "")
-        .replace(/_/g, "");
 }
 
 function CharactersTab() {
@@ -103,12 +69,7 @@ function CharactersTab() {
                 </TableHeader>
                 <TableBody>
                     {characters?.map((character) => {
-                        const normalizedClass = normalizeClassName(
-                            character.class,
-                        );
-                        const classColor =
-                            classTextColorMap[normalizedClass] ||
-                            "text-foreground";
+                        const classColor = getClassColorClass(character.class);
                         const isDeleting =
                             deleteCharacterMutation.isPending &&
                             deleteCharacterMutation.variables === character.id;
@@ -291,7 +252,7 @@ function UsersTab() {
                                 <TableCell>
                                     <Badge
                                         className={
-                                            roleBadgeClassMap[user.appRole]
+                                            ROLE_BADGE_STYLES[user.appRole]
                                         }
                                     >
                                         {user.appRole}
