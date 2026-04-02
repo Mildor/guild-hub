@@ -227,6 +227,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
             emptyIcon={SLOT_ICONS[slotType] || SLOT_ICONS["CHEST"]}
         />
     );
+    const aubergeBackground = '/uploads/auberge.png?v=20260401-1';
 
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
@@ -242,7 +243,8 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
     }
 
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950/60 via-slate-900/35 to-background p-4 md:p-5">
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-slate-950/45 via-slate-900/20 to-background p-4 md:p-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.1),transparent_40%),linear-gradient(to_bottom,rgba(15,23,42,0.08),rgba(15,23,42,0.35))]" />
             <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-sky-400/10 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-indigo-500/10 blur-3xl" />
 
@@ -280,8 +282,16 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
 
                 <div className="space-y-4">
                     {data.renderUrl || data.insetUrl || data.avatarUrl ? (
-                        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2">
-                            <div className="h-[320px] sm:h-[420px]">
+                        <div className="relative isolate overflow-hidden rounded-xl border border-border/60 bg-slate-950/45 p-2">
+                            <div className="pointer-events-none absolute inset-0 flex items-end">
+                                <img
+                                    src={aubergeBackground}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-full w-full object-cover object-bottom"
+                                />
+                            </div>
+                            <div className="relative h-[320px] sm:h-[420px]">
                                 <img
                                     src={
                                         data.renderUrl ||
@@ -289,14 +299,14 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                                         data.avatarUrl
                                     }
                                     alt={data.name}
-                                    className={`h-full w-full rounded-lg ${data.renderUrl ? "object-contain" : "object-scale-down"}`}
+                                    className={`relative z-10 h-full w-full rounded-lg drop-shadow-2xl ${data.renderUrl ? "object-contain" : "object-scale-down"}`}
                                     onError={(e) => {
                                         e.currentTarget.style.display = "none";
                                     }}
                                 />
                             </div>
                             {data.activeSpecIcon && data.activeSpecName && (
-                                <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-border/70 bg-black/50 px-3 py-1.5 backdrop-blur">
+                                <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-border/70 bg-black/50 px-3 py-1.5 backdrop-blur">
                                     <img
                                         src={`https://render.worldofwarcraft.com/eu/spell/${data.activeSpecIcon}.jpg`}
                                         alt={data.activeSpecName}

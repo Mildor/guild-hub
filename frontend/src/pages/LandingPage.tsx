@@ -32,7 +32,7 @@ export function LandingPage() {
             to="/login"
             className="mt-10 rounded-md bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/85"
           >
-            Accéder au Guild Hub
+            Accéder à The Good Place
           </Link>
         </section>
 

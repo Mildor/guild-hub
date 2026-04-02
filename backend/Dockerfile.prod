@@ -31,18 +31,21 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-# Installer uniquement les dépendances de production
-RUN pnpm install --frozen-lockfile --prod
+# Installer les dépendances complètes pour permettre les migrations Prisma au démarrage
+RUN pnpm install --frozen-lockfile
 
 # Copier le dist compilé et le client Prisma généré
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copier le schéma et les migrations pour prisma migrate deploy
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
+# Générer le client Prisma dans l'image runtime pour créer le dossier .prisma attendu
+RUN pnpm exec prisma generate
 
 EXPOSE 3000
 
 # Appliquer les migrations PUIS démarrer l'app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

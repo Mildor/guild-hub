@@ -42,7 +42,7 @@ export function LoginPage() {
         <Card className="w-full animate-fade-in-up shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-4xl font-bold text-transparent">
-              Guild Hub
+              The Good Place
             </CardTitle>
             <CardDescription className="mt-3 text-base">
               Connectez-vous pour acceder au hub de votre guilde World of Warcraft

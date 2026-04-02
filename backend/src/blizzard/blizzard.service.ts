@@ -230,6 +230,8 @@ export class BlizzardService {
   }
 
   async syncUserCharacters(userId: string): Promise<Character[]> {
+    const targetGuild = 'The Good Place';
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (!user?.bnetAccessToken) {
@@ -285,6 +287,17 @@ export class BlizzardService {
         char.name.toLowerCase(),
         user.bnetAccessToken,
       );
+
+      const characterGuild = details?.guild?.name;
+      if (
+        !characterGuild ||
+        characterGuild.toLowerCase() !== targetGuild.toLowerCase()
+      ) {
+        this.logger.debug(
+          `Personnage ignoré hors guilde cible: ${char.name}-${char.realm.slug} (${characterGuild ?? 'sans guilde'})`,
+        );
+        continue;
+      }
 
       const activeSpec = details?.active_spec?.name ?? 'Unknown';
       const ilvl = details?.equipped_item_level ?? 0;
@@ -367,14 +380,53 @@ export class BlizzardService {
       syncedCharacterIds.push(synced.id);
     }
 
-    await this.prisma.character.deleteMany({
-      where: {
-        userId: user.id,
-        id: {
-          notIn: syncedCharacterIds,
+    if (syncedCharacters.length > 0) {
+      const mainCharacter = syncedCharacters.reduce((best, character) => {
+        if (!best) {
+          return character;
+        }
+
+        if (character.ilvl > best.ilvl) {
+          return character;
+        }
+
+        if (character.ilvl === best.ilvl && character.isMain) {
+          return character;
+        }
+
+        return best;
+      }, syncedCharacters[0]);
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.character.updateMany({
+          where: { userId },
+          data: { isMain: false },
+        });
+
+        await tx.character.update({
+          where: { id: mainCharacter.id },
+          data: { isMain: true },
+        });
+
+        await tx.character.deleteMany({
+          where: {
+            userId: user.id,
+            id: {
+              notIn: syncedCharacterIds,
+            },
+          },
+        });
+      });
+    } else {
+      await this.prisma.character.deleteMany({
+        where: {
+          userId: user.id,
+          id: {
+            notIn: syncedCharacterIds,
+          },
         },
-      },
-    });
+      });
+    }
 
     return syncedCharacters;
   }
