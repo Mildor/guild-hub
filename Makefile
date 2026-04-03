@@ -1,7 +1,7 @@
 .PHONY: up down restart logs ps build clean install shell-backend shell-frontend shell-db
 
 # Variables
-COMPOSE = docker compose -f compose.dev.yml
+COMPOSE = docker compose -p guild-hub-dev -f compose.dev.yml
 
 # Default command
 all: up

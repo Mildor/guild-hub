@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import { useGetStrategies } from '@/api/queries';
 import { AppRole } from '@/types/auth';
-import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3 } from 'lucide-react';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -52,6 +52,9 @@ export function DashboardLayout() {
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Calendar, label: 'Calendrier', href: '/calendar' },
     { icon: Users, label: 'Roster', href: '/roster' },
+    ...(user?.appRole !== AppRole.GUEST
+      ? [{ icon: BarChart3, label: 'Sondages', href: '/polls' }]
+      : []),
     ...(user?.appRole === 'ADMIN'
       ? [{ icon: Shield, label: 'Administration', href: '/admin' }]
       : []),

@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react';
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { useGetMyCharacters, useSyncCharacters, useSetMainCharacter } from '@/api/queries';
+import {
+  useGetMyCharacters,
+  useSyncCharacters,
+  useSetMainCharacter,
+  useGetAllEvents as useGetEvents,
+  useGetEvent,
+  type EventAttendance,
+} from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +48,65 @@ const getCharacterInitials = (name: string): string => {
     .toUpperCase();
 };
 
+const roleLabelMap: Record<GameRole, string> = {
+  TANK: 'Tank',
+  HEALER: 'Healer',
+  DPS: 'DPS',
+};
+
+const getClassAvatarStyles = (className?: string): { bg: string; text: string } => {
+  const normalized = (className || '').toLowerCase();
+
+  if (normalized.includes('mage')) return { bg: 'bg-sky-900/30', text: 'text-sky-400' };
+  if (normalized.includes('warrior')) return { bg: 'bg-orange-900/30', text: 'text-orange-400' };
+  if (normalized.includes('paladin')) return { bg: 'bg-pink-900/30', text: 'text-pink-400' };
+  if (normalized.includes('hunter')) return { bg: 'bg-green-900/30', text: 'text-green-400' };
+  if (normalized.includes('rogue')) return { bg: 'bg-yellow-900/30', text: 'text-yellow-400' };
+  if (normalized.includes('priest')) return { bg: 'bg-zinc-700/40', text: 'text-zinc-100' };
+  if (normalized.includes('death')) return { bg: 'bg-red-950/40', text: 'text-red-400' };
+  if (normalized.includes('shaman')) return { bg: 'bg-indigo-900/30', text: 'text-indigo-400' };
+  if (normalized.includes('warlock')) return { bg: 'bg-violet-900/30', text: 'text-violet-400' };
+  if (normalized.includes('monk')) return { bg: 'bg-emerald-900/30', text: 'text-emerald-400' };
+  if (normalized.includes('druid')) return { bg: 'bg-amber-900/30', text: 'text-amber-500' };
+  if (normalized.includes('demon')) return { bg: 'bg-fuchsia-900/30', text: 'text-fuchsia-400' };
+  if (normalized.includes('evoker')) return { bg: 'bg-teal-900/30', text: 'text-teal-400' };
+
+  return { bg: 'bg-amber-900/30', text: 'text-amber-500' };
+};
+
+const formatUpcomingEventDate = (value: string): string => {
+  const eventDate = new Date(value);
+  const now = new Date();
+
+  const isSameDay = eventDate.toDateString() === now.toDateString();
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = eventDate.toDateString() === tomorrow.toDateString();
+
+  const timePart = eventDate.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  if (isSameDay) {
+    return `Aujourd'hui a ${timePart}`;
+  }
+
+  if (isTomorrow) {
+    return `Demain a ${timePart}`;
+  }
+
+  const datePart = eventDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'short',
+  });
+
+  const formatted = `${datePart} - ${timePart}`;
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+};
+
 // Skeleton Loader
 function CharactersTableSkeleton() {
   return (
@@ -59,6 +126,7 @@ function CharactersTableSkeleton() {
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data: characters, isLoading, error } = useGetMyCharacters(user?.userId);
+  const { data: events } = useGetEvents();
   const syncMutation = useSyncCharacters(user?.userId);
   const setMainMutation = useSetMainCharacter(user?.userId);
   const [expandedCharacterId, setExpandedCharacterId] = useState<string | null>(null);
@@ -79,6 +147,51 @@ export function DashboardPage() {
       return a.isMain ? -1 : 1;
     }) || [];
   }, [characters]);
+
+  const mainCharacter = useMemo(() => {
+    if (!characters || characters.length === 0) {
+      return null;
+    }
+
+    return characters.reduce((best, current) => {
+      const bestIlvl =
+        typeof (best as { averageItemLevel?: number }).averageItemLevel === 'number'
+          ? (best as { averageItemLevel: number }).averageItemLevel
+          : best.ilvl;
+      const currentIlvl =
+        typeof (current as { averageItemLevel?: number }).averageItemLevel === 'number'
+          ? (current as { averageItemLevel: number }).averageItemLevel
+          : current.ilvl;
+
+      return currentIlvl > bestIlvl ? current : best;
+    });
+  }, [characters]);
+
+  const nextEvent = useMemo(() => {
+    if (!events || events.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const upcoming = events
+      .filter((event) => new Date(event.eventDate) > now)
+      .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+
+    return upcoming[0] || null;
+  }, [events]);
+
+  const { data: nextEventDetail } = useGetEvent(nextEvent?.id ?? '');
+
+  const myNextEventAttendance = useMemo((): EventAttendance | undefined => {
+    if (!nextEventDetail || !user?.userId) {
+      return undefined;
+    }
+
+    return nextEventDetail.attendances.find((attendance) => attendance.userId === user.userId);
+  }, [nextEventDetail, user?.userId]);
+
+  const isRegisteredToNextEvent =
+    !!myNextEventAttendance && myNextEventAttendance.status !== 'DECLINED';
 
   if (!user) {
     return null;
@@ -114,6 +227,88 @@ export function DashboardPage() {
             />
             {syncMutation.isPending ? 'Synchronisation...' : 'Synchroniser'}
           </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex items-center gap-6 relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+
+            {mainCharacter?.avatarUrl ? (
+              <img
+                src={mainCharacter.avatarUrl}
+                alt={`Avatar de ${mainCharacter.name}`}
+                className="h-20 w-20 rounded-full object-cover ring-2 ring-slate-700"
+              />
+            ) : (
+              <div
+                className={`h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold ${getClassAvatarStyles(mainCharacter?.class).bg} ${getClassAvatarStyles(mainCharacter?.class).text}`}
+              >
+                {getCharacterInitials(mainCharacter?.name || '?')}
+              </div>
+            )}
+
+            <div className="relative z-10 min-w-0">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 mb-1">
+                Personnage Principal
+              </p>
+              {mainCharacter ? (
+                <>
+                  <h2 className="text-2xl font-bold text-slate-100 truncate">
+                    {mainCharacter.name}
+                  </h2>
+                  <p className="text-slate-300 text-sm mt-1">
+                    {mainCharacter.class} - {mainCharacter.activeSpec || 'Specialisation inconnue'}
+                  </p>
+                  <span className="inline-flex mt-3 bg-amber-600/20 text-amber-500 px-2 py-1 rounded text-sm font-semibold">
+                    iLvl {mainCharacter.ilvl}
+                  </span>
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm">
+                  Aucun personnage disponible pour le moment.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-center">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400 mb-2">
+              Prochain Evenement
+            </p>
+
+            {!nextEvent ? (
+              <p className="text-slate-400">
+                Aucun evenement de guilde prevu prochainement. Quartier libre !
+              </p>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-slate-100">
+                  {nextEvent.title}
+                </h2>
+                <p className="text-slate-300 text-sm mt-1 mb-4">
+                  {formatUpcomingEventDate(nextEvent.eventDate)}
+                </p>
+
+                {isRegisteredToNextEvent ? (
+                  <div className="inline-flex w-fit rounded-md border border-emerald-500/40 bg-emerald-600/15 text-emerald-300 px-3 py-1.5 text-sm font-medium">
+                    Inscrit en tant que {roleLabelMap[myNextEventAttendance?.character?.gameRole || 'DPS']} {myNextEventAttendance?.character?.name ? `(${myNextEventAttendance.character.name})` : ''}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex rounded-md border border-orange-500/40 bg-orange-600/15 text-orange-300 px-3 py-1.5 text-sm font-medium">
+                      Non inscrit
+                    </span>
+                    <Link
+                      to={`/events/${nextEvent.id}`}
+                      className="inline-flex items-center rounded-md border border-slate-600 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+                    >
+                      Gerer ma presence
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Characters Table */}
@@ -269,51 +464,6 @@ export function DashboardPage() {
             </div>
           )}
         </div>
-
-        {/* Stats */}
-        {charactersSorted.length > 0 && (
-          <div
-            className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up"
-            style={{ animationDelay: '0.2s' }}
-          >
-            {[
-              {
-                label: 'Total',
-                value: charactersSorted.length,
-                gradient: 'from-blue-500/30 to-blue-600/30',
-                textGradient: 'from-blue-400 to-blue-500',
-              },
-              {
-                label: 'iLvl Moyen',
-                value: (
-                  charactersSorted.reduce((sum, c) => sum + c.ilvl, 0) /
-                  charactersSorted.length
-                ).toFixed(0),
-                gradient: 'from-green-500/30 to-green-600/30',
-                textGradient: 'from-green-400 to-green-500',
-              },
-              {
-                label: 'Principal',
-                value: charactersSorted.find((c) => c.isMain)?.name || '—',
-                gradient: 'from-yellow-500/30 to-yellow-600/30',
-                textGradient: 'from-yellow-400 to-yellow-500',
-              },
-            ].map((stat, idx) => (
-              <div
-                key={idx}
-                className={`p-4 rounded-lg bg-gradient-to-br ${stat.gradient} border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80 cursor-pointer`}
-                style={{
-                  animation: `fade-in-up 0.3s ease-out ${(idx + 3) * 0.1}s both`,
-                }}
-              >
-                <p className="text-muted-foreground text-sm mb-2">{stat.label}</p>
-                <p className={`text-2xl font-bold bg-gradient-to-r ${stat.textGradient} bg-clip-text text-transparent`}>
-                  {stat.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

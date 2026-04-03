@@ -423,6 +423,110 @@ export const useDeleteStrategy = () => {
   });
 };
 
+// ==================== POLLS ====================
+
+export interface PollVote {
+  id: string;
+  pollId: string;
+  optionId: string;
+  userId: string;
+  createdAt: string;
+  user: {
+    id: string;
+    battletag: string;
+  };
+  option: {
+    id: string;
+    text: string;
+  };
+}
+
+export interface PollOption {
+  id: string;
+  pollId: string;
+  text: string;
+  votes?: PollVote[];
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  description: string | null;
+  createdAt: string;
+  isActive: boolean;
+  createdById: string;
+  createdBy: {
+    id: string;
+    battletag: string;
+  };
+  options: PollOption[];
+  votes: PollVote[];
+}
+
+export interface CreatePollPayload {
+  question: string;
+  description?: string;
+  options: string[];
+}
+
+export interface VotePollPayload {
+  pollId: string;
+  optionId: string;
+}
+
+export const useGetPolls = () => {
+  return useQuery({
+    queryKey: ['polls'],
+    queryFn: async () => {
+      const { data } = await api.get<Poll[]>('/polls');
+      return data;
+    },
+    retry: 1,
+  });
+};
+
+export const useCreatePoll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreatePollPayload) => {
+      const { data } = await api.post<Poll>('/polls', payload);
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+};
+
+export const useVotePoll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ pollId, optionId }: VotePollPayload) => {
+      const { data } = await api.post(`/polls/${pollId}/vote`, { optionId });
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+};
+
+export const useTogglePoll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (pollId: string) => {
+      const { data } = await api.patch(`/polls/${pollId}/toggle`);
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+};
+
 // ==================== USERS ====================
 
 export const useGetAllUsers = () => {

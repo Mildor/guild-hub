@@ -43,6 +43,8 @@ model User {
   events     Event[]
   attendances Attendance[]
   strategies Strategy[]
+  polls      Poll[]
+  pollVotes  PollVote[]
 }
 
 model Character {
@@ -119,4 +121,38 @@ model Strategy {
 
   createdBy           User     @relation(fields: [createdById], references: [id])
   @@unique([raidName, bossName])
+}
+
+model Poll {
+  id          String       @id @default(uuid()) @db.Uuid
+  question    String
+  description String?      @db.Text
+  createdAt   DateTime     @default(now())
+  isActive    Boolean      @default(true)
+  createdById String       @db.Uuid
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  options     PollOption[]
+  votes       PollVote[]
+}
+
+model PollOption {
+  id      String     @id @default(uuid()) @db.Uuid
+  pollId  String     @db.Uuid
+  text    String
+  poll    Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes   PollVote[]
+}
+
+model PollVote {
+  id        String     @id @default(uuid()) @db.Uuid
+  pollId    String     @db.Uuid
+  optionId  String     @db.Uuid
+  userId    String     @db.Uuid
+  createdAt DateTime   @default(now())
+
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
 }

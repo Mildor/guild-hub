@@ -94,6 +94,8 @@ make install
 make up
 ```
 
+Le `Makefile` force le projet Docker Compose dev sur `guild-hub-dev`, ce qui permet de lancer le stack de dev en parallele du stack de prod sans collision de services Compose.
+
 | Service   | URL                          |
 |-----------|------------------------------|
 | Frontend  | http://localhost:8073        |
@@ -148,6 +150,16 @@ docker compose -f docker-compose.prod.yml ps
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml up --build -d
+```
+
+### Lancer dev et prod en parallele
+
+```bash
+# Stack dev (projet compose: guild-hub-dev)
+make up
+
+# Stack prod (projet compose: guild-hub-prod)
+docker compose -p guild-hub-prod -f docker-compose.prod.yml up --build -d
 ```
 
 ---

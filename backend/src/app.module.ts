@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { BlizzardModule } from './blizzard/blizzard.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { DiscordModule } from './discord/discord.module';
+import { PollsModule } from './polls/polls.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DiscordModule } from './discord/discord.module';
     BlizzardModule,
     StrategiesModule,
     DiscordModule,
+    PollsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

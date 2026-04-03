@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useGetMe } from '@/api/queries';
@@ -14,8 +14,11 @@ import { EventDetailPage } from '@/pages/EventDetailPage';
 import { RosterPage } from '@/pages/RosterPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { StrategiesPage } from '@/pages/StrategiesPage';
+import { PollsPage } from '@/pages/PollsPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isJwtValid } from '@/lib/jwt';
+import { RoleGuard } from '@/components/RoleGuard';
+import { AppRole } from '@/types/auth';
 
 // Créez une instance QueryClient
 const queryClient = new QueryClient({
@@ -95,6 +98,17 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/roster" element={<RosterPage />} />
+            <Route
+              path="/polls"
+              element={
+                <RoleGuard
+                  allowedRoles={[AppRole.MEMBER, AppRole.OFFICER, AppRole.ADMIN]}
+                  fallback={<Navigate to="/dashboard" replace />}
+                >
+                  <PollsPage />
+                </RoleGuard>
+              }
+            />
             <Route path="/strategies" element={<StrategiesPage />} />
             <Route path="/strategies/:id" element={<StrategiesPage />} />
             <Route path="/admin" element={<AdminPage />} />

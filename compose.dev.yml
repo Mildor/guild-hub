@@ -1,7 +1,9 @@
+name: guild-hub-dev
+
 services:
     db:
         image: postgres:15-alpine
-        container_name: guild-hub-db
+        container_name: guild-hub-db-dev
         environment:
             POSTGRES_USER: postgres
             POSTGRES_PASSWORD: postgres
@@ -9,24 +11,25 @@ services:
         ports:
             - "5432:5432"
         volumes:
-            - pgdata:/var/lib/postgresql/data
+            - pgdata_dev:/var/lib/postgresql/data
         networks:
-            - guild-hub-network
+            - guild-hub-dev-network
 
     redis:
         image: redis:7-alpine
-        container_name: guild-hub-redis
+        container_name: guild-hub-redis-dev
         ports:
             - "6379:6379"
         networks:
-            - guild-hub-network
+            - guild-hub-dev-network
 
     backend:
         build:
             context: ./backend
             dockerfile: Dockerfile
-        container_name: guild-hub-backend
+        container_name: guild-hub-backend-dev
         environment:
+            DATABASE_URL: postgresql://postgres:postgres@db:5432/guild-hub
             DB_HOST: db
             DB_PORT: 5432
             DB_USERNAME: postgres
@@ -43,13 +46,13 @@ services:
             - db
             - redis
         networks:
-            - guild-hub-network
+            - guild-hub-dev-network
 
     frontend:
         build:
             context: ./frontend
             dockerfile: Dockerfile
-        container_name: guild-hub-frontend
+        container_name: guild-hub-frontend-dev
         ports:
             - "8073:8073"
         volumes:
@@ -58,11 +61,11 @@ services:
         depends_on:
             - backend
         networks:
-            - guild-hub-network
+            - guild-hub-dev-network
 
     adminer:
         image: adminer
-        container_name: guild-hub-adminer
+        container_name: guild-hub-adminer-dev
         environment:
             ADMINER_DEFAULT_SERVER: db
         ports:
@@ -70,11 +73,11 @@ services:
         depends_on:
             - db
         networks:
-            - guild-hub-network
+            - guild-hub-dev-network
 
 networks:
-    guild-hub-network:
+    guild-hub-dev-network:
         driver: bridge
 
 volumes:
-    pgdata:
+    pgdata_dev:
