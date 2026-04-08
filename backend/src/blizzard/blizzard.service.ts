@@ -9,6 +9,8 @@ import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { Character } from '@prisma/client';
+import { EncryptionService } from '../encryption/encryption.service';
+import { Cron } from '@nestjs/schedule';
 
 interface BnetCharacter {
   id: number;
@@ -81,6 +83,19 @@ interface BnetSpecializationsResponse {
   };
 }
 
+interface BnetOAuthTokenResponse {
+  access_token: string;
+}
+
+interface BnetWowTokenResponse {
+  price: number;
+}
+
+interface TrackTokenResult {
+  price: number;
+  createdAt: Date;
+}
+
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
   // Chevalier de la mort
   Sang: 'TANK',
@@ -137,7 +152,134 @@ export class BlizzardService {
   constructor(
     private readonly httpService: HttpService,
     private readonly prisma: PrismaService,
+    private readonly encryptionService: EncryptionService,
   ) {}
+
+  private getBnetRegion(): string {
+    return process.env.BNET_REGION || 'eu';
+  }
+
+  private async getClientAccessToken(): Promise<string> {
+    const clientId = process.env.BNET_CLIENT_ID;
+    const clientSecret = process.env.BNET_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new UnauthorizedException(
+        'Configuration Battle.net manquante pour le cron token.',
+      );
+    }
+
+    const region = this.getBnetRegion();
+
+    const response = await firstValueFrom(
+      this.httpService.post<BnetOAuthTokenResponse>(
+        `https://${region}.battle.net/oauth/token`,
+        'grant_type=client_credentials',
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          auth: {
+            username: clientId,
+            password: clientSecret,
+          },
+        },
+      ),
+    );
+
+    if (!response.data?.access_token) {
+      throw new BadGatewayException(
+        "Impossible de récupérer un token d'application Battle.net.",
+      );
+    }
+
+    return response.data.access_token;
+  }
+
+  private async fetchAndPersistTokenPrice(): Promise<TrackTokenResult> {
+    const region = this.getBnetRegion();
+    const accessToken = await this.getClientAccessToken();
+
+    const response = await firstValueFrom(
+      this.httpService.get<BnetWowTokenResponse>(
+        `https://${region}.api.blizzard.com/data/wow/token/index`,
+        {
+          params: {
+            namespace: `dynamic-${region}`,
+            locale: 'fr_FR',
+          },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      ),
+    );
+
+    const priceInCopper = response.data?.price;
+
+    if (typeof priceInCopper !== 'number') {
+      throw new BadGatewayException('Prix du WoW Token invalide reçu.');
+    }
+
+    const priceInGold = Math.floor(priceInCopper / 10000);
+
+    const saved = await this.prisma.wowTokenPrice.create({
+      data: {
+        price: priceInGold,
+      },
+      select: {
+        price: true,
+        createdAt: true,
+      },
+    });
+
+    return saved;
+  }
+
+  @Cron('0 8 * * *')
+  async trackTokenPrice(): Promise<void> {
+    try {
+      const saved = await this.fetchAndPersistTokenPrice();
+
+      this.logger.log(
+        `WoW Token tracke: ${saved.price} or (cron 08:00, timezone serveur)`,
+      );
+    } catch (error) {
+      this.logger.error('Echec du tracking WoW Token', error as Error);
+    }
+  }
+
+  async trackTokenPriceNow() {
+    const saved = await this.fetchAndPersistTokenPrice();
+    this.logger.log(`WoW Token tracke manuellement: ${saved.price} or`);
+    return saved;
+  }
+
+  async getWowTokenHistory() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [currentPrice, history] = await Promise.all([
+      this.prisma.wowTokenPrice.findFirst({
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.wowTokenPrice.findMany({
+        where: {
+          createdAt: {
+            gte: sevenDaysAgo,
+          },
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      currentPrice: currentPrice?.price ?? null,
+      history,
+    };
+  }
 
   async verifyGuildMembership(
     userId: string,
@@ -152,6 +294,8 @@ export class BlizzardService {
       );
     }
 
+    const accessToken = this.encryptionService.decrypt(user.bnetAccessToken);
+
     let response;
     try {
       response = await firstValueFrom(
@@ -163,7 +307,7 @@ export class BlizzardService {
               locale: 'fr_FR',
             },
             headers: {
-              Authorization: `Bearer ${user.bnetAccessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
           },
         ),
@@ -204,7 +348,7 @@ export class BlizzardService {
     const characterDetails = await this.fetchCharacterProfile(
       character.realm.slug,
       character.name.toLowerCase(),
-      user.bnetAccessToken,
+      accessToken,
     );
 
     const characterGuild = characterDetails?.guild?.name;
@@ -240,6 +384,8 @@ export class BlizzardService {
       );
     }
 
+    const accessToken = this.encryptionService.decrypt(user.bnetAccessToken);
+
     let response;
     try {
       response = await firstValueFrom(
@@ -251,7 +397,7 @@ export class BlizzardService {
               locale: 'fr_FR',
             },
             headers: {
-              Authorization: `Bearer ${user.bnetAccessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
           },
         ),
@@ -285,7 +431,7 @@ export class BlizzardService {
       const details = await this.fetchCharacterProfile(
         char.realm.slug,
         char.name.toLowerCase(),
-        user.bnetAccessToken,
+        accessToken,
       );
 
       const characterGuild = details?.guild?.name;
@@ -307,21 +453,21 @@ export class BlizzardService {
       const media = await this.fetchMediaUrls(
         char.realm.slug,
         char.name.toLowerCase(),
-        user.bnetAccessToken,
+        accessToken,
       );
 
       // Récupérer l'équipement
       const equipmentData = await this.fetchEquipment(
         char.realm.slug,
         char.name.toLowerCase(),
-        user.bnetAccessToken,
+        accessToken,
       );
 
       // Récupérer les spécialisations détaillées
       const specializationInfo = await this.fetchSpecializations(
         char.realm.slug,
         char.name.toLowerCase(),
-        user.bnetAccessToken,
+        accessToken,
       );
 
       let existingCharacter = await this.prisma.character.findFirst({

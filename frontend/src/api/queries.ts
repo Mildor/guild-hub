@@ -86,6 +86,22 @@ export const useGetMe = () => {
   });
 };
 
+const deleteMyAccount = async () => {
+  const { data } = await api.delete('/users/me');
+  return data;
+};
+
+export const useDeleteMyAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteMyAccount,
+    onSuccess: async () => {
+      await queryClient.clear();
+    },
+  });
+};
+
 // Récupère les personnages d'un utilisateur
 export const useGetMyCharacters = (userId: string | null | undefined) => {
   return useQuery({
@@ -114,9 +130,8 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
   return useMutation({
     mutationFn: syncCharacters,
     onSuccess: async () => {
-      // Refetch immédiatement les personnages
-      await queryClient.refetchQueries({
-        queryKey: ['characters', userId],
+      await queryClient.invalidateQueries({
+        queryKey: ['characters'],
       });
     },
     onError: (error) => {
@@ -431,6 +446,7 @@ export interface PollVote {
   optionId: string;
   userId: string;
   createdAt: string;
+  updatedAt?: string;
   user: {
     id: string;
     battletag: string;
@@ -473,6 +489,29 @@ export interface VotePollPayload {
   pollId: string;
   optionId: string;
 }
+
+export interface WowTokenPricePoint {
+  id: string;
+  price: number;
+  createdAt: string;
+}
+
+export interface WowTokenResponse {
+  currentPrice: number | null;
+  history: WowTokenPricePoint[];
+}
+
+export const useGetWowToken = () => {
+  return useQuery({
+    queryKey: ['wow-token'],
+    queryFn: async () => {
+      const { data } = await api.get<WowTokenResponse>('/blizzard/token');
+      return data;
+    },
+    retry: 1,
+    refetchInterval: 5 * 60 * 1000,
+  });
+};
 
 export const useGetPolls = () => {
   return useQuery({

@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
+import { Footer } from '@/components/layout/Footer';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [characterName, setCharacterName] = useState('');
   const [error, setError] = useState('');
+  const reconnectReason = searchParams.get('reason');
 
   // Rediriger vers dashboard si déjà authentifié
   useEffect(() => {
@@ -33,11 +36,24 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-md space-y-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md space-y-4">
         <Link to="/" className="text-muted-foreground transition-colors hover:text-foreground">
           ← Retour à l&apos;accueil
         </Link>
+
+        {reconnectReason === 'session-expired' && (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            Votre session a expire ou votre token Battle.net a ete revoque. Reconnectez-vous via Battle.net.
+          </p>
+        )}
+
+        {reconnectReason === 'account-deleted' && (
+          <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+            Votre compte a ete supprime definitivement.
+          </p>
+        )}
 
         <Card className="w-full animate-fade-in-up shadow-lg">
           <CardHeader className="text-center">
@@ -88,6 +104,10 @@ export function LoginPage() {
           </CardContent>
         </Card>
       </div>
+
+      </div>
+
+      <Footer />
     </div>
   );
 }

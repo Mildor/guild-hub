@@ -15,6 +15,8 @@ import { RosterPage } from '@/pages/RosterPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { StrategiesPage } from '@/pages/StrategiesPage';
 import { PollsPage } from '@/pages/PollsPage';
+import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
+import { TokenPage } from '@/pages/TokenPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isJwtValid } from '@/lib/jwt';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -90,6 +92,7 @@ function AppContent() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/success" element={<AuthCallbackPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         {/* Layout avec les pages protégées */}
         <Route element={<ProtectedRoute />}>
@@ -98,6 +101,7 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/roster" element={<RosterPage />} />
+            <Route path="/token" element={<TokenPage />} />
             <Route
               path="/polls"
               element={

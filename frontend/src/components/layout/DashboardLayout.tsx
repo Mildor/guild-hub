@@ -13,9 +13,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
-import { useGetStrategies } from '@/api/queries';
+import { useDeleteMyAccount, useGetStrategies } from '@/api/queries';
 import { AppRole } from '@/types/auth';
-import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Footer } from '@/components/layout/Footer';
+import { useGetWowToken } from '@/api/queries';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -24,6 +35,9 @@ export function DashboardLayout() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const deleteMyAccount = useDeleteMyAccount();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { data: wowToken } = useGetWowToken();
 
   const { data: strategies } = useGetStrategies();
 
@@ -48,6 +62,16 @@ export function DashboardLayout() {
     navigate('/', { replace: true });
   };
 
+  const handleDeleteMyAccount = async () => {
+    try {
+      await deleteMyAccount.mutateAsync();
+      logout();
+      navigate('/login?reason=account-deleted', { replace: true });
+    } finally {
+      setDeleteDialogOpen(false);
+    }
+  };
+
   const navItems = [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Calendar, label: 'Calendrier', href: '/calendar' },
@@ -63,6 +87,11 @@ export function DashboardLayout() {
   const initials = user?.battletag
     ? user.battletag.split('#')[0].split('').slice(0, 2).join('').toUpperCase()
     : 'GH';
+
+  const formattedTokenPrice =
+    typeof wowToken?.currentPrice === 'number'
+      ? `${new Intl.NumberFormat('fr-FR').format(wowToken.currentPrice)} po`
+      : 'Indisponible';
 
   return (
     <div className="flex h-screen bg-background">
@@ -196,7 +225,16 @@ export function DashboardLayout() {
         {/* Header */}
         <header className="border-b border-border/50 bg-card/40 backdrop-blur-md sticky top-0 z-40 h-16">
           <div className="h-full px-6 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-muted-foreground">Dashboard</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-sm font-medium text-muted-foreground">Dashboard</h2>
+              <Link
+                to="/token"
+                className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 transition-colors hover:bg-amber-500/20"
+              >
+                <Coins className="h-3.5 w-3.5" />
+                <span>Token: {formattedTokenPrice}</span>
+              </Link>
+            </div>
 
             {/* User Menu */}
             <DropdownMenu>
@@ -224,6 +262,41 @@ export function DashboardLayout() {
                   <p className="text-xs text-muted-foreground">{user?.appRole || 'Membre'}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <DropdownMenuItem
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+                    >
+                      Supprimer mon compte definitivement
+                    </DropdownMenuItem>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Supprimer mon compte definitivement</DialogTitle>
+                      <DialogDescription>
+                        Cette action est irreversible. Toutes vos donnees Guild Hub seront
+                        supprimees immediatement.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDeleteDialogOpen(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteMyAccount}
+                        disabled={deleteMyAccount.isPending}
+                      >
+                        {deleteMyAccount.isPending
+                          ? 'Suppression en cours...'
+                          : 'Oui, supprimer mon compte'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <DropdownMenuItem asChild>
                   <button
                     onClick={handleLogout}
@@ -241,6 +314,8 @@ export function DashboardLayout() {
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
+
+        <Footer />
       </div>
     </div>
   );

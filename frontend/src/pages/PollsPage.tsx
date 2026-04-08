@@ -278,23 +278,41 @@ export function PollsPage() {
                   </div>
                 </div>
 
-                {!showResults && poll.isActive && (
+                {poll.isActive && (
                   <div className="space-y-3">
-                    {poll.options.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        disabled={votePoll.isPending}
-                        onClick={() => handleVote(poll.id, option.id)}
-                        className="flex w-full items-center justify-between rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <span>{option.text}</span>
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                          <Vote className="h-3.5 w-3.5" />
-                          Voter
-                        </span>
-                      </button>
-                    ))}
+                    {poll.options.map((option) => {
+                      const isUserChoice = userVote?.optionId === option.id;
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          disabled={votePoll.isPending}
+                          onClick={() => handleVote(poll.id, option.id)}
+                          className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isUserChoice
+                              ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
+                              : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
+                          }`}
+                        >
+                          <span>{option.text}</span>
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <Vote className="h-3.5 w-3.5" />
+                            {isUserChoice
+                              ? 'Votre choix'
+                              : hasVoted
+                                ? 'Changer mon vote'
+                                : 'Voter'}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {hasVoted && (
+                      <p className="text-xs text-slate-400">
+                        Vous pouvez changer votre vote tant que le sondage est ouvert.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -353,7 +371,7 @@ export function PollsPage() {
                                         className="flex items-center justify-between text-xs text-slate-300"
                                       >
                                         <span>{vote.user.battletag}</span>
-                                        <span className="text-slate-500">{new Date(vote.createdAt).toLocaleString('fr-FR', {
+                                        <span className="text-slate-500">{new Date(vote.updatedAt ?? vote.createdAt).toLocaleString('fr-FR', {
                                           month: '2-digit',
                                           day: '2-digit',
                                           hour: '2-digit',

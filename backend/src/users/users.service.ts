@@ -66,4 +66,15 @@ export class UsersService {
     await this.findOne(id);
     return this.prisma.user.update({ where: { id }, data: dto });
   }
+
+  async deleteMyAccount(userId: string) {
+    await this.findOne(userId);
+
+    await this.prisma.user.delete({ where: { id: userId } });
+
+    return {
+      message:
+        'Votre compte et les donnees associees ont ete supprimes definitivement.',
+    };
+  }
 }

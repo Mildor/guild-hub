@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -137,20 +136,22 @@ export class PollsService {
       throw new BadRequestException('Option invalide pour ce sondage.');
     }
 
-    try {
-      return await db.pollVote.create({
-        data: {
+    return db.pollVote.upsert({
+      where: {
+        pollId_userId: {
           pollId,
-          optionId,
           userId,
         },
-      });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
-        throw new ConflictException('Vous avez deja vote pour ce sondage.');
-      }
-      throw error;
-    }
+      },
+      update: {
+        optionId,
+      },
+      create: {
+        pollId,
+        optionId,
+        userId,
+      },
+    });
   }
 
   async toggle(pollId: string) {

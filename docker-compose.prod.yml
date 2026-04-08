@@ -35,6 +35,8 @@ services:
             - guild-hub-network
         expose:
             - "3000"
+        environment:
+            - TZ=Europe/Paris
 
     frontend:
         build:

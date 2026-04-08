@@ -13,10 +13,13 @@ import { BlizzardModule } from './blizzard/blizzard.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { DiscordModule } from './discord/discord.module';
 import { PollsModule } from './polls/polls.module';
+import { EncryptionModule } from './encryption/encryption.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -30,6 +33,7 @@ import { PollsModule } from './polls/polls.module';
     // Redis cache disabled for development
     // TODO: Enable when Redis is available
     // CacheModule.registerAsync({...}),
+    EncryptionModule,
     PrismaModule,
     UsersModule,
     CharactersModule,

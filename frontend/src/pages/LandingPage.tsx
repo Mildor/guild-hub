@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Footer } from '@/components/layout/Footer';
 
 export function LandingPage() {
   return (
@@ -81,9 +82,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        © 2026 The Good Place. World of Warcraft Guild.
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -66,5 +67,12 @@ export class UsersController {
     @Body() dto: UpdateUserRoleDto,
   ) {
     return this.usersService.updateUserRole(req.user.userId, id, dto.role);
+  }
+
+  @Delete('me')
+  @ApiOperation({ summary: 'Supprime définitivement le compte connecté' })
+  @ApiResponse({ status: 200, description: 'Compte supprimé avec succès.' })
+  deleteMe(@Req() req: Request & { user: { userId: string } }) {
+    return this.usersService.deleteMyAccount(req.user.userId);
   }
 }

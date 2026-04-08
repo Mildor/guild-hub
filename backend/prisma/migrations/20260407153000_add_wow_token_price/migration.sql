@@ -1,0 +1,7 @@
+CREATE TABLE "WowTokenPrice" (
+  "id" UUID NOT NULL,
+  "price" INTEGER NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "WowTokenPrice_pkey" PRIMARY KEY ("id")
+);
