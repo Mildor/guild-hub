@@ -12,6 +12,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { EventDetailPage } from '@/pages/EventDetailPage';
 import { RosterPage } from '@/pages/RosterPage';
+import { GuildLinkPage } from '@/pages/GuildLinkPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { StrategiesPage } from '@/pages/StrategiesPage';
 import { PollsPage } from '@/pages/PollsPage';
@@ -101,6 +102,7 @@ function AppContent() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/roster" element={<RosterPage />} />
+            <Route path="/guild-link" element={<GuildLinkPage />} />
             <Route path="/token" element={<TokenPage />} />
             <Route
               path="/polls"

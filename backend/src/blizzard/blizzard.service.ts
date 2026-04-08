@@ -236,13 +236,13 @@ export class BlizzardService {
     return saved;
   }
 
-  @Cron('0 8 * * *')
+  @Cron('0 */3 * * *')
   async trackTokenPrice(): Promise<void> {
     try {
       const saved = await this.fetchAndPersistTokenPrice();
 
       this.logger.log(
-        `WoW Token tracke: ${saved.price} or (cron 08:00, timezone serveur)`,
+        `WoW Token tracke: ${saved.price} or (cron toutes les 3h, timezone serveur)`,
       );
     } catch (error) {
       this.logger.error('Echec du tracking WoW Token', error as Error);

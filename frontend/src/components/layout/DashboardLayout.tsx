@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
-import { useDeleteMyAccount, useGetStrategies } from '@/api/queries';
+import { useDeleteMyAccount, useGetGuildProfile, useGetStrategies } from '@/api/queries';
 import { AppRole } from '@/types/auth';
-import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,27 @@ import {
 import { Footer } from '@/components/layout/Footer';
 import { useGetWowToken } from '@/api/queries';
 
+const GUILD_REALM = 'archimonde';
+const GUILD_NAME = 'The Good Place';
+const TWW_RAID_PRIORITY_SLUGS = ['liberation-of-undermine', 'nerubar-palace'];
+
+const getGuildProgressSummary = (
+  raidProgression?: Record<string, { summary: string }>,
+): string => {
+  for (const slug of TWW_RAID_PRIORITY_SLUGS) {
+    const summary = raidProgression?.[slug]?.summary;
+    if (summary) {
+      return summary;
+    }
+  }
+
+  const firstAvailableSummary = Object.values(raidProgression ?? {}).find(
+    (value) => value?.summary,
+  )?.summary;
+
+  return firstAvailableSummary || '0/8 N';
+};
+
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -39,6 +60,7 @@ export function DashboardLayout() {
   const deleteMyAccount = useDeleteMyAccount();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { data: wowToken } = useGetWowToken();
+  const { data: guildProfile } = useGetGuildProfile(GUILD_REALM, GUILD_NAME);
 
   const { data: strategies } = useGetStrategies();
 
@@ -56,8 +78,9 @@ export function DashboardLayout() {
   const groupedByRaid = useMemo(() => {
     if (!strategies) return {};
     return strategies.reduce<Record<string, typeof strategies>>((acc, strat) => {
-      if (!acc[strat.raidName]) acc[strat.raidName] = [];
-      acc[strat.raidName].push(strat);
+      const raidKey = strat.raidName;
+      const raidStrategies = acc[raidKey] ?? (acc[raidKey] = []);
+      raidStrategies.push(strat);
       return acc;
     }, {});
   }, [strategies]);
@@ -81,6 +104,7 @@ export function DashboardLayout() {
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Calendar, label: 'Calendrier', href: '/calendar' },
     { icon: Users, label: 'Roster', href: '/roster' },
+    { icon: Trophy, label: 'Classement & Progress', href: '/guild-link' },
     ...(user?.appRole !== AppRole.GUEST
       ? [{ icon: BarChart3, label: 'Sondages', href: '/polls' }]
       : []),
@@ -90,13 +114,19 @@ export function DashboardLayout() {
   ];
 
   const initials = user?.battletag
-    ? user.battletag.split('#')[0].split('').slice(0, 2).join('').toUpperCase()
+    ? (user.battletag.split('#')[0] ?? '')
+      .split('')
+      .slice(0, 2)
+      .join('')
+      .toUpperCase()
     : 'GH';
 
   const formattedTokenPrice =
     typeof wowToken?.currentPrice === 'number'
       ? `${new Intl.NumberFormat('fr-FR').format(wowToken.currentPrice)} po`
       : 'Indisponible';
+
+  const guildProgressSummary = getGuildProgressSummary(guildProfile?.raid_progression);
 
   const renderNavContent = (showLabels: boolean, onNavigate?: () => void) => (
     <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
@@ -287,6 +317,29 @@ export function DashboardLayout() {
                 <Menu className="h-5 w-5" />
               </Button>
               <h2 className="hidden sm:block text-sm font-medium text-muted-foreground truncate">Dashboard</h2>
+              <div className="relative hidden sm:block">
+                <button
+                  type="button"
+                  aria-label="Resume progression guilde"
+                  className="group inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200 transition-colors hover:bg-violet-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 sm:px-3 sm:text-xs"
+                >
+                  <span aria-hidden="true">👑</span>
+                  T1: {guildProgressSummary}
+
+                  <div className="pointer-events-none absolute left-1/2 top-[calc(100%+10px)] z-50 w-64 -translate-x-1/2 rounded-xl border border-violet-400/30 bg-slate-950/95 p-3 text-left opacity-0 shadow-2xl shadow-violet-900/30 backdrop-blur-md transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+                    <div className="absolute -top-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-violet-400/30 bg-slate-950/95" />
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-violet-300/80">
+                      Progression actuelle
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-100">
+                      The Good Place - T1: {guildProgressSummary}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      Statut live de notre progression raid, mis a jour via Raider.IO.
+                    </p>
+                  </div>
+                </button>
+              </div>
               <Link
                 to="/token"
                 className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 sm:px-3 sm:text-xs"

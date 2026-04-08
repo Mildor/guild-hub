@@ -41,6 +41,24 @@ export interface RaiderIoProfile {
   raid_progression: Record<string, { summary: string }>;
 }
 
+export interface RaiderIoGuildProfile {
+  name: string;
+  realm: string;
+  raid_progression?: Record<string, { summary: string }>;
+  raid_rankings?: Record<string, unknown>;
+}
+
+export interface RaiderIoGuildLeaderboardEntry {
+  characterId: string;
+  name: string;
+  realm: string;
+  class: string;
+  avatarUrl: string | null;
+  battletag: string;
+  rioScore: number;
+  bestKeyLevel: number | null;
+}
+
 export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
 
 export interface EventAttendance {
@@ -215,6 +233,40 @@ export const useGetRaiderIoProfile = (characterId?: string) => {
     },
     enabled: !!characterId,
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useGetGuildProfile = (realm: string, name: string) => {
+  return useQuery({
+    queryKey: ['raiderio', 'guild', 'profile', realm, name],
+    queryFn: async () => {
+      const { data } = await api.get<RaiderIoGuildProfile | null>(
+        '/raiderio/guild/profile',
+        {
+          params: { realm, name },
+        },
+      );
+      return data;
+    },
+    enabled: !!realm && !!name,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useGetGuildLeaderboard = (realm: string, name: string) => {
+  return useQuery({
+    queryKey: ['raiderio', 'guild', 'leaderboard', realm, name],
+    queryFn: async () => {
+      const { data } = await api.get<RaiderIoGuildLeaderboardEntry[]>(
+        '/raiderio/guild/leaderboard',
+        {
+          params: { realm, name },
+        },
+      );
+      return data;
+    },
+    enabled: !!realm && !!name,
+    staleTime: 2 * 60 * 1000,
   });
 };
 
