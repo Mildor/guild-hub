@@ -6,6 +6,7 @@ import {
     useGetAllCharacters,
     useGetAllEvents,
     useGetAllUsers,
+    useSyncAllCharacters,
     useUpdateUserRole,
 } from "@/api/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -291,6 +292,81 @@ function UsersTab() {
     );
 }
 
+function GuildSyncCard() {
+    const syncAllMutation = useSyncAllCharacters();
+
+    return (
+        <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-card/40 p-4 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 className="text-lg font-semibold text-foreground">
+                        Synchronisation globale des métiers
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Lance une resynchronisation de tous les personnages de tous les comptes.
+                    </p>
+                </div>
+
+                <Button
+                    type="button"
+                    onClick={() => syncAllMutation.mutate()}
+                    disabled={syncAllMutation.isPending}
+                    className="bg-amber-500 text-black hover:bg-amber-400"
+                >
+                    {syncAllMutation.isPending
+                        ? "Synchronisation en cours..."
+                        : "Synchroniser tous les métiers"}
+                </Button>
+            </div>
+
+            {syncAllMutation.data ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Comptes traités
+                        </p>
+                        <p className="mt-1 text-xl font-bold">
+                            {syncAllMutation.data.processedUsers}/{syncAllMutation.data.totalUsers}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Personnages synchronisés
+                        </p>
+                        <p className="mt-1 text-xl font-bold">
+                            {syncAllMutation.data.syncedCharacters}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Comptes en erreur
+                        </p>
+                        <p className="mt-1 text-xl font-bold">
+                            {syncAllMutation.data.failedUsers.length}
+                        </p>
+                    </div>
+                </div>
+            ) : null}
+
+            {syncAllMutation.data?.failedUsers.length ? (
+                <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium text-foreground">Erreurs de synchronisation</p>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                        {syncAllMutation.data.failedUsers.map((failedUser) => (
+                            <li key={failedUser.userId} className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2">
+                                <span className="font-medium text-foreground">
+                                    {failedUser.battletag}
+                                </span>{" "}
+                                - {failedUser.reason}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export function AdminPage() {
     return (
         <RoleGuard allowedRoles={[AppRole.ADMIN]}>
@@ -304,6 +380,8 @@ export function AdminPage() {
                             Gerez les utilisateurs, personnages et evenements.
                         </p>
                     </div>
+
+                    <GuildSyncCard />
 
                     <Tabs defaultValue="users" className="w-full">
                         <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex">

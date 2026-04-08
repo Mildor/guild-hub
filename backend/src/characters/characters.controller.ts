@@ -47,6 +47,21 @@ export class CharactersController {
     return this.blizzardService.syncUserCharacters(req.user.userId);
   }
 
+  @Post('sync-all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN)
+  @ApiOperation({
+    summary: 'Synchronise les métiers de tous les personnages de tous les comptes',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Synchronisation globale terminée.',
+  })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  syncAll() {
+    return this.blizzardService.syncAllUsersCharacters();
+  }
+
   @Post()
   @ApiOperation({ summary: 'Crée un personnage et le lie à un utilisateur' })
   @ApiResponse({ status: 201, description: 'Personnage créé avec succès.' })

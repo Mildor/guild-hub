@@ -169,6 +169,36 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
   });
 };
 
+export interface SyncAllCharactersResult {
+  totalUsers: number;
+  processedUsers: number;
+  syncedCharacters: number;
+  failedUsers: Array<{
+    userId: string;
+    battletag: string;
+    reason: string;
+  }>;
+}
+
+const syncAllCharacters = async () => {
+  const { data } = await api.post<SyncAllCharactersResult>('/characters/sync-all');
+  return data;
+};
+
+export const useSyncAllCharacters = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncAllCharacters,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+        queryClient.invalidateQueries({ queryKey: ['professions'] }),
+      ]);
+    },
+  });
+};
+
 // Lance un personnage en tant que Main
 const setMainCharacter = async (characterId: string) => {
   const { data } = await api.patch(`/characters/${characterId}/main`);

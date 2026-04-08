@@ -141,6 +141,17 @@ interface TrackTokenResult {
   createdAt: Date;
 }
 
+export interface SyncAllCharactersResult {
+  totalUsers: number;
+  processedUsers: number;
+  syncedCharacters: number;
+  failedUsers: Array<{
+    userId: string;
+    battletag: string;
+    reason: string;
+  }>;
+}
+
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
   // Chevalier de la mort
   Sang: 'TANK',
@@ -629,6 +640,46 @@ export class BlizzardService {
     }
 
     return syncedCharacters;
+  }
+
+  async syncAllUsersCharacters(): Promise<SyncAllCharactersResult> {
+    const users = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        battletag: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    const failedUsers: SyncAllCharactersResult['failedUsers'] = [];
+    let syncedCharacters = 0;
+
+    for (const user of users) {
+      try {
+        const characters = await this.syncUserCharacters(user.id);
+        syncedCharacters += characters.length;
+      } catch (error) {
+        const reason =
+          error instanceof Error ? error.message : 'Erreur inconnue';
+        failedUsers.push({
+          userId: user.id,
+          battletag: user.battletag,
+          reason,
+        });
+        this.logger.warn(
+          `Sync métiers ignorée pour ${user.battletag} (${user.id}): ${reason}`,
+        );
+      }
+    }
+
+    return {
+      totalUsers: users.length,
+      processedUsers: users.length - failedUsers.length,
+      syncedCharacters,
+      failedUsers,
+    };
   }
 
   private async fetchCharacterProfile(
