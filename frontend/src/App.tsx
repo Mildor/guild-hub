@@ -18,6 +18,7 @@ import { StrategiesPage } from '@/pages/StrategiesPage';
 import { PollsPage } from '@/pages/PollsPage';
 import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TokenPage } from '@/pages/TokenPage';
+import { CrafterHubPage } from '@/pages/CrafterHubPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isJwtValid } from '@/lib/jwt';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -104,6 +105,7 @@ function AppContent() {
             <Route path="/roster" element={<RosterPage />} />
             <Route path="/guild-link" element={<GuildLinkPage />} />
             <Route path="/token" element={<TokenPage />} />
+            <Route path="/crafter-hub" element={<CrafterHubPage />} />
             <Route
               path="/polls"
               element={

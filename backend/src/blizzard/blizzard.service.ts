@@ -83,6 +83,51 @@ interface BnetSpecializationsResponse {
   };
 }
 
+interface BnetRecipeRef {
+  id?: number;
+  name?: string;
+}
+
+interface BnetProfessionTier {
+  skill_points?: number;
+  known_recipes?: BnetRecipeRef[];
+}
+
+interface BnetPrimaryProfession {
+  profession?: {
+    id?: number;
+    name?: string;
+  };
+  skill_points?: number;
+  known_recipes?: BnetRecipeRef[];
+  tiers?: BnetProfessionTier[];
+}
+
+interface BnetProfessionsResponse {
+  primaries?: BnetPrimaryProfession[];
+}
+
+interface NormalizedProfession {
+  professionId: number | null;
+  profession: string;
+  skillLevel: number;
+  recipes: Array<{
+    id: number | null;
+    nameFr: string;
+    nameEn: string;
+  }>;
+}
+
+interface LocalizedProfessionSnapshot {
+  professionId: number | null;
+  profession: string;
+  skillLevel: number;
+  recipes: Array<{
+    id: number | null;
+    name: string;
+  }>;
+}
+
 interface BnetOAuthTokenResponse {
   access_token: string;
 }
@@ -148,6 +193,7 @@ const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
 export class BlizzardService {
   private readonly logger = new Logger(BlizzardService.name);
   private readonly itemIconCache: Map<number, string> = new Map();
+  private readonly recipeNameCache: Map<string, string> = new Map();
 
   constructor(
     private readonly httpService: HttpService,
@@ -470,6 +516,12 @@ export class BlizzardService {
         accessToken,
       );
 
+      const professions = await this.fetchCharacterProfessions(
+        char.realm.slug,
+        char.name.toLowerCase(),
+        accessToken,
+      );
+
       let existingCharacter = await this.prisma.character.findFirst({
         where: {
           userId,
@@ -521,6 +573,8 @@ export class BlizzardService {
               ...characterPayload,
             },
           });
+
+      await this.upsertCharacterProfessions(synced.id, professions);
 
       syncedCharacters.push(synced);
       syncedCharacterIds.push(synced.id);
@@ -737,6 +791,343 @@ export class BlizzardService {
       );
       return {};
     }
+  }
+
+  private async fetchCharacterProfessions(
+    realmSlug: string,
+    characterName: string,
+    token: string,
+  ): Promise<NormalizedProfession[]> {
+    try {
+      const [frData, enData] = await Promise.all([
+        this.fetchCharacterProfessionsByLocale(
+          realmSlug,
+          characterName,
+          token,
+          'fr_FR',
+        ),
+        this.fetchCharacterProfessionsByLocale(
+          realmSlug,
+          characterName,
+          token,
+          'en_GB',
+        ),
+      ]);
+
+      const merged = this.mergeLocalizedProfessions(frData, enData);
+      await this.enrichFrenchRecipeNames(merged);
+      return merged;
+    } catch (error) {
+      this.logger.warn(
+        `Impossible de récupérer les métiers de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status}`,
+      );
+      return [];
+    }
+  }
+
+  private async fetchCharacterProfessionsByLocale(
+    realmSlug: string,
+    characterName: string,
+    token: string,
+    locale: 'fr_FR' | 'en_GB',
+  ): Promise<LocalizedProfessionSnapshot[]> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<BnetProfessionsResponse>(
+          `https://eu.api.blizzard.com/profile/wow/character/${realmSlug}/${encodeURIComponent(characterName)}/professions`,
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale,
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ),
+      );
+
+      return this.normalizePrimaryProfessions(response.data);
+    } catch (error) {
+      this.logger.warn(
+        `Impossible de récupérer les métiers (${locale}) de ${characterName}-${realmSlug}: ${(error as AxiosError).response?.status}`,
+      );
+      return [];
+    }
+  }
+
+  private normalizePrimaryProfessions(
+    data: BnetProfessionsResponse,
+  ): LocalizedProfessionSnapshot[] {
+    const primaries = data.primaries ?? [];
+
+    return primaries
+      .map((profession) => {
+        const professionName = profession.profession?.name?.trim();
+        if (!professionName) {
+          return null;
+        }
+
+        const tierSkillLevels = (profession.tiers ?? [])
+          .map((tier) => tier.skill_points ?? 0)
+          .filter((value) => Number.isFinite(value));
+
+        const skillLevel = Math.max(
+          profession.skill_points ?? 0,
+          ...tierSkillLevels,
+        );
+
+        const recipes = new Map<string, { id: number | null; name: string }>();
+
+        for (const recipe of profession.known_recipes ?? []) {
+          const recipeName = recipe.name?.trim();
+          const recipeId = typeof recipe.id === 'number' ? recipe.id : null;
+          if (!recipeName && recipeId === null) {
+            continue;
+          }
+
+          const key = recipeId !== null ? `id:${recipeId}` : `name:${recipeName?.toLowerCase()}`;
+          if (!recipes.has(key)) {
+            recipes.set(key, {
+              id: recipeId,
+              name: recipeName || String(recipeId),
+            });
+          }
+        }
+
+        for (const tier of profession.tiers ?? []) {
+          for (const recipe of tier.known_recipes ?? []) {
+            const recipeName = recipe.name?.trim();
+            const recipeId = typeof recipe.id === 'number' ? recipe.id : null;
+            if (!recipeName && recipeId === null) {
+              continue;
+            }
+
+            const key =
+              recipeId !== null ? `id:${recipeId}` : `name:${recipeName?.toLowerCase()}`;
+            if (!recipes.has(key)) {
+              recipes.set(key, {
+                id: recipeId,
+                name: recipeName || String(recipeId),
+              });
+            }
+          }
+        }
+
+        return {
+          professionId:
+            typeof profession.profession?.id === 'number'
+              ? profession.profession.id
+              : null,
+          profession: professionName,
+          skillLevel,
+          recipes: Array.from(recipes.values()),
+        };
+      })
+      .filter((profession): profession is LocalizedProfessionSnapshot =>
+        Boolean(profession),
+      );
+  }
+
+  private mergeLocalizedProfessions(
+    frData: LocalizedProfessionSnapshot[],
+    enData: LocalizedProfessionSnapshot[],
+  ): NormalizedProfession[] {
+    const merged = new Map<string, NormalizedProfession>();
+
+    const getProfessionKey = (profession: LocalizedProfessionSnapshot): string => {
+      if (profession.professionId !== null) {
+        return `id:${profession.professionId}`;
+      }
+      return `name:${profession.profession.toLowerCase()}`;
+    };
+
+    const getRecipeKey = (recipe: { id: number | null; name?: string; nameFr?: string; nameEn?: string }): string => {
+      if (recipe.id !== null) {
+        return `id:${recipe.id}`;
+      }
+      const nameValue = (recipe as any).name || (recipe as any).nameFr || (recipe as any).nameEn || '';
+      return `name:${nameValue.toLowerCase()}`;
+    };
+
+    for (const profession of frData) {
+      merged.set(getProfessionKey(profession), {
+        professionId: profession.professionId,
+        profession: profession.profession,
+        skillLevel: profession.skillLevel,
+        recipes: profession.recipes.map((recipe) => ({
+          id: recipe.id,
+          nameFr: recipe.name,
+          nameEn: recipe.name,
+        })),
+      });
+    }
+
+    for (const professionEn of enData) {
+      const professionKey = getProfessionKey(professionEn);
+      const existing = merged.get(professionKey);
+
+      if (!existing) {
+        merged.set(professionKey, {
+          professionId: professionEn.professionId,
+          profession: professionEn.profession,
+          skillLevel: professionEn.skillLevel,
+          recipes: professionEn.recipes.map((recipe) => ({
+            id: recipe.id,
+            nameFr: recipe.name,
+            nameEn: recipe.name,
+          })),
+        });
+        continue;
+      }
+
+      existing.skillLevel = Math.max(existing.skillLevel, professionEn.skillLevel);
+      const recipeMap = new Map(existing.recipes.map((recipe) => [getRecipeKey(recipe), recipe]));
+
+      for (const recipeEn of professionEn.recipes) {
+        const recipeKey = getRecipeKey(recipeEn);
+        const existingRecipe = recipeMap.get(recipeKey);
+
+        if (existingRecipe) {
+          existingRecipe.nameEn = recipeEn.name;
+          continue;
+        }
+
+        recipeMap.set(recipeKey, {
+          id: recipeEn.id,
+          nameFr: recipeEn.name,
+          nameEn: recipeEn.name,
+        });
+      }
+
+      existing.recipes = Array.from(recipeMap.values());
+    }
+
+    return Array.from(merged.values());
+  }
+
+  private async enrichFrenchRecipeNames(
+    professions: NormalizedProfession[],
+  ): Promise<void> {
+    const clientToken = await this.getClientAccessToken();
+    const recipeIdsToEnrich = new Set<number>();
+
+    for (const profession of professions) {
+      for (const recipe of profession.recipes) {
+        if (
+          recipe.id !== null &&
+          (!recipe.nameFr ||
+            recipe.nameFr.toLowerCase() === recipe.nameEn.toLowerCase())
+        ) {
+          recipeIdsToEnrich.add(recipe.id);
+        }
+      }
+    }
+
+    for (const recipeId of recipeIdsToEnrich) {
+      const frenchName = await this.fetchRecipeNameByLocale(
+        recipeId,
+        'fr_FR',
+        clientToken,
+      );
+
+      if (!frenchName) {
+        continue;
+      }
+
+      for (const profession of professions) {
+        for (const recipe of profession.recipes) {
+          if (recipe.id === recipeId) {
+            recipe.nameFr = frenchName;
+          }
+        }
+      }
+    }
+  }
+
+  private async fetchRecipeNameByLocale(
+    recipeId: number,
+    locale: 'fr_FR' | 'en_GB',
+    token: string,
+  ): Promise<string | null> {
+    const cacheKey = `${locale}:${recipeId}`;
+    const cachedName = this.recipeNameCache.get(cacheKey);
+
+    if (cachedName) {
+      return cachedName;
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<{ name?: string }>(
+          `https://eu.api.blizzard.com/data/wow/recipe/${recipeId}`,
+          {
+            params: {
+              namespace: 'static-eu',
+              locale,
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ),
+      );
+
+      const recipeName = response.data?.name?.trim();
+      if (!recipeName) {
+        return null;
+      }
+
+      this.recipeNameCache.set(cacheKey, recipeName);
+      return recipeName;
+    } catch (error) {
+      this.logger.debug(
+        `Nom de recette introuvable (${locale}) pour recipeId=${recipeId}: ${(error as AxiosError).response?.status}`,
+      );
+      return null;
+    }
+  }
+
+  private async upsertCharacterProfessions(
+    characterId: string,
+    professions: NormalizedProfession[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const professionNames = professions.map((profession) => profession.profession);
+
+      if (professionNames.length === 0) {
+        await tx.characterProfession.deleteMany({ where: { characterId } });
+        return;
+      }
+
+      await tx.characterProfession.deleteMany({
+        where: {
+          characterId,
+          profession: { notIn: professionNames },
+        },
+      });
+
+      for (const profession of professions) {
+        await tx.characterProfession.upsert({
+          where: {
+            characterId_profession: {
+              characterId,
+              profession: profession.profession,
+            },
+          },
+          update: {
+            skillLevel: profession.skillLevel,
+            recipes: profession.recipes,
+          },
+          create: {
+            characterId,
+            profession: profession.profession,
+            skillLevel: profession.skillLevel,
+            recipes: profession.recipes,
+          },
+        });
+      }
+    });
   }
 
   async fetchItemIcon(itemId: number): Promise<string> {

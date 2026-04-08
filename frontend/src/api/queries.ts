@@ -154,9 +154,14 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
   return useMutation({
     mutationFn: syncCharacters,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['characters'],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['characters'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['professions'],
+        }),
+      ]);
     },
     onError: (error) => {
       console.error('❌ Erreur sync:', error);
@@ -658,6 +663,52 @@ export const useTogglePoll = () => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['polls'] });
     },
+  });
+};
+
+// ==================== PROFESSIONS ====================
+
+export interface ProfessionSearchResult {
+  name: string;
+  realm: string;
+  class: string;
+  profession: string;
+  skillLevel: number;
+}
+
+export interface ProfessionSummary {
+  totalCrafters: number;
+  totalRecipes: number;
+  topProfessions: Array<{
+    profession: string;
+    crafterCount: number;
+  }>;
+}
+
+export const useSearchProfessions = (recipe: string) => {
+  const normalizedRecipe = recipe.trim();
+
+  return useQuery({
+    queryKey: ['professions', 'search', normalizedRecipe],
+    queryFn: async () => {
+      const { data } = await api.get<ProfessionSearchResult[]>('/professions/search', {
+        params: { recipe: normalizedRecipe },
+      });
+      return data;
+    },
+    enabled: normalizedRecipe.length > 0,
+    retry: 1,
+  });
+};
+
+export const useGuildProfessionsSummary = () => {
+  return useQuery({
+    queryKey: ['professions', 'summary'],
+    queryFn: async () => {
+      const { data } = await api.get<ProfessionSummary>('/professions/summary');
+      return data;
+    },
+    retry: 1,
   });
 };
 

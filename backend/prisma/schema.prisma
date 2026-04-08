@@ -77,8 +77,24 @@ model Character {
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   attendances Attendance[]
+  professions CharacterProfession[]
 
   @@unique([userId, name, realm])
+}
+
+model CharacterProfession {
+  id          String    @id @default(uuid()) @db.Uuid
+  characterId String    @db.Uuid
+  profession  String
+  skillLevel  Int
+  recipes     Json      @default("[]")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, profession])
+  @@index([profession])
 }
 
 model Event {
