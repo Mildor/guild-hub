@@ -6,9 +6,11 @@ import {
   useSyncCharacters,
   useSetMainCharacter,
   useSetRosterCharacter,
+  useGetRaiderIoProfile,
   useGetAllEvents as useGetEvents,
   useGetEvent,
   type EventAttendance,
+  type RaiderIoProfile,
 } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,6 +79,26 @@ const formatUpcomingEventDate = (value: string): string => {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 };
 
+const TWW_RAID_PRIORITY_SLUGS = [
+  'liberation-of-undermine',
+  'nerubar-palace',
+];
+
+const getRaidProgressSummary = (rioData: RaiderIoProfile): string => {
+  for (const slug of TWW_RAID_PRIORITY_SLUGS) {
+    const summary = rioData.raid_progression?.[slug]?.summary;
+    if (summary) {
+      return summary;
+    }
+  }
+
+  const firstAvailableSummary = Object.values(rioData.raid_progression ?? {}).find(
+    (value) => value?.summary,
+  )?.summary;
+
+  return firstAvailableSummary || '0/8 N';
+};
+
 // Skeleton Loader
 function CharactersTableSkeleton() {
   return (
@@ -120,13 +142,20 @@ export function DashboardPage() {
       return null;
     }
 
-    const rosterCharacter = characters.find((character) => character.isRoster);
-    if (rosterCharacter) {
-      return rosterCharacter;
+    const explicitMain = characters.find((character) => character.isMain);
+    if (explicitMain) {
+      return explicitMain;
     }
 
-    return characters[0];
+    return characters.reduce((best, current) =>
+      current.ilvl > best.ilvl ? current : best,
+    );
   }, [characters]);
+
+  const raiderIoCharacterId = selectedCharacterId ?? mainCharacter?.id;
+  const { data: rioData, isLoading: rioLoading } = useGetRaiderIoProfile(
+    raiderIoCharacterId,
+  );
 
   const nextEvent = useMemo(() => {
     if (!events || events.length === 0) {
@@ -282,9 +311,30 @@ export function DashboardPage() {
                             </button>
                           )}
 
-                          <span className="ml-auto rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-300">
-                            iLvl {Math.round(selectedCharacter.ilvl)}
-                          </span>
+                          <div className="ml-auto flex flex-wrap items-center gap-2">
+                            <span className="inline-flex bg-amber-600/20 text-amber-500 px-2 py-1 rounded text-sm font-semibold">
+                              iLvl {Math.round(selectedCharacter.ilvl)}
+                            </span>
+
+                            {rioLoading ? (
+                              <Skeleton className="h-7 w-24 rounded bg-slate-800/50" />
+                            ) : rioData ? (
+                              <>
+                                <span
+                                  className="inline-flex bg-slate-800/80 border border-slate-700 text-slate-200 px-2 py-1 rounded text-sm font-semibold items-center gap-1.5"
+                                  title="Score Mythique+"
+                                >
+                                  ⚔️ {rioData.mythic_plus_scores_by_season?.[0]?.scores?.all || 0}
+                                </span>
+                                <span
+                                  className="inline-flex bg-slate-800/80 border border-slate-700 text-slate-200 px-2 py-1 rounded text-sm font-semibold items-center gap-1.5"
+                                  title="Progression Raid"
+                                >
+                                  👑 {getRaidProgressSummary(rioData)}
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
 

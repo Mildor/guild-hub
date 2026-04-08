@@ -15,6 +15,7 @@ import { DiscordModule } from './discord/discord.module';
 import { PollsModule } from './polls/polls.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RaiderioModule } from './raiderio/raiderio.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     StrategiesModule,
     DiscordModule,
     PollsModule,
+    RaiderioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

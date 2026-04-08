@@ -35,6 +35,12 @@ export interface EventWithMeta {
   };
 }
 
+export interface RaiderIoProfile {
+  name: string;
+  mythic_plus_scores_by_season: { scores: { all: number } }[];
+  raid_progression: Record<string, { summary: string }>;
+}
+
 export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
 
 export interface EventAttendance {
@@ -195,6 +201,20 @@ export const useGetRoster = () => {
       return data;
     },
     retry: 1,
+  });
+};
+
+export const useGetRaiderIoProfile = (characterId?: string) => {
+  return useQuery({
+    queryKey: ['raiderio', characterId],
+    queryFn: async () => {
+      const { data } = await api.get<RaiderIoProfile | null>(
+        `/characters/${characterId}/raiderio`,
+      );
+      return data;
+    },
+    enabled: !!characterId,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
