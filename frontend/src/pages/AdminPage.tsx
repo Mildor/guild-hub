@@ -55,7 +55,7 @@ function CharactersTab() {
     }
 
     return (
-        <div className="rounded-xl border border-border/60 bg-card/40 p-4 mt-4">
+        <div className="mt-4 rounded-xl border border-border/60 bg-card/40 p-4 md:p-6">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -145,7 +145,7 @@ function EventsTab() {
     }
 
     return (
-        <div className="rounded-xl border border-border/60 bg-card/40 p-4 mt-4">
+        <div className="mt-4 rounded-xl border border-border/60 bg-card/40 p-4 md:p-6">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -225,7 +225,7 @@ function UsersTab() {
     }
 
     return (
-        <div className="rounded-xl border border-border/60 bg-card/40 p-4 mt-4">
+        <div className="mt-4 rounded-xl border border-border/60 bg-card/40 p-4 md:p-6">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -273,7 +273,7 @@ function UsersTab() {
                                                 role: nextRole as AppRole,
                                             });
                                         }}
-                                        className="w-[180px]"
+                                        className="w-full max-w-full md:w-[180px]"
                                     >
                                         {availableRoles.map((role) => (
                                             <option key={role} value={role}>
@@ -295,9 +295,9 @@ export function AdminPage() {
     return (
         <RoleGuard allowedRoles={[AppRole.ADMIN]}>
             <div className="min-h-full bg-background">
-                <div className="container mx-auto p-6 space-y-6">
+                <div className="container mx-auto p-4 md:p-8 space-y-6">
                     <div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
+                        <h1 className="mb-2 text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent md:text-3xl">
                             Administration
                         </h1>
                         <p className="text-muted-foreground">
@@ -306,7 +306,7 @@ export function AdminPage() {
                     </div>
 
                     <Tabs defaultValue="users" className="w-full">
-                        <TabsList>
+                        <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex">
                             <TabsTrigger value="users">
                                 Utilisateurs
                             </TabsTrigger>

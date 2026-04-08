@@ -44,10 +44,10 @@ export function CalendarPage() {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="container mx-auto p-4 md:p-8 space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
+            <h1 className="mb-2 text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent md:text-3xl">
               Calendrier de Guilde
             </h1>
             <p className="text-muted-foreground">
@@ -84,7 +84,7 @@ export function CalendarPage() {
             {events.map((event) => (
               <Card key={event.id} className="bg-card/40 border-border/60">
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                     <CardTitle className="text-xl leading-6">{event.title}</CardTitle>
                     <Badge variant="secondary" className="whitespace-nowrap">
                       {formatEventDate(event.eventDate)}
@@ -93,7 +93,7 @@ export function CalendarPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground min-h-12">
+                  <p className="min-h-12 whitespace-pre-wrap break-words text-sm text-muted-foreground">
                     {truncateDescription(event.description)}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -101,7 +101,7 @@ export function CalendarPage() {
                   </p>
                 </CardContent>
 
-                <CardFooter className="justify-between border-t border-border/60 pt-4">
+                <CardFooter className="flex flex-col gap-3 border-t border-border/60 pt-4 lg:flex-row lg:items-center lg:justify-between">
                   <p className="text-sm text-muted-foreground">
                     {event._count?.attendances ?? 0} participant(s) inscrit(s)
                   </p>

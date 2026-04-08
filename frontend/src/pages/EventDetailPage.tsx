@@ -150,9 +150,9 @@ export function EventDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-4">
+      <div className="container mx-auto p-4 md:p-8 space-y-4">
         <Skeleton className="h-12 w-2/3" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Skeleton className="h-[420px] lg:col-span-2" />
           <Skeleton className="h-[420px]" />
         </div>
@@ -162,7 +162,7 @@ export function EventDetailPage() {
 
   if (isError || !event) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4 md:p-8">
         <Card className="bg-card/40 border-border/60">
           <CardHeader>
             <CardTitle>Événement introuvable</CardTitle>
@@ -182,27 +182,29 @@ export function EventDetailPage() {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 md:p-8 space-y-6">
         <Button variant="ghost" size="sm" className="w-fit" onClick={() => navigate('/calendar')}>
           Retour au calendrier
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Card className="bg-card/60 border-border/60">
-              <CardHeader className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="gap-1">
+              <CardHeader className="min-w-0 space-y-3">
+                <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Badge variant="secondary" className="max-w-full gap-1 whitespace-normal break-words [overflow-wrap:anywhere]">
                     <CalendarClock className="size-3.5" />
                     {formatEventDate(event.eventDate)}
                   </Badge>
-                  <Badge variant="outline" className="gap-1">
+                  <Badge variant="outline" className="max-w-full gap-1 whitespace-normal break-words [overflow-wrap:anywhere]">
                     <Users className="size-3.5" />
                     {event.attendances.length} inscriptions
                   </Badge>
                 </div>
-                <CardTitle className="text-3xl">{event.title}</CardTitle>
-                <CardDescription className="text-base leading-relaxed text-foreground/85">
+                <CardTitle className="w-full min-w-0 break-words text-2xl md:text-3xl">
+                  {event.title}
+                </CardTitle>
+                <CardDescription className="w-full min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-base leading-relaxed text-foreground/85">
                   {event.description}
                 </CardDescription>
                 <p className="text-sm text-muted-foreground">Créé par {event.createdBy?.battletag ?? 'Inconnu'}</p>
@@ -215,7 +217,7 @@ export function EventDetailPage() {
                 <Badge variant="outline">{accepted.length} ACCEPTED</Badge>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <RosterGroup role={GameRole.TANK} entries={groupedAccepted.TANK} />
                 <RosterGroup role={GameRole.HEALER} entries={groupedAccepted.HEALER} />
                 <RosterGroup role={GameRole.DPS} entries={groupedAccepted.DPS} />
@@ -277,13 +279,13 @@ export function EventDetailPage() {
                 >
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Statut</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {STATUS_OPTIONS.map((option) => (
                         <Button
                           key={option.value}
                           type="button"
                           variant={status === option.value ? 'default' : 'outline'}
-                          className="justify-center"
+                          className="w-full justify-center"
                           onClick={() => setStatus(option.value)}
                         >
                           {option.label}

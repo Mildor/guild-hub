@@ -58,6 +58,7 @@ model Character {
   gameRole   GameRole
   ilvl       Float    @default(0)
   isMain     Boolean  @default(false)
+  isRoster   Boolean  @default(false)
   inRoster   Boolean  @default(false)
   guildRank  Int?
   lastSyncAt DateTime @default(now())

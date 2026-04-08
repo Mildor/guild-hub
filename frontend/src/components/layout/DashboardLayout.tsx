@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   Avatar,
@@ -30,6 +30,7 @@ import { useGetWowToken } from '@/api/queries';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +48,10 @@ export function DashboardLayout() {
   // Auto-expand when on strategies page
   const isOnStrategies = location.pathname.startsWith('/strategies');
   const expanded = strategiesExpanded || isOnStrategies;
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   const groupedByRaid = useMemo(() => {
     if (!strategies) return {};
@@ -93,13 +98,103 @@ export function DashboardLayout() {
       ? `${new Intl.NumberFormat('fr-FR').format(wowToken.currentPrice)} po`
       : 'Indisponible';
 
+  const renderNavContent = (showLabels: boolean, onNavigate?: () => void) => (
+    <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          to={item.href}
+          onClick={onNavigate}
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
+            location.pathname === item.href
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
+          }`}
+        >
+          <item.icon className="w-5 h-5 flex-shrink-0" />
+          {showLabels && <span className="text-sm font-medium">{item.label}</span>}
+        </Link>
+      ))}
+
+      <div>
+        <button
+          onClick={() => setStrategiesExpanded(!expanded)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
+            isOnStrategies
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
+          }`}
+        >
+          <BookOpen className="w-5 h-5 flex-shrink-0" />
+          {showLabels && (
+            <>
+              <span className="text-sm font-medium flex-1 text-left">Stratégies</span>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  expanded ? 'rotate-90' : ''
+                }`}
+              />
+            </>
+          )}
+        </button>
+
+        {showLabels && expanded && (
+          <div className="ml-4 mt-1 pl-4 border-l border-border/30 space-y-3 py-1">
+            {isOfficerOrAdmin && (
+              <Link
+                to="/strategies/new"
+                onClick={onNavigate}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 hover:bg-amber-600/10 rounded-md transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nouvelle Stratégie
+              </Link>
+            )}
+
+            {Object.keys(groupedByRaid).length === 0 && (
+              <p className="text-xs text-muted-foreground/50 px-3 py-1">Aucune stratégie</p>
+            )}
+
+            {Object.entries(groupedByRaid).map(([raidName, bosses]) => (
+              <div key={raidName}>
+                <p className="text-[10px] font-semibold text-amber-500/60 uppercase tracking-wider px-3 mb-1">
+                  {raidName}
+                </p>
+                <div className="space-y-0.5">
+                  {bosses.map((strat) => {
+                    const isActive = location.pathname === `/strategies/${strat.id}`;
+                    return (
+                      <Link
+                        key={strat.id}
+                        to={`/strategies/${strat.id}`}
+                        onClick={onNavigate}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
+                          isActive
+                            ? 'bg-amber-600/20 text-amber-400'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-slate-200'
+                        }`}
+                      >
+                        <Swords className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{strat.bossName}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside
-        className={`${
+        className={`hidden md:flex ${
           sidebarOpen ? 'w-64' : 'w-20'
-        } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col`}
+        } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-col`}
       >
         {/* Logo */}
         <div className="p-6 border-b border-border/50">
@@ -118,94 +213,7 @@ export function DashboardLayout() {
           </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
-                location.pathname === item.href
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
-              }`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
-            </Link>
-          ))}
-
-          {/* Stratégies - collapsible section */}
-          <div>
-            <button
-              onClick={() => setStrategiesExpanded(!expanded)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
-                isOnStrategies
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
-              }`}
-            >
-              <BookOpen className="w-5 h-5 flex-shrink-0" />
-              {sidebarOpen && (
-                <>
-                  <span className="text-sm font-medium flex-1 text-left">Stratégies</span>
-                  <ChevronRight
-                    className={`w-4 h-4 transition-transform duration-200 ${
-                      expanded ? 'rotate-90' : ''
-                    }`}
-                  />
-                </>
-              )}
-            </button>
-
-            {/* Sub-items: boss list grouped by raid */}
-            {sidebarOpen && expanded && (
-              <div className="ml-4 mt-1 pl-4 border-l border-border/30 space-y-3 py-1">
-                {/* + Nouveau button */}
-                {isOfficerOrAdmin && (
-                  <Link
-                    to="/strategies/new"
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 hover:bg-amber-600/10 rounded-md transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Nouvelle Stratégie
-                  </Link>
-                )}
-
-                {Object.keys(groupedByRaid).length === 0 && (
-                  <p className="text-xs text-muted-foreground/50 px-3 py-1">Aucune stratégie</p>
-                )}
-
-                {Object.entries(groupedByRaid).map(([raidName, bosses]) => (
-                  <div key={raidName}>
-                    <p className="text-[10px] font-semibold text-amber-500/60 uppercase tracking-wider px-3 mb-1">
-                      {raidName}
-                    </p>
-                    <div className="space-y-0.5">
-                      {bosses.map((strat) => {
-                        const isActive = location.pathname === `/strategies/${strat.id}`;
-                        return (
-                          <Link
-                            key={strat.id}
-                            to={`/strategies/${strat.id}`}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
-                              isActive
-                                ? 'bg-amber-600/20 text-amber-400'
-                                : 'text-muted-foreground hover:bg-muted/50 hover:text-slate-200'
-                            }`}
-                          >
-                            <Swords className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate">{strat.bossName}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </nav>
+        {renderNavContent(sidebarOpen)}
 
         {/* Footer with toggle */}
         <div className="border-t border-border/50 p-2">
@@ -220,19 +228,72 @@ export function DashboardLayout() {
         </div>
       </aside>
 
+      {mobileSidebarOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 flex h-full w-80 max-w-[85vw] flex-col bg-sidebar border-r border-sidebar-border shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border/50 p-4">
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="flex items-center gap-3 group min-w-0"
+              >
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-primary/30 transition-all glow-gold">
+                  <span className="text-sm font-bold text-primary-foreground">TGP</span>
+                </div>
+                <h1 className="truncate text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  The Good Place
+                </h1>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="text-muted-foreground hover:text-primary"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            {renderNavContent(true, () => setMobileSidebarOpen(false))}
+            <div className="border-t border-border/50 p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="w-full justify-center text-muted-foreground hover:text-primary"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex min-w-0 flex-col">
         {/* Header */}
         <header className="border-b border-border/50 bg-card/40 backdrop-blur-md sticky top-0 z-40 h-16">
-          <div className="h-full px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h2 className="text-sm font-medium text-muted-foreground">Dashboard</h2>
+          <div className="h-full px-4 md:px-6 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="-ml-2 text-muted-foreground hover:text-primary md:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <h2 className="hidden sm:block text-sm font-medium text-muted-foreground truncate">Dashboard</h2>
               <Link
                 to="/token"
-                className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 transition-colors hover:bg-amber-500/20"
+                className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 sm:px-3 sm:text-xs"
               >
                 <Coins className="h-3.5 w-3.5" />
-                <span>Token: {formattedTokenPrice}</span>
+                <span className="hidden sm:inline">Token: {formattedTokenPrice}</span>
+                <span className="sm:hidden">{formattedTokenPrice}</span>
               </Link>
             </div>
 
@@ -278,10 +339,11 @@ export function DashboardLayout() {
                         supprimees immediatement.
                       </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
+                    <DialogFooter className="w-full">
                       <Button
                         variant="outline"
                         onClick={() => setDeleteDialogOpen(false)}
+                        className="w-full md:w-auto"
                       >
                         Annuler
                       </Button>
@@ -289,6 +351,7 @@ export function DashboardLayout() {
                         variant="destructive"
                         onClick={handleDeleteMyAccount}
                         disabled={deleteMyAccount.isPending}
+                        className="w-full md:w-auto"
                       >
                         {deleteMyAccount.isPending
                           ? 'Suppression en cours...'
@@ -311,7 +374,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-x-hidden">
           <Outlet />
         </main>
 

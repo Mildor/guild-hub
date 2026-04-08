@@ -17,7 +17,7 @@ export class CharactersService {
 
   getRoster() {
     return this.prisma.character.findMany({
-      where: { inRoster: true },
+      where: { isRoster: true },
       include: { user: true },
       orderBy: [{ gameRole: 'asc' }, { ilvl: 'desc' }],
     });
@@ -63,6 +63,32 @@ export class CharactersService {
   async update(id: string, dto: UpdateCharacterDto) {
     await this.findOneOrFail(id);
     return this.prisma.character.update({ where: { id }, data: dto });
+  }
+
+  async setRosterCharacter(userId: string, characterId: string) {
+    const character = await this.prisma.character.findUnique({
+      where: { id: characterId },
+    });
+
+    if (!character || character.userId !== userId) {
+      throw new NotFoundException(
+        `Character #${characterId} not found or does not belong to user`,
+      );
+    }
+
+    const [, updatedCharacter] = await this.prisma.$transaction([
+      this.prisma.character.updateMany({
+        where: { userId },
+        data: { isRoster: false },
+      }),
+      this.prisma.character.update({
+        where: { id: characterId },
+        data: { isRoster: true },
+        include: { user: true },
+      }),
+    ]);
+
+    return updatedCharacter;
   }
 
   async remove(id: string) {

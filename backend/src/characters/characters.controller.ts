@@ -97,6 +97,18 @@ export class CharactersController {
   }
 
   @Patch(':id/roster')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Definit ce personnage comme personnage roster personnel' })
+  @ApiResponse({ status: 200, description: 'Personnage roster mis a jour.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  setRosterCharacter(
+    @Param('id') id: string,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.charactersService.setRosterCharacter(req.user.userId, id);
+  }
+
+  @Patch(':id/guild-roster')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AppRole.ADMIN, AppRole.OFFICER)
   @ApiOperation({ summary: 'Active ou retire un personnage du roster' })

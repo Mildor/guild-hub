@@ -37,9 +37,9 @@ export function TokenPage() {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 md:p-8 space-y-6">
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-amber-300 bg-clip-text text-transparent md:text-4xl">
             WoW Token Tracker
           </h1>
           <p className="text-muted-foreground">
@@ -53,7 +53,7 @@ export function TokenPage() {
             <CardDescription>Dernier prix enregistre dans la base</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-black tracking-tight text-amber-300">{currentPrice}</p>
+            <p className="text-3xl font-black tracking-tight text-amber-300 md:text-4xl">{currentPrice}</p>
           </CardContent>
         </Card>
 

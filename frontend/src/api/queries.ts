@@ -164,6 +164,29 @@ export const useSetMainCharacter = (userId: string | null | undefined) => {
   });
 };
 
+const setRosterCharacter = async (characterId: string) => {
+  const { data } = await api.patch(`/characters/${characterId}/roster`);
+  return data;
+};
+
+export const useSetRosterCharacter = (userId: string | null | undefined) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: setRosterCharacter,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', userId] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
+      ]);
+    },
+    onError: (error) => {
+      console.error('❌ Erreur setting roster character:', error);
+    },
+  });
+};
+
 export const useGetRoster = () => {
   return useQuery({
     queryKey: ['characters', 'roster'],
@@ -294,7 +317,7 @@ export const useDeleteEvent = () => {
 };
 
 const toggleRosterStatus = async ({ id, inRoster }: { id: string; inRoster: boolean }) => {
-  const { data } = await api.patch<CharacterWithUser>(`/characters/${id}/roster`, { inRoster });
+  const { data } = await api.patch<CharacterWithUser>(`/characters/${id}/guild-roster`, { inRoster });
   return data;
 };
 

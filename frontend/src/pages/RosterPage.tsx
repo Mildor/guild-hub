@@ -63,6 +63,9 @@ function RosterCurrentTab() {
         };
 
         for (const character of roster ?? []) {
+            if (!character.isRoster) {
+                continue;
+            }
             base[character.gameRole].push(character);
         }
 
@@ -96,7 +99,7 @@ function RosterCurrentTab() {
                                 Aucun personnage pour ce rôle.
                             </p>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {groupedRoster[role].map((character) => (
                                     <CharacterCard
                                         key={character.id}
@@ -277,9 +280,9 @@ export function RosterPage() {
 
     return (
         <div className="min-h-full bg-background">
-            <div className="container mx-auto p-6 space-y-6">
+            <div className="container mx-auto p-4 md:p-8 space-y-6">
                 <div>
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2">
+                    <h1 className="mb-2 text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent md:text-3xl">
                         Roster de Guilde
                     </h1>
                     <p className="text-muted-foreground">
@@ -289,7 +292,7 @@ export function RosterPage() {
                 </div>
 
                 <Tabs defaultValue="current" className="w-full">
-                    <TabsList>
+                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:w-auto md:inline-flex">
                         <TabsTrigger value="current">Roster Actuel</TabsTrigger>
                         {canManage && (
                             <TabsTrigger value="manage">Gestion</TabsTrigger>

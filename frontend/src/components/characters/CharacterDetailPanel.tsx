@@ -15,18 +15,13 @@ import {
     Backpack,
     Wand,
     ExternalLink,
+    RefreshCw,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Mapping des slots Blizzard vers noms standard (left column, right column, bottom)
 const SLOT_LAYOUT = {
-    LEFT: [
-        "HEAD",
-        "NECK",
-        "SHOULDER",
-        "BACK",
-        "CHEST",
-        "WRIST",
-    ],
+    LEFT: ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "WRIST"],
     RIGHT: [
         "HANDS",
         "WAIST",
@@ -91,7 +86,7 @@ const ARCHON_CLASS_MAP: Record<string, string> = {
     "demon-hunter": "demon-hunter",
     "chasseur-de-demons": "demon-hunter",
     evoker: "evoker",
-    "evoqueur": "evoker",
+    evoqueur: "evoker",
 };
 
 const ARCHON_SPEC_MAP: Record<string, string> = {
@@ -106,7 +101,7 @@ const ARCHON_SPEC_MAP: Record<string, string> = {
     retribution: "retribution",
     // Hunter
     "maitrise-des-betes": "beast-mastery",
-    "precision": "marksmanship",
+    precision: "marksmanship",
     survie: "survival",
     // Rogue
     assassinat: "assassination",
@@ -149,6 +144,8 @@ const ARCHON_SPEC_MAP: Record<string, string> = {
 
 interface CharacterDetailPanelProps {
     data: Character;
+    onSyncAll?: () => void;
+    isSyncing?: boolean;
 }
 
 // Récupérer un item par type de slot
@@ -186,7 +183,11 @@ function getItemBySlotType(
     return undefined;
 }
 
-export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
+export function CharacterDetailPanel({
+    data,
+    onSyncAll,
+    isSyncing = false,
+}: CharacterDetailPanelProps) {
     const equipment = data.equipment || [];
     const formattedRealm = formatForUrl(data.realm);
     const formattedName = formatForUrl(data.name);
@@ -218,7 +219,11 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
         },
     ];
 
-    const allArmorSlots = [...SLOT_LAYOUT.LEFT, ...SLOT_LAYOUT.RIGHT, ...SLOT_LAYOUT.BOTTOM];
+    const allArmorSlots = [
+        ...SLOT_LAYOUT.LEFT,
+        ...SLOT_LAYOUT.RIGHT,
+        ...SLOT_LAYOUT.BOTTOM,
+    ];
     const renderSlot = (slotType: string) => (
         <ItemSlot
             key={slotType}
@@ -227,17 +232,32 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
             emptyIcon={SLOT_ICONS[slotType] || SLOT_ICONS["CHEST"]}
         />
     );
-    const aubergeBackground = '/uploads/auberge.png?v=20260401-1';
+    const aubergeBackground = "/uploads/auberge.png?v=20260401-1";
 
     // Si aucune donnée d'équipement
     if (!equipment || equipment.length === 0) {
         return (
-            <div className="p-8 text-center rounded-lg bg-muted/30 border border-border/50">
-                <GalleryVertical className="w-12 h-12 opacity-30 mx-auto mb-3" />
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-5 text-center md:p-8">
+                <GalleryVertical className="mx-auto mb-3 h-12 w-12 opacity-30" />
                 <p className="text-muted-foreground">
                     Données de personnage non synchronisées. Cliquez sur
                     "Synchroniser" pour charger l'équipement.
                 </p>
+                {onSyncAll ? (
+                    <Button
+                        type="button"
+                        onClick={onSyncAll}
+                        disabled={isSyncing}
+                        className="mt-4 inline-flex items-center gap-2"
+                    >
+                        <RefreshCw
+                            className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+                        />
+                        {isSyncing
+                            ? "Synchronisation..."
+                            : "Synchroniser mes personnages"}
+                    </Button>
+                ) : null}
             </div>
         );
     }
@@ -260,6 +280,20 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {onSyncAll ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onSyncAll}
+                            disabled={isSyncing}
+                            className="h-8 rounded-full border-sky-500/30 bg-sky-500/10 px-3 text-[11px] font-semibold text-sky-200 hover:bg-sky-500/20"
+                        >
+                            <RefreshCw
+                                className={`mr-1.5 h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`}
+                            />
+                            {isSyncing ? "Synchronisation..." : "Synchroniser"}
+                        </Button>
+                    ) : null}
                     <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 font-semibold text-sky-200">
                         iLvl {Math.round(data.ilvl)}
                     </span>
@@ -270,7 +304,25 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                     )}
                 </div>
             </div>
-
+            <div className="rounded-xl border border-border/60 bg-card/30 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Liens utiles
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap">
+                    {quickLinks.map((link) => (
+                        <a
+                            key={link.label}
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/80 bg-background/70 px-3 py-2 text-xs font-medium text-foreground/90 transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 sm:w-auto"
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            <span>{link.label}</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
             <div className="relative mt-4 grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-start">
                 <div className="hidden xl:flex xl:flex-col xl:gap-2">
                     {SLOT_LAYOUT.LEFT.map(renderSlot)}
@@ -291,7 +343,7 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                                     className="h-full w-full object-cover object-bottom"
                                 />
                             </div>
-                            <div className="relative h-[320px] sm:h-[420px]">
+                            <div className="relative h-[280px] sm:h-[360px] md:h-[420px]">
                                 <img
                                     src={
                                         data.renderUrl ||
@@ -323,26 +375,6 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                             <GalleryVertical className="h-12 w-12 opacity-30" />
                         </div>
                     )}
-
-                    <div className="rounded-xl border border-border/60 bg-card/30 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Liens utiles
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {quickLinks.map((link) => (
-                                <a
-                                    key={link.label}
-                                    href={link.href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-sky-400/40 hover:bg-sky-500/10"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                    <span>{link.label}</span>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 <div className="hidden xl:flex xl:flex-col xl:gap-2">
@@ -353,12 +385,15 @@ export function CharacterDetailPanel({ data }: CharacterDetailPanelProps) {
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Équipement
                     </p>
-                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
-                        {allArmorSlots.map(renderSlot)}
+                    <div className="grid grid-cols-2 place-items-center gap-4 sm:grid-cols-4 sm:gap-3 md:grid-cols-6 lg:grid-cols-8">
+                        {allArmorSlots.map((slotType) => (
+                            <div key={slotType} className="flex justify-center">
+                                {renderSlot(slotType)}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
-
         </div>
     );
 }

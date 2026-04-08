@@ -85,22 +85,22 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
     const qualityClass = itemQualityColors[qualityId] || 'text-white';
 
     return (
-      <a
+        <a
         href={`https://www.wowhead.com/fr/item=${item.item.id}`}
         target="_blank"
         rel="noopener noreferrer"
         title={`${slotNames[slotName] || slotName}${item.level?.value ? ` - ilvl ${item.level.value}` : ''}`}
         className="block rounded-md transition-transform duration-150 hover:scale-[1.03] cursor-pointer group"
       >
-        <div className="relative w-12 h-12">
+        <div className="relative h-14 w-14 sm:h-12 sm:w-12">
           {loading ? (
-            <div className="w-12 h-12 rounded border border-border bg-muted animate-pulse" />
+            <div className="h-14 w-14 rounded border border-border bg-muted animate-pulse sm:h-12 sm:w-12" />
           ) : (
             <>
               <img
                 src={iconUrl}
                 alt={item.name}
-                className={`w-12 h-12 rounded border ${qualityClass} group-hover:border-primary/40 transition-colors`}
+                className={`h-14 w-14 rounded border ${qualityClass} group-hover:border-primary/40 transition-colors sm:h-12 sm:w-12`}
                 onError={(e) => {
                   if (e.currentTarget.src !== FALLBACK_ICON_URL) {
                     e.currentTarget.src = FALLBACK_ICON_URL;
@@ -123,7 +123,7 @@ function ItemSlotContent({ item, slotName, emptyIcon }: ItemSlotProps) {
   return (
     <div
       title={slotNames[slotName] || slotName}
-      className="w-12 h-12 flex items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-muted-foreground/45 hover:border-primary/30 transition-colors"
+      className="flex h-14 w-14 items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/20 text-muted-foreground/45 transition-colors hover:border-primary/30 sm:h-12 sm:w-12"
     >
       <div className="opacity-60 scale-75">{emptyIcon}</div>
     </div>

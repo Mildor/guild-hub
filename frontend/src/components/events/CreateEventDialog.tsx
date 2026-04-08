@@ -80,7 +80,7 @@ export function CreateEventDialog() {
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl animate-scale-in">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-2xl animate-scale-in md:p-6">
             <div className="mb-5">
               <h2 className="text-xl font-semibold text-foreground">Créer un nouvel événement</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -164,18 +164,18 @@ export function CreateEventDialog() {
 
               {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
-              <div className="mt-6 flex items-center justify-end gap-3">
+              <div className="mt-6 flex w-full flex-col gap-3 md:flex-row md:justify-end">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground/90 transition hover:bg-muted/60"
+                  className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground/90 transition hover:bg-muted/60 md:w-auto"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/85 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/85 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
                 >
                   {createEventMutation.isPending ? 'Creation...' : "Créer l'événement"}
                 </button>
