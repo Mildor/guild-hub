@@ -43,7 +43,7 @@ export function TokenPage() {
             WoW Token Tracker
           </h1>
           <p className="text-muted-foreground">
-            Evolution des prix du token sur les 7 derniers jours (snapshot quotidien a 08:00).
+            Evolution des prix du token sur les 7 derniers jours (La valeur du token se met à jour toutes les 3 heures.).
           </p>
         </div>
 
