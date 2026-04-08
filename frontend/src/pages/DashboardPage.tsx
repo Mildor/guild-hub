@@ -9,6 +9,11 @@ import {
   useGetRaiderIoProfile,
   useGetAllEvents as useGetEvents,
   useGetEvent,
+  useGetPolls,
+  useGetRoster,
+  useVotePoll,
+  useUpsertAttendance,
+  type AttendanceStatus,
   type EventAttendance,
   type RaiderIoProfile,
 } from '@/api/queries';
@@ -45,6 +50,13 @@ const roleLabelMap: Record<GameRole, string> = {
   HEALER: 'Healer',
   DPS: 'DPS',
 };
+
+const QUICK_STATUS_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
+  { value: 'ACCEPTED', label: 'Present' },
+  { value: 'TENTATIVE', label: 'Incertain' },
+  { value: 'LATE', label: 'Retard' },
+  { value: 'DECLINED', label: 'Absent' },
+];
 
 const formatUpcomingEventDate = (value: string): string => {
   const eventDate = new Date(value);
@@ -119,10 +131,19 @@ export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data: characters, isLoading, error } = useGetMyCharacters(user?.userId);
   const { data: events } = useGetEvents();
+  const { data: polls } = useGetPolls();
+  const { data: roster } = useGetRoster();
+  const votePollMutation = useVotePoll();
+  const upsertAttendance = useUpsertAttendance();
   const syncMutation = useSyncCharacters(user?.userId);
   const setMainMutation = useSetMainCharacter(user?.userId);
   const setRosterMutation = useSetRosterCharacter(user?.userId);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'roster'>('events');
+  const [quickAttendanceStatus, setQuickAttendanceStatus] = useState<AttendanceStatus>('TENTATIVE');
+  const [quickAttendanceCharacterId, setQuickAttendanceCharacterId] = useState('');
+  const [selectedPollOptionId, setSelectedPollOptionId] = useState('');
+  const [showAllRosterQuickSwitch, setShowAllRosterQuickSwitch] = useState(false);
 
   if (error) {
     console.error('❌ Erreur API:', error);
@@ -172,6 +193,108 @@ export function DashboardPage() {
 
   const { data: nextEventDetail } = useGetEvent(nextEvent?.id ?? '');
 
+  const activePoll = useMemo(() => {
+    if (!polls || polls.length === 0) {
+      return null;
+    }
+
+    const activePolls = polls
+      .filter((poll) => poll.isActive)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return activePolls[0] || null;
+  }, [polls]);
+
+  const myPollVote = useMemo(() => {
+    if (!activePoll || !user?.userId) {
+      return undefined;
+    }
+
+    return activePoll.votes.find((vote) => vote.userId === user.userId);
+  }, [activePoll, user?.userId]);
+
+  const hasVotedActivePoll = Boolean(myPollVote);
+  const canSubmitPollVote = !!activePoll?.id && !!selectedPollOptionId && !votePollMutation.isPending;
+
+  const pollLeader = useMemo(() => {
+    if (!activePoll) {
+      return null;
+    }
+
+    const countsByOptionId = activePoll.options.map((option) => {
+      const count = activePoll.votes.filter((vote) => vote.optionId === option.id).length;
+      return { option, count };
+    });
+
+    countsByOptionId.sort((a, b) => b.count - a.count);
+    return countsByOptionId[0] ?? null;
+  }, [activePoll]);
+
+  const rosterCounts = useMemo(() => {
+    const base = { TANK: 0, HEALER: 0, DPS: 0 };
+
+    for (const character of roster ?? []) {
+      if (!character.isRoster) {
+        continue;
+      }
+      base[character.gameRole] += 1;
+    }
+
+    return base;
+  }, [roster]);
+
+  const hasRosterCharacter = useMemo(() => {
+    return Boolean(characters?.some((character) => character.isRoster || character.isMain));
+  }, [characters]);
+
+  const myRosterCharacter = useMemo(() => {
+    return charactersSorted.find((character) => character.isRoster) ?? null;
+  }, [charactersSorted]);
+
+  const totalRosterCount = rosterCounts.TANK + rosterCounts.HEALER + rosterCounts.DPS;
+
+  const rosterDistribution = useMemo(() => {
+    if (totalRosterCount === 0) {
+      return [
+        { key: 'TANK', label: 'Tanks', count: 0, percent: 0, barClass: 'bg-sky-500/70' },
+        { key: 'HEALER', label: 'Healers', count: 0, percent: 0, barClass: 'bg-emerald-500/70' },
+        { key: 'DPS', label: 'DPS', count: 0, percent: 0, barClass: 'bg-amber-500/70' },
+      ] as const;
+    }
+
+    return [
+      {
+        key: 'TANK',
+        label: 'Tanks',
+        count: rosterCounts.TANK,
+        percent: Math.round((rosterCounts.TANK / totalRosterCount) * 100),
+        barClass: 'bg-sky-500/70',
+      },
+      {
+        key: 'HEALER',
+        label: 'Healers',
+        count: rosterCounts.HEALER,
+        percent: Math.round((rosterCounts.HEALER / totalRosterCount) * 100),
+        barClass: 'bg-emerald-500/70',
+      },
+      {
+        key: 'DPS',
+        label: 'DPS',
+        count: rosterCounts.DPS,
+        percent: Math.round((rosterCounts.DPS / totalRosterCount) * 100),
+        barClass: 'bg-amber-500/70',
+      },
+    ] as const;
+  }, [rosterCounts.HEALER, rosterCounts.DPS, rosterCounts.TANK, totalRosterCount]);
+
+  const rosterQuickSwitchCharacters = useMemo(() => {
+    if (showAllRosterQuickSwitch) {
+      return charactersSorted;
+    }
+
+    return charactersSorted.slice(0, 1);
+  }, [charactersSorted, showAllRosterQuickSwitch]);
+
   const myNextEventAttendance = useMemo((): EventAttendance | undefined => {
     if (!nextEventDetail || !user?.userId) {
       return undefined;
@@ -182,6 +305,10 @@ export function DashboardPage() {
 
   const isRegisteredToNextEvent =
     !!myNextEventAttendance && myNextEventAttendance.status !== 'DECLINED';
+
+  const quickRequiresCharacter = quickAttendanceStatus !== 'DECLINED';
+  const canQuickRegister =
+    !!nextEvent?.id && (!quickRequiresCharacter || !!quickAttendanceCharacterId);
 
   const selectedCharacter = useMemo(() => {
     if (selectedCharacterId) {
@@ -206,6 +333,31 @@ export function DashboardPage() {
     }
   }, [charactersSorted, mainCharacter?.id, selectedCharacterId]);
 
+  useEffect(() => {
+    if (myNextEventAttendance) {
+      setQuickAttendanceStatus(myNextEventAttendance.status);
+      setQuickAttendanceCharacterId(myNextEventAttendance.characterId ?? '');
+      return;
+    }
+
+    setQuickAttendanceStatus('TENTATIVE');
+    setQuickAttendanceCharacterId(mainCharacter?.id ?? '');
+  }, [myNextEventAttendance, mainCharacter?.id]);
+
+  useEffect(() => {
+    if (!activePoll) {
+      setSelectedPollOptionId('');
+      return;
+    }
+
+    if (myPollVote?.optionId) {
+      setSelectedPollOptionId(myPollVote.optionId);
+      return;
+    }
+
+    setSelectedPollOptionId('');
+  }, [activePoll, myPollVote?.optionId]);
+
   if (!user) {
     return null;
   }
@@ -217,41 +369,308 @@ export function DashboardPage() {
           <div className="space-y-6">
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 md:p-6">
               <p className="mb-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                Prochain Evenement
+                Centre d&apos;Action
               </p>
 
-              {!nextEvent ? (
-                <p className="text-slate-400">
-                  Aucun evenement de guilde prevu prochainement. Quartier libre !
-                </p>
-              ) : (
-                <>
-                  <h2 className="text-lg font-bold text-slate-100">
-                    {nextEvent.title}
-                  </h2>
-                  <p className="mb-4 mt-1 text-sm text-slate-300">
-                    {formatUpcomingEventDate(nextEvent.eventDate)}
-                  </p>
+              <div className="mb-4 flex gap-2 border-b border-slate-800 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('events')}
+                  className={activeTab === 'events'
+                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
+                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                >
+                  Evenements
+                </button>
 
-                  {isRegisteredToNextEvent ? (
-                    <div className="inline-flex w-fit rounded-md border border-emerald-500/40 bg-emerald-600/15 px-3 py-1.5 text-sm font-medium text-emerald-300">
-                      Inscrit en tant que {roleLabelMap[myNextEventAttendance?.character?.gameRole || 'DPS']} {myNextEventAttendance?.character?.name ? `(${myNextEventAttendance.character.name})` : ''}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="inline-flex rounded-md border border-orange-500/40 bg-orange-600/15 px-3 py-1.5 text-sm font-medium text-orange-300">
-                        Non inscrit
-                      </span>
-                      <Link
-                        to={`/events/${nextEvent.id}`}
-                        className="inline-flex items-center rounded-md border border-slate-600 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('polls')}
+                  className={activeTab === 'polls'
+                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
+                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Sondages
+                    {activePoll && !hasVotedActivePoll ? (
+                      <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                    ) : null}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('roster')}
+                  className={activeTab === 'roster'
+                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
+                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                >
+                  Roster
+                </button>
+              </div>
+
+              {activeTab === 'events' ? (
+                !nextEvent ? (
+                  <p className="text-slate-400">
+                    Aucun evenement de guilde prevu prochainement. Quartier libre !
+                  </p>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold text-slate-100">
+                      {nextEvent.title}
+                    </h2>
+                    <p className="mb-4 mt-1 text-sm text-slate-300">
+                      {formatUpcomingEventDate(nextEvent.eventDate)}
+                    </p>
+
+                    {isRegisteredToNextEvent ? (
+                      <div className="mb-4 inline-flex w-fit rounded-md border border-emerald-500/40 bg-emerald-600/15 px-3 py-1.5 text-sm font-medium text-emerald-300">
+                        Inscrit en tant que {roleLabelMap[myNextEventAttendance?.character?.gameRole || 'DPS']} {myNextEventAttendance?.character?.name ? `(${myNextEventAttendance.character.name})` : ''}
+                      </div>
+                    ) : (
+                      <div className="mb-4 flex flex-wrap items-center gap-3">
+                        <span className="inline-flex rounded-md border border-orange-500/40 bg-orange-600/15 px-3 py-1.5 text-sm font-medium text-orange-300">
+                          Non inscrit
+                        </span>
+                      </div>
+                    )}
+
+                    <form
+                      className="space-y-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!nextEvent?.id || !canQuickRegister) {
+                          return;
+                        }
+
+                        upsertAttendance.mutate({
+                          eventId: nextEvent.id,
+                          status: quickAttendanceStatus,
+                          characterId: quickAttendanceStatus === 'DECLINED' ? undefined : (quickAttendanceCharacterId || undefined),
+                        });
+                      }}
+                    >
+                      <div className="grid grid-cols-2 gap-2">
+                        {QUICK_STATUS_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setQuickAttendanceStatus(option.value)}
+                            className={quickAttendanceStatus === option.value
+                              ? 'rounded-md border border-amber-500/40 bg-amber-500/15 px-2.5 py-2 text-xs font-semibold text-amber-300'
+                              : 'rounded-md border border-slate-700 bg-slate-800 px-2.5 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700'}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {quickRequiresCharacter ? (
+                        <select
+                          value={quickAttendanceCharacterId}
+                          onChange={(event) => setQuickAttendanceCharacterId(event.target.value)}
+                          className="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none transition-colors focus:border-amber-500"
+                        >
+                          <option value="">Choisir un personnage</option>
+                          {charactersSorted.map((character) => (
+                            <option key={character.id} value={character.id}>
+                              {character.name} - {character.class} ({Math.round(character.ilvl)} iLvl)
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="submit"
+                          disabled={!canQuickRegister || upsertAttendance.isPending}
+                          className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {upsertAttendance.isPending ? 'Inscription...' : 'S\'inscrire'}
+                        </button>
+
+                        <Link
+                          to={`/events/${nextEvent.id}`}
+                          className="inline-flex items-center rounded-md border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+                        >
+                          Ouvrir le detail
+                        </Link>
+                      </div>
+
+                      {upsertAttendance.isSuccess ? (
+                        <p className="text-xs text-emerald-300">Inscription mise a jour.</p>
+                      ) : null}
+                    </form>
+                  </>
+                )
+              ) : null}
+
+              {activeTab === 'polls' ? (
+                !activePoll ? (
+                  <p className="text-slate-400">Aucun sondage en cours.</p>
+                ) : (
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-100">{activePoll.question}</h2>
+
+                    {!hasVotedActivePoll ? (
+                      <form
+                        className="mt-4 space-y-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (!canSubmitPollVote || !activePoll?.id) {
+                            return;
+                          }
+
+                          votePollMutation.mutate({
+                            pollId: activePoll.id,
+                            optionId: selectedPollOptionId,
+                          });
+                        }}
                       >
-                        Gerer ma presence
-                      </Link>
+                        {activePoll.options.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedPollOptionId(option.id)}
+                            disabled={votePollMutation.isPending}
+                            className={selectedPollOptionId === option.id
+                              ? 'mb-2 w-full rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-300'
+                              : 'mb-2 w-full rounded bg-slate-800 px-3 py-2 text-left text-sm hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60'}
+                          >
+                            {option.text}
+                          </button>
+                        ))}
+
+                        <button
+                          type="submit"
+                          disabled={!canSubmitPollVote}
+                          className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {votePollMutation.isPending ? 'Vote en cours...' : 'Voter'}
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="mt-4 space-y-2 text-sm text-slate-300">
+                        <p>
+                          Vous avez vote pour :{' '}
+                          <span className="font-semibold text-slate-100">
+                            {myPollVote?.option?.text || 'Option inconnue'}
+                          </span>
+                        </p>
+                        <p>
+                          Option en tete :{' '}
+                          <span className="font-semibold text-amber-400">
+                            {pollLeader?.option.text || 'Aucune'}
+                          </span>
+                          {pollLeader ? ` (${pollLeader.count} vote${pollLeader.count > 1 ? 's' : ''})` : ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : null}
+
+              {activeTab === 'roster' ? (
+                !hasRosterCharacter ? (
+                  <div className="space-y-3 rounded-md border border-orange-500/40 bg-orange-600/10 p-3 text-sm text-orange-300">
+                    <p>
+                      ⚠️ Vous n&apos;avez pas defini de personnage pour le roster. Selectionnez-en un rapidement ci-dessous.
+                    </p>
+
+                    {charactersSorted.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        {charactersSorted.slice(0, 3).map((character) => (
+                          <button
+                            key={character.id}
+                            type="button"
+                            onClick={() => setRosterMutation.mutate(character.id)}
+                            disabled={setRosterMutation.isPending}
+                            className="w-full rounded-md border border-orange-400/30 bg-orange-500/10 px-3 py-2 text-left text-xs font-medium text-orange-200 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Definir {character.name} ({character.class})
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-sm text-slate-300">
+                    <div className="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">Mon perso roster</p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-base font-semibold text-slate-100">
+                            {myRosterCharacter?.name || 'Aucun personnage'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {myRosterCharacter ? `${myRosterCharacter.class} - ${Math.round(myRosterCharacter.ilvl)} iLvl` : 'Selectionnez votre personnage principal de roster'}
+                          </p>
+                        </div>
+                        {myRosterCharacter ? (
+                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">
+                            Actif
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
+
+                    <div className="rounded-lg border border-slate-700/80 bg-slate-800/30 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="font-semibold text-slate-100">Composition actuelle</p>
+                        <span className="text-xs text-slate-400">{totalRosterCount} joueurs</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {rosterDistribution.map((item) => (
+                          <div key={item.key}>
+                            <div className="mb-1 flex items-center justify-between text-xs">
+                              <span className="text-slate-300">{item.label}</span>
+                              <span className="text-slate-400">{item.count} ({item.percent}%)</span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
+                              <div className={`h-full rounded-full ${item.barClass}`} style={{ width: `${item.percent}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Changer rapidement</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {rosterQuickSwitchCharacters.map((character) => {
+                          const isCurrentRoster = character.isRoster;
+
+                          return (
+                            <button
+                              key={character.id}
+                              type="button"
+                              onClick={() => setRosterMutation.mutate(character.id)}
+                              disabled={setRosterMutation.isPending || isCurrentRoster}
+                              className={isCurrentRoster
+                                ? 'w-full rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-left text-xs font-semibold text-emerald-300'
+                                : 'w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60'}
+                            >
+                              <span className="block text-sm">{character.name}</span>
+                              <span className="text-[11px] text-slate-400">{character.class} - {Math.round(character.ilvl)} iLvl</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {charactersSorted.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllRosterQuickSwitch((value) => !value)}
+                          className="mt-2 inline-flex items-center rounded-md border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800"
+                        >
+                          {showAllRosterQuickSwitch ? 'Voir moins' : `Voir plus (${charactersSorted.length - 1})`}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              ) : null}
             </div>
 
             <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
