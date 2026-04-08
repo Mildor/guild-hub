@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AttendanceStatus } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscordService } from '../discord/discord.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -11,6 +12,66 @@ export class EventsService {
     private prisma: PrismaService,
     private discordService: DiscordService,
   ) {}
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async sendEventReminders(): Promise<void> {
+    const now = new Date();
+
+    const oneDayLowerBound = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+    const oneDayAgoUpperBound = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const threeHoursLowerBound = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const threeHoursUpperBound = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+    const oneDayReminders = await this.prisma.event.findMany({
+      where: {
+        eventDate: {
+          gt: oneDayLowerBound,
+          lte: oneDayAgoUpperBound,
+        },
+        reminderSent1Day: false,
+      },
+    });
+
+    for (const event of oneDayReminders) {
+      try {
+        await this.discordService.sendEventReminder(event, 'ONE_DAY');
+        await this.prisma.event.update({
+          where: { id: event.id },
+          data: { reminderSent1Day: true },
+        });
+      } catch (error) {
+        console.error(
+          `Failed to send 1-day reminder for event ${event.id}:`,
+          error,
+        );
+      }
+    }
+
+    const threeHoursReminders = await this.prisma.event.findMany({
+      where: {
+        eventDate: {
+          gt: threeHoursLowerBound,
+          lte: threeHoursUpperBound,
+        },
+        reminderSent3Hours: false,
+      },
+    });
+
+    for (const event of threeHoursReminders) {
+      try {
+        await this.discordService.sendEventReminder(event, 'THREE_HOURS');
+        await this.prisma.event.update({
+          where: { id: event.id },
+          data: { reminderSent3Hours: true },
+        });
+      } catch (error) {
+        console.error(
+          `Failed to send 3-hours reminder for event ${event.id}:`,
+          error,
+        );
+      }
+    }
+  }
 
   async createEvent(userId: string, data: CreateEventDto) {
     const parsedDate = new Date(data.eventDate);
