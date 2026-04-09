@@ -160,13 +160,6 @@ function OverviewTab({
           <p className="mt-1 text-xs text-muted-foreground">{activePolls.length} sondages actifs</p>
         </div>
       </div>
-
-      <Alert>
-        <Shield className="h-4 w-4" />
-        <AlertDescription>
-          Ce backoffice permet maintenant des operations directes sur les entites du site, sans redirection vers d'autres pages.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 }

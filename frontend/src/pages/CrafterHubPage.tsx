@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Copy, Check, Hammer, Users, BookOpen, Sparkles } from 'lucide-react';
-import { useSearchProfessions, useGuildProfessionsSummary } from '@/api/queries';
+import {
+  Search,
+  Copy,
+  Check,
+  Hammer,
+  Users,
+  BookOpen,
+  Sparkles,
+  ChevronDown,
+} from 'lucide-react';
+import {
+  useSearchProfessions,
+  useGuildProfessionsSummary,
+  useGuildProfessionsDirectory,
+} from '@/api/queries';
 import { getClassColorClass } from '@/lib/wowColors';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +46,10 @@ export function CrafterHubPage() {
     data: summaryData,
     isLoading: summaryLoading,
   } = useGuildProfessionsSummary();
+  const {
+    data: directoryData,
+    isLoading: directoryLoading,
+  } = useGuildProfessionsDirectory();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -56,7 +73,7 @@ export function CrafterHubPage() {
 
   const subtitle = useMemo(() => {
     if (!hasQuery) {
-      return 'Tapez le nom d\'un objet pour trouver instantanement qui peut le craft dans la guilde.';
+      return 'Tapez le nom d\'une recette ou d\'un métier.';
     }
 
     if (isLoading || isFetching) {
@@ -67,7 +84,7 @@ export function CrafterHubPage() {
   }, [hasQuery, isLoading, isFetching, recipeQuery, resultCount]);
 
   const handleCopyWhisper = async (name: string, realm: string) => {
-    const whisperText = `/w ${name}-${realm} Salut, peux-tu me craft ${recipeQuery} ?`;
+    const whisperText = `/w ${name}-${realm} Salut, peux-tu m'aider pour ${recipeQuery} ?`;
     const key = `${name}-${realm}`;
 
     try {
@@ -90,26 +107,29 @@ export function CrafterHubPage() {
               Crafter Hub
             </p>
             <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">
-              Annuaire des Metiers
+              Annuaire des métiers
             </h1>
             <p className="text-sm text-slate-300 md:text-base">{subtitle}</p>
           </div>
 
           <div className="mt-8">
             <label htmlFor="crafter-search" className="sr-only">
-              Rechercher un objet
+              Rechercher une recette ou un métier
             </label>
             <div className="group relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-400/80" />
               <input
                 id="crafter-search"
                 type="text"
-                placeholder="Lancez une recherche pour afficher les artisans disponibles."
+                placeholder="Recherchez une recette ou un métier."
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
                 className="h-14 w-full rounded-2xl border border-amber-500/30 bg-slate-950/70 pl-12 pr-4 text-base text-slate-100 shadow-[0_0_0_1px_rgba(245,158,11,0.08)] outline-none transition duration-200 placeholder:text-slate-400 focus:border-amber-400 focus:shadow-[0_0_0_3px_rgba(245,158,11,0.15)] md:h-16 md:text-lg"
               />
             </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Astuce : vous pouvez saisir un métier, une recette ou une partie de nom.
+            </p>
           </div>
         </div>
       </div>
@@ -159,7 +179,7 @@ export function CrafterHubPage() {
                       <div>
                         <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Métiers</p>
                         <p className="mt-2 text-4xl font-black text-amber-300">
-                          {summaryData.topProfessions.length}
+                          {directoryData?.length ?? 0}
                         </p>
                       </div>
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300">
@@ -169,26 +189,77 @@ export function CrafterHubPage() {
                   </div>
                 </div>
 
-                {summaryData.topProfessions.length > 0 && (
-                  <div>
-                    <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-300">
-                      Métiers populaires
-                    </h3>
-                    <div className="space-y-2">
-                      {summaryData.topProfessions.map((prof) => (
-                        <div
-                          key={prof.profession}
-                          className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3"
+                <div>
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-300">
+                    Annuaire des métiers
+                  </h3>
+
+                  {directoryLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-16 rounded-2xl bg-slate-800" />
+                      <Skeleton className="h-16 rounded-2xl bg-slate-800" />
+                      <Skeleton className="h-16 rounded-2xl bg-slate-800" />
+                    </div>
+                  ) : directoryData && directoryData.length > 0 ? (
+                    <div className="space-y-3">
+                      {directoryData.map((entry) => (
+                        <details
+                          key={entry.profession}
+                          className="group overflow-hidden rounded-2xl border border-slate-700 bg-slate-800/60 transition duration-200 open:border-amber-500/30 open:bg-slate-800"
                         >
-                          <span className="font-semibold text-slate-100">{prof.profession}</span>
-                          <span className="text-xs font-bold text-amber-300">
-                            {prof.crafterCount} artisan{prof.crafterCount > 1 ? 's' : ''}
-                          </span>
-                        </div>
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 marker:hidden">
+                            <div>
+                              <p className="text-base font-semibold text-slate-50">
+                                {entry.profession}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {entry.crafterCount} artisan{entry.crafterCount > 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
+                              <span>{entry.characters.length} persos</span>
+                              <ChevronDown className="h-4 w-4 transition duration-200 group-open:rotate-180" />
+                            </div>
+                          </summary>
+
+                          <div className="border-t border-slate-700 px-4 py-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {entry.characters.map((character) => (
+                                <div
+                                  key={`${character.name}-${character.realm}-${entry.profession}`}
+                                  className="rounded-xl border border-slate-700 bg-slate-900/80 p-3"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p
+                                        className={`truncate text-sm font-semibold ${getClassColorClass(character.class)}`}
+                                      >
+                                        {character.name}
+                                      </p>
+                                      <p className="truncate text-xs text-slate-400">
+                                        {character.realm}
+                                      </p>
+                                    </div>
+                                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-300">
+                                      {character.skillLevel}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-xs uppercase tracking-[0.12em] text-slate-500">
+                                    {character.class}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </details>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-6 text-sm text-slate-300">
+                      Aucun métier trouvé pour le moment.
+                    </div>
+                  )}
+                </div>
               </div>
             ) : null}
           </>
@@ -203,13 +274,13 @@ export function CrafterHubPage() {
 
         {hasQuery && isError ? (
           <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6 text-sm text-rose-200">
-            Une erreur est survenue pendant la recherche des metiers.
+            Une erreur est survenue pendant la recherche des métiers.
           </div>
         ) : null}
 
         {hasQuery && !isLoading && !isFetching && !isError && resultCount === 0 ? (
           <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-6 text-sm text-slate-300">
-            Aucun artisan trouve pour cette recette.
+            Aucun artisan trouvé pour cette recherche.
           </div>
         ) : null}
 

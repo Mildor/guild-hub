@@ -21,10 +21,7 @@ export function TokenPage() {
     }
 
     return data.history.map((point) => ({
-      date: new Date(point.createdAt).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-      }),
+      timestamp: point.createdAt,
       price: point.price,
       fullDate: point.createdAt,
     }));
@@ -83,7 +80,18 @@ export function TokenPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.35} />
-                    <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                    <XAxis
+                      dataKey="timestamp"
+                      minTickGap={28}
+                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                      tickFormatter={(value) =>
+                        new Date(value).toLocaleString('fr-FR', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                        })
+                      }
+                    />
                     <YAxis
                       tick={{ fill: '#9ca3af', fontSize: 12 }}
                       tickFormatter={(value) => `${new Intl.NumberFormat('fr-FR').format(Number(value))} po`}
@@ -112,6 +120,8 @@ export function TokenPage() {
                       stroke="#f59e0b"
                       strokeWidth={3}
                       fill="url(#tokenArea)"
+                      dot={{ r: 2, strokeWidth: 1, fill: '#f59e0b' }}
+                      activeDot={{ r: 4 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

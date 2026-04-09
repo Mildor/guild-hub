@@ -863,6 +863,19 @@ export interface ProfessionSummary {
   }>;
 }
 
+export interface ProfessionDirectoryCharacter {
+  name: string;
+  realm: string;
+  class: string;
+  skillLevel: number;
+}
+
+export interface ProfessionDirectoryEntry {
+  profession: string;
+  crafterCount: number;
+  characters: ProfessionDirectoryCharacter[];
+}
+
 export const useSearchProfessions = (recipe: string) => {
   const normalizedRecipe = recipe.trim();
 
@@ -884,6 +897,17 @@ export const useGuildProfessionsSummary = () => {
     queryKey: ['professions', 'summary'],
     queryFn: async () => {
       const { data } = await api.get<ProfessionSummary>('/professions/summary');
+      return data;
+    },
+    retry: 1,
+  });
+};
+
+export const useGuildProfessionsDirectory = () => {
+  return useQuery({
+    queryKey: ['professions', 'directory'],
+    queryFn: async () => {
+      const { data } = await api.get<ProfessionDirectoryEntry[]>('/professions/directory');
       return data;
     },
     retry: 1,

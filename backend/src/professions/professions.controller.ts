@@ -9,6 +9,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   ProfessionSearchResult,
+  ProfessionDirectoryEntry,
   ProfessionsService,
 } from './professions.service';
 
@@ -26,7 +27,8 @@ export class ProfessionsController {
   @ApiQuery({
     name: 'recipe',
     required: true,
-    description: 'Nom (ou partie du nom) de la recette a rechercher',
+    description:
+      "Nom (ou partie du nom) d'une recette ou d'un métier à rechercher",
   })
   @ApiResponse({
     status: 200,
@@ -39,6 +41,19 @@ export class ProfessionsController {
   })
   search(@Query('recipe') recipe: string): Promise<ProfessionSearchResult[]> {
     return this.professionsService.searchByRecipe(recipe ?? '');
+  }
+
+  @Get('directory')
+  @ApiOperation({
+    summary: "Récupère l'annuaire complet des métiers de la guilde",
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Liste groupée des métiers avec les personnages et leurs niveaux.',
+  })
+  directory(): Promise<ProfessionDirectoryEntry[]> {
+    return this.professionsService.getProfessionDirectory();
   }
 
   @Get('summary')
