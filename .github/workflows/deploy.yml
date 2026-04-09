@@ -1,0 +1,19 @@
+name: "Déploiement Production"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Rendre le script exécutable
+        run: chmod +x ./mep.sh
+
+      - name: Lancer la mise en production
+        run: bash ./mep.sh
