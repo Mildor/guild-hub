@@ -28,6 +28,7 @@ services:
             context: ./backend
             dockerfile: Dockerfile
         container_name: guild-hub-backend-dev
+        command: sh -c "CI=true pnpm install --config.confirmModulesPurge=false && pnpm run start:dev"
         environment:
             DATABASE_URL: postgresql://postgres:postgres@db:5432/guild-hub
             DB_HOST: db

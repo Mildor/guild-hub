@@ -2,24 +2,17 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('guildhub_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  withCredentials: true,
 });
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+    const requestUrl = error?.config?.url;
+    const isAuthMeRequest = typeof requestUrl === 'string' && requestUrl.includes('/auth/me');
 
-    if (status === 401) {
-      localStorage.removeItem('guildhub_token');
-
+    if (status === 401 && !isAuthMeRequest) {
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
         if (currentPath !== '/login' && currentPath !== '/login/success') {

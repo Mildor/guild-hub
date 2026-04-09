@@ -38,16 +38,28 @@ export class AuthController {
 
   @Get('bnet/callback')
   @UseGuards(AuthGuard('bnet'))
-  bnetCallback(@Req() req: Request, @Res() res: Response) {
+  bnetCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as User;
     const token = this.authService.generateJwt(user);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    res.redirect(`${frontendUrl}/login/success?token=${token}`);
+
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    res.redirect(`${frontendUrl}/login/success`);
   }
 
   @Post('verify-guild')
   @UseGuards(JwtAuthGuard)
-  async verifyGuild(@Req() req: Request, @Body() body: VerifyGuildDto) {
+  async verifyGuild(
+    @Req() req: Request,
+    @Body() body: VerifyGuildDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const user = req.user as any;
     const { characterName, realm } = body;
     const userId = user.userId || user.id;
@@ -80,13 +92,25 @@ export class AuthController {
       // Générer un nouveau token avec le rôle effectif
       const newToken = this.authService.generateJwt(effectiveUser);
 
+      res.cookie('jwt', newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+
       return {
-        token: newToken,
         message: 'Bienvenue dans la guilde !',
       };
     } catch (error: any) {
       throw error;
     }
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('jwt');
+    return { message: 'Déconnecté avec succès' };
   }
 
   @Get('me')

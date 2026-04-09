@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
 import { AppRole, type User } from '@/types/auth';
 import type { Character } from '@/types/character';
 
@@ -119,16 +118,13 @@ export interface UpdateCharacterPayload {
 
 // Récupère l'utilisateur actuel
 export const useGetMe = () => {
-  const token = useAuthStore((s) => s.token);
-
   return useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
       const { data } = await api.get<User>('/auth/me');
       return data;
     },
-    enabled: !!token, // Ne faire la requête que si token existe
-    retry: 1, // Retry une fois en cas d'erreur
+    retry: false,
   });
 };
 

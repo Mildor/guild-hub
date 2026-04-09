@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import * as express from 'express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -14,6 +15,8 @@ async function bootstrap() {
     '/uploads',
     express.static(join(process.cwd(), 'public', 'uploads')),
   );
+
+  app.use(cookieParser());
 
   app.use(
     helmet({

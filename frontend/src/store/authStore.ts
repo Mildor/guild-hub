@@ -1,31 +1,27 @@
 import { create } from 'zustand';
 import type { User } from '../types/auth';
+import api from '@/lib/api';
 
 interface AuthState {
-  token: string | null;
   user: User | null;
   isAuthenticated: boolean;
-  setToken: (token: string) => void;
-  setUser: (user: User) => void;
-  logout: () => void;
+  setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: localStorage.getItem('guildhub_token'),
   user: null,
-  isAuthenticated: !!localStorage.getItem('guildhub_token'),
-
-  setToken: (token) => {
-    localStorage.setItem('guildhub_token', token);
-    set({ token, isAuthenticated: true });
-  },
+  isAuthenticated: false,
 
   setUser: (user) => {
-    set({ user });
+    set({ user, isAuthenticated: !!user });
   },
 
-  logout: () => {
-    localStorage.removeItem('guildhub_token');
-    set({ token: null, user: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      set({ user: null, isAuthenticated: false });
+    }
   },
 }));

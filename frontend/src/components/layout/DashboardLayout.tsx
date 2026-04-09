@@ -86,15 +86,15 @@ export function DashboardLayout() {
     }, {});
   }, [strategies]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/', { replace: true });
   };
 
   const handleDeleteMyAccount = async () => {
     try {
       await deleteMyAccount.mutateAsync();
-      logout();
+      await logout();
       navigate('/login?reason=account-deleted', { replace: true });
     } finally {
       setDeleteDialogOpen(false);

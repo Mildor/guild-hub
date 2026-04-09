@@ -1,14 +1,19 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Footer } from '@/components/layout/Footer';
 
 export function LandingPage() {
+  const [searchParams] = useSearchParams();
+  const reconnectReason = searchParams.get('reason');
+
+  const loginHref = reconnectReason ? `/login?reason=${reconnectReason}` : '/login';
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/70">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5">
           <p className="text-lg font-semibold tracking-wide text-primary">{'<The Good Place>'}</p>
           <Link
-            to="/login"
+            to={loginHref}
             className="rounded-md bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/85"
           >
             Espace Membre
@@ -18,6 +23,18 @@ export function LandingPage() {
 
       <main>
         <section className="flex flex-col items-center px-4 py-32 text-center">
+          {reconnectReason === 'session-expired' && (
+            <p className="mb-6 w-full max-w-2xl rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              Votre session a expire. Reconnectez-vous via Battle.net pour continuer.
+            </p>
+          )}
+
+          {reconnectReason === 'account-deleted' && (
+            <p className="mb-6 w-full max-w-2xl rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+              Votre compte a ete supprime definitivement.
+            </p>
+          )}
+
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary/80">
             Jouer ensemble, tout simplement.
           </p>
@@ -30,7 +47,7 @@ export function LandingPage() {
             pour tomber des boss ou faire des clés sans prise de tête.
           </p>
           <Link
-            to="/login"
+            to={loginHref}
             className="mt-10 rounded-md bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/85"
           >
             Accéder à The Good Place

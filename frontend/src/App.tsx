@@ -20,7 +20,6 @@ import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TokenPage } from '@/pages/TokenPage';
 import { CrafterHubPage } from '@/pages/CrafterHubPage';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isJwtValid } from '@/lib/jwt';
 import { RoleGuard } from '@/components/RoleGuard';
 import { AppRole } from '@/types/auth';
 
@@ -36,19 +35,9 @@ const queryClient = new QueryClient({
 
 // Wrapper pour le fetch utilisateur
 function AppContent() {
-  const token = useAuthStore((s) => s.token);
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
-  const user = useAuthStore((s) => s.user);
   const { data: meData, isLoading: isMeLoading, error: meError } = useGetMe();
-
-  // Vérifier si le JWT est expiré au démarrage
-  useEffect(() => {
-    if (token && !isJwtValid(token)) {
-      console.warn('JWT expiré, déconnexion automatique');
-      logout();
-    }
-  }, [token, logout]);
 
   // Update user dans le store quand les données arrivent
   useEffect(() => {
@@ -59,21 +48,29 @@ function AppContent() {
 
   // Si erreur lors du fetch me, logout (401 unauthorized, 404 user deleted, etc)
   useEffect(() => {
-    if (meError && token) {
+    if (meError) {
       const error = meError as any;
       const status = error?.response?.status;
 
-      // Logout si erreur d'authentification (401) ou utilisateur introuvable (404)
-      // ou toute autre erreur qui indique que le compte n'est pas valide
-      if (status === 401 || status === 404) {
-        console.warn(`Logout automatique - Erreur ${status}: compte invalide ou supprimé`);
-        logout();
+      // Sur 401, l'utilisateur est simplement non connecté.
+      if (status === 401) {
+        setUser(null);
+        return;
       }
-    }
-  }, [meError, token, logout]);
 
-  // Loading screen
-  if (token && isMeLoading) {
+      // Sur 404, on nettoie aussi le cookie côté backend si la session existe encore.
+      if (status === 404) {
+        console.warn('Logout automatique - Erreur 404: compte invalide ou supprime');
+        void logout();
+        return;
+      }
+
+      setUser(null);
+    }
+  }, [meError, setUser, logout]);
+
+  // Pendant l'initialisation de la session via cookie HttpOnly
+  if (isMeLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-4 w-full max-w-md px-4">

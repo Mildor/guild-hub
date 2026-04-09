@@ -1,45 +1,61 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import api from '@/lib/api';
+import type { User } from '@/types/auth';
 
 export function AuthCallbackPage() {
-  const [searchParams] = useSearchParams();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
 
+  const hydrateUserAndProceed = async () => {
+    const { data } = await api.get<User>('/auth/me');
+    setUser(data);
+  };
+
   useEffect(() => {
-    const token = searchParams.get('token');
-    if (!token) {
-      navigate('/', { replace: true });
-      return;
-    }
-
-    // Sauvegarder le token initial
-    setToken(token);
-
     const pendingCharacter = localStorage.getItem('pendingCharacter');
     const pendingRealm = localStorage.getItem('pendingRealm') || 'Archimonde';
 
-    if (pendingCharacter) {
-      // Appeler la route verify-guild
-      verifyGuildAndProceed(pendingCharacter, pendingRealm);
-    } else {
-      // Pas de character en attente, rediriger vers dashboard
-      navigate('/dashboard', { replace: true });
-    }
-  }, [searchParams, setToken, logout, navigate]);
+    const run = async () => {
+      try {
+        if (pendingCharacter) {
+          // Appeler la route verify-guild
+          await verifyGuildAndProceed(pendingCharacter, pendingRealm);
+        } else {
+          await hydrateUserAndProceed();
+          // Pas de character en attente, rediriger vers dashboard
+          navigate('/dashboard', { replace: true });
+        }
+      } catch (err: any) {
+        const errorData = err.response?.data;
+        let errorMessage = 'Erreur lors de l\'authentification. Veuillez reessayer.';
+
+        if (errorData?.message) {
+          errorMessage = errorData.message;
+        }
+
+        setError(errorMessage);
+        await logout();
+        localStorage.removeItem('pendingCharacter');
+        localStorage.removeItem('pendingRealm');
+
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 3000);
+      }
+    };
+
+    void run();
+  }, [setUser, logout, navigate]);
 
   const verifyGuildAndProceed = async (characterName: string, realm: string) => {
     try {
-      const response = await api.post('/auth/verify-guild', { characterName, realm });
-      const { token: newToken } = response.data;
-
-      // Overwrite token avec le nouveau token reçu
-      setToken(newToken);
+      await api.post('/auth/verify-guild', { characterName, realm });
+      await hydrateUserAndProceed();
 
       // Supprimer pendingCharacter du localStorage
       localStorage.removeItem('pendingCharacter');
@@ -57,8 +73,8 @@ export function AuthCallbackPage() {
 
       setError(errorMessage);
 
-      // Supprimer le token et nettoyer localStorage
-      logout();
+      // Nettoyer la session locale
+      await logout();
       localStorage.removeItem('pendingCharacter');
       localStorage.removeItem('pendingRealm');
 
