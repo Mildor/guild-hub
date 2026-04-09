@@ -17,8 +17,8 @@ jobs:
 
       - name: Copier les fichiers .env de production
         run: |
-          cp /home/server/Projects/guild-hub/backend/.env.prod /home/server/Projects/guild-hub/backend/.env.prod
-          cp /home/server/Projects/guild-hub/frontend/.env /home/server/Projects/guild-hub/frontend/.env
+          cp /home/server/Projects/guild-hub/backend/.env.prod ./backend/.env.prod
+          cp /home/server/Projects/guild-hub/frontend/.env ./frontend/.env
 
 
       - name: Lancer la mise en production
