@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePollDto } from './dto/create-poll.dto';
+import { UpdatePollDto } from './dto/update-poll.dto';
 
 @Injectable()
 export class PollsService {
@@ -193,5 +194,81 @@ export class PollsService {
         },
       },
     });
+  }
+
+  async update(pollId: string, dto: UpdatePollDto) {
+    const db = this.prisma as any;
+
+    const existing = await db.poll.findUnique({ where: { id: pollId } });
+    if (!existing) {
+      throw new NotFoundException('Sondage introuvable.');
+    }
+
+    const hasOptionsUpdate = Array.isArray(dto.options);
+    const options = hasOptionsUpdate ? this.formatOptions(dto.options ?? []) : null;
+
+    const result = await db.$transaction(async (tx: any) => {
+      if (hasOptionsUpdate) {
+        await tx.pollVote.deleteMany({ where: { pollId } });
+        await tx.pollOption.deleteMany({ where: { pollId } });
+      }
+
+      return tx.poll.update({
+        where: { id: pollId },
+        data: {
+          ...(dto.question !== undefined ? { question: dto.question.trim() } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description?.trim() || null }
+            : {}),
+          ...(hasOptionsUpdate
+            ? {
+                options: {
+                  create: (options ?? []).map((option) => ({ text: option })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              battletag: true,
+            },
+          },
+          options: {
+            orderBy: { id: 'asc' },
+          },
+          votes: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  battletag: true,
+                },
+              },
+              option: {
+                select: {
+                  id: true,
+                  text: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    return result;
+  }
+
+  async remove(pollId: string) {
+    const db = this.prisma as any;
+    const existing = await db.poll.findUnique({ where: { id: pollId } });
+
+    if (!existing) {
+      throw new NotFoundException('Sondage introuvable.');
+    }
+
+    return db.poll.delete({ where: { id: pollId } });
   }
 }

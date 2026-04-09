@@ -5,6 +5,12 @@ const Switch = React.forwardRef<
     HTMLInputElement,
     React.ComponentProps<"input"> & { size?: "sm" | "default" }
 >(({ className, size = "default", ...props }, ref) => {
+    const trackSize = size === "sm" ? "h-3.5 w-6" : "h-5 w-9";
+    const thumbBase =
+        size === "sm"
+            ? "after:h-2.5 after:w-2.5 after:top-[0.125rem] after:left-[0.125rem] peer-checked:after:translate-x-2.5"
+            : "after:h-4 after:w-4 after:top-0.5 after:left-0.5 peer-checked:after:translate-x-4";
+
     return (
         <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -14,23 +20,14 @@ const Switch = React.forwardRef<
                 {...props}
             />
             <div
-                data-size={size}
                 className={cn(
-                    "peer rounded-full bg-input transition-all peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-ring peer-focus:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-checked:bg-primary",
-                    "data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6",
+                    "relative rounded-full bg-input transition-colors peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-ring peer-focus:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-checked:bg-primary",
+                    "after:absolute after:rounded-full after:bg-background after:transition-transform",
+                    trackSize,
+                    thumbBase,
                     className,
                 )}
-            >
-                <div
-                    data-size={size}
-                    className={cn(
-                        "absolute bg-background rounded-full transition-all peer-checked:translate-x-full",
-                        "data-[size=default]:h-4 data-[size=default]:w-4 data-[size=sm]:h-3 data-[size=sm]:w-3",
-                        "top-0.5 peer-checked:right-auto peer-checked:left-0 data-[size=default]:left-0.5 data-[size=sm]:left-0.5",
-                        "peer-checked:data-[size=default]:translate-x-[calc(100%-1px)] peer-checked:data-[size=sm]:translate-x-[calc(100%-1px)]",
-                    )}
-                />
-            </div>
+            />
         </label>
     );
 });

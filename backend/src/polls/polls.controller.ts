@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -20,6 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PollsService } from './polls.service';
 import { CreatePollDto } from './dto/create-poll.dto';
+import { UpdatePollDto } from './dto/update-poll.dto';
 import { VotePollDto } from './dto/vote-poll.dto';
 
 const ADMIN_OFFICER_ROLES = ['ADMIN', 'OFFICER'] as const;
@@ -77,5 +79,21 @@ export class PollsController {
   @ApiResponse({ status: 200, description: 'Etat du sondage mis a jour.' })
   toggle(@Param('pollId') pollId: string) {
     return this.pollsService.toggle(pollId);
+  }
+
+  @Patch(':pollId')
+  @Roles(...(ADMIN_OFFICER_ROLES as any))
+  @ApiOperation({ summary: 'Mettre a jour un sondage' })
+  @ApiResponse({ status: 200, description: 'Sondage mis a jour.' })
+  update(@Param('pollId') pollId: string, @Body() dto: UpdatePollDto) {
+    return this.pollsService.update(pollId, dto);
+  }
+
+  @Delete(':pollId')
+  @Roles(...(ADMIN_OFFICER_ROLES as any))
+  @ApiOperation({ summary: 'Supprimer un sondage' })
+  @ApiResponse({ status: 200, description: 'Sondage supprime.' })
+  remove(@Param('pollId') pollId: string) {
+    return this.pollsService.remove(pollId);
   }
 }

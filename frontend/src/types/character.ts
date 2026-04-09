@@ -60,7 +60,6 @@ export interface Character {
     gameRole: GameRole;
     ilvl: number;
     isMain: boolean;
-    isRoster: boolean;
     inRoster: boolean;
     guildRank?: number | null;
     lastSyncAt: string;

@@ -75,4 +75,17 @@ export class UsersController {
   deleteMe(@Req() req: Request & { user: { userId: string } }) {
     return this.usersService.deleteMyAccount(req.user.userId);
   }
+
+  @Delete(':id')
+  @Roles(AppRole.ADMIN)
+  @ApiOperation({ summary: 'Supprime un utilisateur (admin)' })
+  @ApiResponse({ status: 200, description: 'Compte supprime avec succes.' })
+  @ApiResponse({ status: 403, description: 'Acces interdit.' })
+  @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
+  deleteByAdmin(
+    @Req() req: Request & { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.usersService.deleteByAdmin(req.user.userId, id);
+  }
 }

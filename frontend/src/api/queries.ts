@@ -95,6 +95,28 @@ export interface CreateEventPayload {
   autoInviteRoster?: boolean;
 }
 
+export interface UpdateEventPayload {
+  title?: string;
+  description?: string;
+  eventDate?: string;
+}
+
+export interface CreateCharacterPayload {
+  userId: string;
+  name: string;
+  realm: string;
+  class: string;
+  activeSpec: string;
+  gameRole: 'TANK' | 'HEALER' | 'DPS';
+}
+
+export interface UpdateCharacterPayload {
+  ilvl?: number;
+  activeSpec?: string;
+  gameRole?: 'TANK' | 'HEALER' | 'DPS';
+  isMain?: boolean;
+}
+
 // Récupère l'utilisateur actuel
 export const useGetMe = () => {
   const token = useAuthStore((s) => s.token);
@@ -115,6 +137,11 @@ const deleteMyAccount = async () => {
   return data;
 };
 
+const deleteUserByAdmin = async (id: string) => {
+  const { data } = await api.delete(`/users/${id}`);
+  return data;
+};
+
 export const useDeleteMyAccount = () => {
   const queryClient = useQueryClient();
 
@@ -122,6 +149,17 @@ export const useDeleteMyAccount = () => {
     mutationFn: deleteMyAccount,
     onSuccess: async () => {
       await queryClient.clear();
+    },
+  });
+};
+
+export const useDeleteUserByAdmin = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteUserByAdmin,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -228,6 +266,51 @@ const setRosterCharacter = async (characterId: string) => {
   return data;
 };
 
+const createCharacter = async (payload: CreateCharacterPayload) => {
+  const { data } = await api.post<CharacterWithUser>('/characters', payload);
+  return data;
+};
+
+export const useCreateCharacter = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createCharacter,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
+        queryClient.invalidateQueries({ queryKey: ['users'] }),
+      ]);
+    },
+  });
+};
+
+const updateCharacter = async ({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: UpdateCharacterPayload;
+}) => {
+  const { data } = await api.patch<CharacterWithUser>(`/characters/${id}`, payload);
+  return data;
+};
+
+export const useUpdateCharacter = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateCharacter,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
+      ]);
+    },
+  });
+};
+
 export const useSetRosterCharacter = (userId: string | null | undefined) => {
   const queryClient = useQueryClient();
 
@@ -237,6 +320,7 @@ export const useSetRosterCharacter = (userId: string | null | undefined) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['characters'] }),
         queryClient.invalidateQueries({ queryKey: ['characters', userId] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
         queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
       ]);
     },
@@ -407,6 +491,28 @@ export const useCreateEvent = () => {
   });
 };
 
+const updateEvent = async ({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: UpdateEventPayload;
+}) => {
+  const { data } = await api.patch<EventWithMeta>(`/events/${id}`, payload);
+  return data;
+};
+
+export const useUpdateEvent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateEvent,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+};
+
 const deleteEvent = async (id: string) => {
   const { data } = await api.delete(`/events/${id}`);
   return data;
@@ -428,16 +534,24 @@ const toggleRosterStatus = async ({ id, inRoster }: { id: string; inRoster: bool
   return data;
 };
 
-export const useToggleRoster = () => {
+export const useToggleRoster = (userId?: string | null) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: toggleRosterStatus,
     onSuccess: async () => {
-      await Promise.all([
+      const invalidations = [
         queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
         queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-      ]);
+      ];
+
+      if (userId) {
+        invalidations.push(
+          queryClient.invalidateQueries({ queryKey: ['characters', userId] }),
+        );
+      }
+
+      await Promise.all(invalidations);
     },
   });
 };
@@ -615,6 +729,12 @@ export interface CreatePollPayload {
   options: string[];
 }
 
+export interface UpdatePollPayload {
+  question?: string;
+  description?: string;
+  options?: string[];
+}
+
 export interface VotePollPayload {
   pollId: string;
   optionId: string;
@@ -688,6 +808,34 @@ export const useTogglePoll = () => {
   return useMutation({
     mutationFn: async (pollId: string) => {
       const { data } = await api.patch(`/polls/${pollId}/toggle`);
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+};
+
+export const useUpdatePoll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ pollId, payload }: { pollId: string; payload: UpdatePollPayload }) => {
+      const { data } = await api.patch(`/polls/${pollId}`, payload);
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+};
+
+export const useDeletePoll = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (pollId: string) => {
+      const { data } = await api.delete(`/polls/${pollId}`);
       return data;
     },
     onSuccess: async () => {

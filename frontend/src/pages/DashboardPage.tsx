@@ -234,7 +234,7 @@ export function DashboardPage() {
     const base = { TANK: 0, HEALER: 0, DPS: 0 };
 
     for (const character of roster ?? []) {
-      if (!character.isRoster) {
+      if (!character.inRoster) {
         continue;
       }
       base[character.gameRole] += 1;
@@ -244,11 +244,11 @@ export function DashboardPage() {
   }, [roster]);
 
   const hasRosterCharacter = useMemo(() => {
-    return Boolean(characters?.some((character) => character.isRoster || character.isMain));
+    return Boolean(characters?.some((character) => character.inRoster || character.isMain));
   }, [characters]);
 
   const myRosterCharacter = useMemo(() => {
-    return charactersSorted.find((character) => character.isRoster) ?? null;
+    return charactersSorted.find((character) => character.inRoster) ?? null;
   }, [charactersSorted]);
 
   const totalRosterCount = rosterCounts.TANK + rosterCounts.HEALER + rosterCounts.DPS;
@@ -639,7 +639,7 @@ export function DashboardPage() {
                       <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Changer rapidement</p>
                       <div className="grid grid-cols-1 gap-2">
                         {rosterQuickSwitchCharacters.map((character) => {
-                          const isCurrentRoster = character.isRoster;
+                          const isCurrentRoster = character.inRoster;
 
                           return (
                             <button
@@ -715,7 +715,7 @@ export function DashboardPage() {
                             </button>
                           )}
 
-                          {selectedCharacter.isRoster ? (
+                          {selectedCharacter.inRoster ? (
                             <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-300">
                               Roster
                             </Badge>
@@ -847,7 +847,7 @@ export function DashboardPage() {
                             Main
                           </Badge>
                         ) : null}
-                        {character.isRoster ? (
+                        {character.inRoster ? (
                           <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-[11px] text-emerald-300">
                             Roster
                           </Badge>

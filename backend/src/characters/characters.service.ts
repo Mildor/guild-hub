@@ -17,7 +17,7 @@ export class CharactersService {
 
   getRoster() {
     return this.prisma.character.findMany({
-      where: { isRoster: true },
+      where: { inRoster: true },
       include: { user: true },
       orderBy: [{ gameRole: 'asc' }, { ilvl: 'desc' }],
     });
@@ -79,11 +79,11 @@ export class CharactersService {
     const [, updatedCharacter] = await this.prisma.$transaction([
       this.prisma.character.updateMany({
         where: { userId },
-        data: { isRoster: false },
+        data: { inRoster: false },
       }),
       this.prisma.character.update({
         where: { id: characterId },
-        data: { isRoster: true },
+        data: { inRoster: true },
         include: { user: true },
       }),
     ]);

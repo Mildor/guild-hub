@@ -77,4 +77,20 @@ export class UsersService {
         'Votre compte et les donnees associees ont ete supprimes definitivement.',
     };
   }
+
+  async deleteByAdmin(adminId: string, targetUserId: string) {
+    if (adminId === targetUserId) {
+      throw new ForbiddenException(
+        'Utilisez la suppression de votre compte personnel pour cette operation.',
+      );
+    }
+
+    await this.findOne(targetUserId);
+
+    await this.prisma.user.delete({ where: { id: targetUserId } });
+
+    return {
+      message: 'Compte supprime avec succes par un administrateur.',
+    };
+  }
 }
