@@ -127,9 +127,6 @@ export function CrafterHubPage() {
                 className="h-14 w-full rounded-2xl border border-amber-500/30 bg-slate-950/70 pl-12 pr-4 text-base text-slate-100 shadow-[0_0_0_1px_rgba(245,158,11,0.08)] outline-none transition duration-200 placeholder:text-slate-400 focus:border-amber-400 focus:shadow-[0_0_0_3px_rgba(245,158,11,0.15)] md:h-16 md:text-lg"
               />
             </div>
-            <p className="mt-2 text-xs text-slate-400">
-              Astuce : vous pouvez saisir un métier, une recette ou une partie de nom.
-            </p>
           </div>
         </div>
       </div>
