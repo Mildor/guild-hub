@@ -6,35 +6,10 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { Footer } from '@/components/layout/Footer';
+import frenchRealms from '@/data/french-realms.json';
 
-const DEFAULT_REALM = 'Archimonde';
-
-const FR_REALMS = [
-  'Archimonde',
-  'Dalaran',
-  'Elune',
-  'Hyjal',
-  'Kirin Tor',
-  'Uldaman',
-  'Confrérie du Thorium',
-  'Les Sentinelles',
-  'Khaz Modan',
-  'Eitrigg',
-  "Drek'Thar",
-  "Cho'gall",
-  "Kael'thas",
-  'Rashgarroth',
-  'Sinstralis',
-  'Suramar',
-  "Vol'jin",
-  'Ysondre',
-  'Marécage de Zangar',
-  'Varimathras',
-  'Culte de la Rive noire',
-  'Arak-arahm',
-  'Naxxramas',
-  'Carnage',
-];
+const FR_REALMS = frenchRealms;
+const DEFAULT_REALM = FR_REALMS[0] ?? 'Archimonde';
 
 export function LoginPage() {
   const navigate = useNavigate();
