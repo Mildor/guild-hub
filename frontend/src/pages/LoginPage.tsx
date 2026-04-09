@@ -2,15 +2,46 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { Footer } from '@/components/layout/Footer';
+
+const DEFAULT_REALM = 'Archimonde';
+
+const FR_REALMS = [
+  'Archimonde',
+  'Dalaran',
+  'Elune',
+  'Hyjal',
+  'Kirin Tor',
+  'Uldaman',
+  'Confrérie du Thorium',
+  'Les Sentinelles',
+  'Khaz Modan',
+  'Eitrigg',
+  "Drek'Thar",
+  "Cho'gall",
+  "Kael'thas",
+  'Rashgarroth',
+  'Sinstralis',
+  'Suramar',
+  "Vol'jin",
+  'Ysondre',
+  'Marécage de Zangar',
+  'Varimathras',
+  'Culte de la Rive noire',
+  'Arak-arahm',
+  'Naxxramas',
+  'Carnage',
+];
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [characterName, setCharacterName] = useState('');
+  const [realm, setRealm] = useState(DEFAULT_REALM);
   const [error, setError] = useState('');
   const reconnectReason = searchParams.get('reason');
 
@@ -30,6 +61,7 @@ export function LoginPage() {
 
     // Sauvegarder le nom du personnage en attente
     localStorage.setItem('pendingCharacter', characterName.trim());
+    localStorage.setItem('pendingRealm', realm);
 
     // Rediriger vers l'OAuth Battle.net
     window.location.href = `${import.meta.env.VITE_API_URL}/auth/bnet`;
@@ -65,6 +97,25 @@ export function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Royaume FR
+              </label>
+              <Select
+                value={realm}
+                onChange={(e) => {
+                  setRealm(e.target.value);
+                  setError('');
+                }}
+                className="w-full"
+              >
+                {FR_REALMS.map((realmOption) => (
+                  <option key={realmOption} value={realmOption}>
+                    {realmOption}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
                 Nom de votre personnage WoW

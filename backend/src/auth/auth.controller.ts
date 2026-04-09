@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 interface VerifyGuildDto {
   characterName: string;
+  realm?: string;
 }
 
 @Controller('auth')
@@ -48,7 +49,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async verifyGuild(@Req() req: Request, @Body() body: VerifyGuildDto) {
     const user = req.user as any;
-    const { characterName } = body;
+    const { characterName, realm } = body;
     const userId = user.userId || user.id;
 
     try {
@@ -56,6 +57,7 @@ export class AuthController {
       await this.blizzardService.verifyGuildMembership(
         userId,
         characterName,
+        realm,
         'The Good Place',
       );
 

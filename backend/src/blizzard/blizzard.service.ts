@@ -341,6 +341,7 @@ export class BlizzardService {
   async verifyGuildMembership(
     userId: string,
     characterName: string,
+    characterRealm: string | undefined,
     targetGuild: string = 'The Good Place',
   ): Promise<BnetCharacter> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -389,10 +390,20 @@ export class BlizzardService {
       (account) => account.characters ?? [],
     );
 
-    // Chercher le personnage (case-insensitive)
-    const character = allCharacters.find(
-      (char) => char.name.toLowerCase() === characterName.toLowerCase(),
-    );
+    const normalizedCharacterName = characterName.trim().toLowerCase();
+    const normalizedCharacterRealm = characterRealm
+      ? this.toRealmSlug(characterRealm)
+      : null;
+
+    // Chercher le personnage (case-insensitive, avec realm si fourni)
+    const character = allCharacters.find((char) => {
+      const matchesName = char.name.toLowerCase() === normalizedCharacterName;
+      const matchesRealm = normalizedCharacterRealm
+        ? char.realm.slug === normalizedCharacterRealm
+        : true;
+
+      return matchesName && matchesRealm;
+    });
 
     if (!character) {
       throw new UnauthorizedException({
@@ -418,9 +429,7 @@ export class BlizzardService {
       } as any);
     }
 
-    const targetGuildLower = targetGuild.toLowerCase();
-
-    if (characterGuild.toLowerCase() !== targetGuildLower) {
+    if (!this.isSameNormalizedName(characterGuild, targetGuild)) {
       throw new UnauthorizedException({
         message: `Ce personnage est dans la guilde "${characterGuild}", pas dans "${targetGuild}".`,
         guildName: characterGuild,
@@ -491,10 +500,10 @@ export class BlizzardService {
         accessToken,
       );
 
-      const characterGuild = details?.guild?.name;
+      const characterGuild = details?.guild?.name ?? char.guild?.name;
       if (
-        !characterGuild ||
-        characterGuild.toLowerCase() !== targetGuild.toLowerCase()
+        characterGuild &&
+        !this.isSameNormalizedName(characterGuild, targetGuild)
       ) {
         this.logger.debug(
           `Personnage ignoré hors guilde cible: ${char.name}-${char.realm.slug} (${characterGuild ?? 'sans guilde'})`,
@@ -502,36 +511,39 @@ export class BlizzardService {
         continue;
       }
 
+      if (!characterGuild) {
+        this.logger.warn(
+          `Guilde introuvable pour ${char.name}-${char.realm.slug}, synchronisation maintenue.`,
+        );
+      }
+
       const activeSpec = details?.active_spec?.name ?? 'Unknown';
       const ilvl = details?.equipped_item_level ?? 0;
       const gameRole = SPEC_TO_ROLE[activeSpec] ?? 'DPS';
 
-      // Récupérer les médias (photos)
-      const media = await this.fetchMediaUrls(
-        char.realm.slug,
-        char.name.toLowerCase(),
-        accessToken,
-      );
-
-      // Récupérer l'équipement
-      const equipmentData = await this.fetchEquipment(
-        char.realm.slug,
-        char.name.toLowerCase(),
-        accessToken,
-      );
-
-      // Récupérer les spécialisations détaillées
-      const specializationInfo = await this.fetchSpecializations(
-        char.realm.slug,
-        char.name.toLowerCase(),
-        accessToken,
-      );
-
-      const professions = await this.fetchCharacterProfessions(
-        char.realm.slug,
-        char.name.toLowerCase(),
-        accessToken,
-      );
+      const [media, equipmentData, specializationInfo, professions] =
+        await Promise.all([
+          this.fetchMediaUrls(
+            char.realm.slug,
+            char.name.toLowerCase(),
+            accessToken,
+          ),
+          this.fetchEquipment(
+            char.realm.slug,
+            char.name.toLowerCase(),
+            accessToken,
+          ),
+          this.fetchSpecializations(
+            char.realm.slug,
+            char.name.toLowerCase(),
+            accessToken,
+          ),
+          this.fetchCharacterProfessions(
+            char.realm.slug,
+            char.name.toLowerCase(),
+            accessToken,
+          ),
+        ]);
 
       let existingCharacter = await this.prisma.character.findFirst({
         where: {
@@ -1075,25 +1087,55 @@ export class BlizzardService {
       }
     }
 
-    for (const recipeId of recipeIdsToEnrich) {
-      const frenchName = await this.fetchRecipeNameByLocale(
-        recipeId,
-        'fr_FR',
-        clientToken,
+    const recipeIds = Array.from(recipeIdsToEnrich);
+    const batchSize = 8;
+
+    for (let index = 0; index < recipeIds.length; index += batchSize) {
+      const batch = recipeIds.slice(index, index + batchSize);
+
+      const batchNames = await Promise.all(
+        batch.map(async (recipeId) => ({
+          recipeId,
+          frenchName: await this.fetchRecipeNameByLocale(
+            recipeId,
+            'fr_FR',
+            clientToken,
+          ),
+        })),
       );
 
-      if (!frenchName) {
-        continue;
-      }
+      for (const { recipeId, frenchName } of batchNames) {
+        if (!frenchName) {
+          continue;
+        }
 
-      for (const profession of professions) {
-        for (const recipe of profession.recipes) {
-          if (recipe.id === recipeId) {
-            recipe.nameFr = frenchName;
+        for (const profession of professions) {
+          for (const recipe of profession.recipes) {
+            if (recipe.id === recipeId) {
+              recipe.nameFr = frenchName;
+            }
           }
         }
       }
     }
+  }
+
+  private isSameNormalizedName(left: string, right: string): boolean {
+    return (
+      this.normalizeComparableName(left) === this.normalizeComparableName(right)
+    );
+  }
+
+  private normalizeComparableName(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private async fetchRecipeNameByLocale(
@@ -1137,6 +1179,17 @@ export class BlizzardService {
       );
       return null;
     }
+  }
+
+  private toRealmSlug(realm: string): string {
+    return realm
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 
   private async upsertCharacterProfessions(

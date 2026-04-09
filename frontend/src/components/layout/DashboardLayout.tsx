@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
-import { useDeleteMyAccount, useGetGuildProfile, useGetStrategies } from '@/api/queries';
+import { useDeleteMyAccount, useGetGuildProfile, useGetStrategies, useSyncCharacters } from '@/api/queries';
 import { AppRole } from '@/types/auth';
-import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy, Search, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -61,6 +61,7 @@ export function DashboardLayout() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { data: wowToken } = useGetWowToken();
   const { data: guildProfile } = useGetGuildProfile(GUILD_REALM, GUILD_NAME);
+  const syncCharactersMutation = useSyncCharacters(user?.userId);
 
   const { data: strategies } = useGetStrategies();
 
@@ -349,6 +350,20 @@ export function DashboardLayout() {
                 <span className="hidden sm:inline">Token: {formattedTokenPrice}</span>
                 <span className="sm:hidden">{formattedTokenPrice}</span>
               </Link>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => syncCharactersMutation.mutate()}
+                disabled={syncCharactersMutation.isPending}
+                className="h-8 gap-2 border-primary/30 bg-primary/10 px-2 text-[11px] font-semibold text-primary hover:bg-primary/20 sm:px-3 sm:text-xs"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncCharactersMutation.isPending ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">
+                  {syncCharactersMutation.isPending ? 'Synchronisation...' : 'Sync persos'}
+                </span>
+                <span className="sm:hidden">Sync</span>
+              </Button>
             </div>
 
             {/* User Menu */}

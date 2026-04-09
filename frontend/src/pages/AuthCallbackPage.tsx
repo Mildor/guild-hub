@@ -22,19 +22,20 @@ export function AuthCallbackPage() {
     setToken(token);
 
     const pendingCharacter = localStorage.getItem('pendingCharacter');
+    const pendingRealm = localStorage.getItem('pendingRealm') || 'Archimonde';
 
     if (pendingCharacter) {
       // Appeler la route verify-guild
-      verifyGuildAndProceed(pendingCharacter);
+      verifyGuildAndProceed(pendingCharacter, pendingRealm);
     } else {
       // Pas de character en attente, rediriger vers dashboard
       navigate('/dashboard', { replace: true });
     }
   }, [searchParams, setToken, logout, navigate]);
 
-  const verifyGuildAndProceed = async (characterName: string) => {
+  const verifyGuildAndProceed = async (characterName: string, realm: string) => {
     try {
-      const response = await api.post('/auth/verify-guild', { characterName });
+      const response = await api.post('/auth/verify-guild', { characterName, realm });
       const { token: newToken } = response.data;
 
       // Overwrite token avec le nouveau token reçu
@@ -42,6 +43,7 @@ export function AuthCallbackPage() {
 
       // Supprimer pendingCharacter du localStorage
       localStorage.removeItem('pendingCharacter');
+      localStorage.removeItem('pendingRealm');
 
       // Rediriger vers dashboard
       navigate('/dashboard', { replace: true });
@@ -58,6 +60,7 @@ export function AuthCallbackPage() {
       // Supprimer le token et nettoyer localStorage
       logout();
       localStorage.removeItem('pendingCharacter');
+      localStorage.removeItem('pendingRealm');
 
       // Rediriger vers login après 3 secondes
       setTimeout(() => {
