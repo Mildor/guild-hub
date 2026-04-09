@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker exec:*)",
+      "Bash(find /home/tarek/guild-hub/backend/src -type f -name *.ts)",
+      "Bash(node -e \":*)",
+      "Bash(curl -s -w \"\\\\nHTTP_CODE: %{http_code}\\\\n\" -X POST http://localhost:3000/events -H \"Content-Type: application/json\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MmU5NzZkNS03OWZiLTQxNGQtODM4ZC1iZTQ3ZTRlNTM5NTYiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzQ1MjE5NTcsImV4cCI6MTc3NTEyNjc1N30.gLhdyi2JZpq_xOzMWSxQXsQccarYwJmuCN8RUBH223E\" -d '{\"\"title\"\":\"\"Test RBAC\"\",\"\"description\"\":\"\"test\"\",\"\"eventDate\"\":\"\"2026-03-28T20:30:00.000Z\"\",\"\"createdById\"\":\"\"42e976d5-79fb-414d-838d-be47e4e53956\"\"}')",
+      "Bash(find /home/tarek/guild-hub -type f -name *.prisma -o -name schema.prisma)",
+      "Bash(find /home/tarek/guild-hub/backend -name .env* -o -name *.env)",
+      "Bash(npm install:*)",
+      "Bash(pnpm prisma:*)",
+      "Bash(nvm ls:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker ps:*)",
+      "WebFetch(domain:develop.battle.net)",
+      "WebFetch(domain:community.developer.battle.net)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:us.forums.blizzard.com)",
+      "WebFetch(domain:warcraft.wiki.gg)",
+      "WebFetch(domain:www.postman.com)",
+      "Bash(ls /home/tarek/guild-hub/frontend/tsconfig*.json)",
+      "Bash(cat /home/tarek/guild-hub/frontend/vite.config.*)",
+      "Bash(pnpm ls:*)",
+      "Bash(curl -s http://localhost:8073/src/main.tsx)",
+      "Bash(curl -s http://localhost:8073/src/App.tsx)",
+      "Bash(pnpm dlx:*)",
+      "Bash(npm ls:*)",
+      "Bash(find node_modules -path */react-dismissable-layer/package.json)",
+      "Bash(xargs cat:*)",
+      "Bash(curl -s http://localhost:8073/)",
+      "Bash(curl -s https://wow.zamimg.com/widgets/power.js)",
+      "Bash(ls /home/tarek/guild-hub/frontend/*.ts /home/tarek/guild-hub/frontend/*.js)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(wc -l /home/tarek/guild-hub/backend/src/**/*.ts)"
+    ]
+  }
+}
