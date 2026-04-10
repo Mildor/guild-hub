@@ -5,6 +5,7 @@ import {
   BadGatewayException,
   Logger,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { BlizzardService } from './blizzard.service';
@@ -42,5 +43,18 @@ export class BlizzardController {
   @Roles(AppRole.ADMIN, AppRole.OFFICER)
   async trackWowTokenNow(): Promise<{ price: number; createdAt: Date }> {
     return this.blizzardService.trackTokenPriceNow();
+  }
+
+  @Get('blizzard/guild/unlinked-members')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN)
+  async getGuildUnlinkedMembers(
+    @Query('realm') realm?: string,
+    @Query('name') name?: string,
+  ) {
+    const guildRealm = (realm || process.env.GUILD_REALM || 'archimonde').trim();
+    const guildName = (name || process.env.GUILD_NAME || 'The Good Place').trim();
+
+    return this.blizzardService.getGuildUnlinkedMembers(guildRealm, guildName);
   }
 }

@@ -141,6 +141,30 @@ interface TrackTokenResult {
   createdAt: Date;
 }
 
+interface BlizzardGuildRosterResponse {
+  members?: Array<{
+    rank?: number;
+    character?: {
+      name?: string;
+      realm?: {
+        name?: string;
+        slug?: string;
+      };
+      playable_class?: {
+        name?: string;
+      };
+      guild_rank?: number;
+    };
+  }>;
+}
+
+export interface BlizzardGuildUnlinkedMember {
+  name: string;
+  realm: string;
+  class: string | null;
+  guildRank: number | null;
+}
+
 export interface SyncAllCharactersResult {
   totalUsers: number;
   processedUsers: number;
@@ -336,6 +360,89 @@ export class BlizzardService {
       currentPrice: currentPrice?.price ?? null,
       history,
     };
+  }
+
+  async getGuildUnlinkedMembers(
+    realm: string,
+    guildName: string,
+  ): Promise<BlizzardGuildUnlinkedMember[]> {
+    const region = this.getBnetRegion();
+    const accessToken = await this.getClientAccessToken();
+    const realmSlug = this.toRealmSlug(realm);
+    const guildSlug = this.toRealmSlug(guildName);
+
+    let rosterResponse: BlizzardGuildRosterResponse;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<BlizzardGuildRosterResponse>(
+          `https://${region}.api.blizzard.com/data/wow/guild/${realmSlug}/${guildSlug}/roster`,
+          {
+            params: {
+              namespace: `profile-${region}`,
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        ),
+      );
+
+      rosterResponse = response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        this.logger.error(
+          `Blizzard guild roster error: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`,
+        );
+      }
+
+      throw new BadGatewayException(
+        "Impossible de recuperer le roster de guilde depuis l'API Blizzard.",
+      );
+    }
+
+    const guildMembers = rosterResponse.members ?? [];
+    if (guildMembers.length === 0) {
+      return [];
+    }
+
+    const linkedCharacters = await this.prisma.character.findMany({
+      select: {
+        name: true,
+        realm: true,
+      },
+    });
+
+    const linkedCharacterKeys = new Set(
+      linkedCharacters.map((character) =>
+        this.toCharacterKey(character.name, character.realm),
+      ),
+    );
+
+    const unlinkedMembers: BlizzardGuildUnlinkedMember[] = [];
+    for (const member of guildMembers) {
+      const characterName = member.character?.name?.trim();
+      if (!characterName) {
+        continue;
+      }
+
+      const characterRealm =
+        member.character?.realm?.slug || member.character?.realm?.name || realm;
+
+      const characterKey = this.toCharacterKey(characterName, characterRealm);
+      if (linkedCharacterKeys.has(characterKey)) {
+        continue;
+      }
+
+      unlinkedMembers.push({
+        name: characterName,
+        realm: member.character?.realm?.name || characterRealm,
+        class: member.character?.playable_class?.name ?? null,
+        guildRank: member.rank ?? member.character?.guild_rank ?? null,
+      });
+    }
+
+    return unlinkedMembers.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }
 
   async verifyGuildMembership(
@@ -1190,6 +1297,10 @@ export class BlizzardService {
       .replace(/[’']/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  private toCharacterKey(name: string, realm: string): string {
+    return `${this.normalizeComparableName(name)}:${this.toRealmSlug(realm)}`;
   }
 
   private async upsertCharacterProfessions(

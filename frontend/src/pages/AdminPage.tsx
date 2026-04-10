@@ -297,7 +297,7 @@ function UnlinkedGuildMembersTab({
         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Personnages sans compte lie</p>
         <p className="mt-2 text-3xl font-black text-foreground">{members.length}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Personnages presents sur Raider.IO mais absents des personnages lies dans l'application.
+          Personnages presents dans le roster Blizzard de guilde mais absents des personnages lies dans l'application.
         </p>
       </div>
 

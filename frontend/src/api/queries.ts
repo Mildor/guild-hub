@@ -394,10 +394,10 @@ export const useGetGuildLeaderboard = (realm: string, name: string) => {
 
 export const useGetGuildUnlinkedMembers = (realm: string, name: string) => {
   return useQuery({
-    queryKey: ['raiderio', 'guild', 'unlinked-members', realm, name],
+    queryKey: ['blizzard', 'guild', 'unlinked-members', realm, name],
     queryFn: async () => {
       const { data } = await api.get<RaiderIoGuildUnlinkedMember[]>(
-        '/raiderio/guild/unlinked-members',
+        '/blizzard/guild/unlinked-members',
         {
           params: { realm, name },
         },
