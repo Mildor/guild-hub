@@ -18,6 +18,7 @@ import { Request } from 'express';
 import { AppRole } from '@prisma/client';
 import { UsersService } from './users.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateSharedAccountDto } from './dto/update-shared-account.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -47,6 +48,26 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
+  }
+
+  @Get('me/shared-account')
+  @ApiOperation({ summary: 'Retourne la configuration de compte partage du compte connecte' })
+  @ApiResponse({ status: 200, description: 'Configuration partagee retournee avec succes.' })
+  getMySharedAccount(@Req() req: Request & { user: { userId: string } }) {
+    return this.usersService.getMySharedAccountConfig(req.user.userId);
+  }
+
+  @Patch('me/shared-account')
+  @ApiOperation({ summary: 'Active ou desactive le mode compte partage' })
+  @ApiResponse({ status: 200, description: 'Configuration partagee mise a jour.' })
+  updateMySharedAccount(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: UpdateSharedAccountDto,
+  ) {
+    return this.usersService.updateMySharedAccountConfig(
+      req.user.userId,
+      dto.isSharedAccount,
+    );
   }
 
   @Patch(':id/role')

@@ -61,6 +61,7 @@ export interface Character {
     ilvl: number;
     isMain: boolean;
     inRoster: boolean;
+    sharedProfile?: 'A' | 'B' | 'C' | null;
     guildRank?: number | null;
     lastSyncAt: string;
 

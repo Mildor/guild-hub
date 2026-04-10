@@ -28,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         id: true,
         battletag: true,
         appRole: true,
+        isSharedAccount: true,
       },
     });
 
@@ -40,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       battletag: user.battletag,
       role: user.appRole,
       appRole: user.appRole,
+      isSharedAccount: user.isSharedAccount,
     };
   }
 }

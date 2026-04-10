@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { SharedProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
+import { SharedProfileAssignmentDto } from './dto/update-shared-profiles.dto';
 
 @Injectable()
 export class CharactersService {
@@ -11,8 +13,64 @@ export class CharactersService {
     return this.prisma.character.create({ data: dto });
   }
 
-  findByUserId(userId: string) {
+  async findByUserId(userId: string, sharedProfileHeader?: string) {
+    const selectedProfile = await this.getSelectedSharedProfile(
+      userId,
+      sharedProfileHeader,
+    );
+
+    return this.prisma.character.findMany({
+      where: {
+        userId,
+        ...(selectedProfile ? { sharedProfile: selectedProfile } : {}),
+      },
+    });
+  }
+
+  findByUserIdForSharedConfig(userId: string) {
     return this.prisma.character.findMany({ where: { userId } });
+  }
+
+  async assignSharedProfiles(
+    userId: string,
+    assignments: SharedProfileAssignmentDto[],
+  ) {
+    const characterIds = assignments.map((entry) => entry.characterId);
+    const uniqueCharacterIds = new Set(characterIds);
+
+    if (uniqueCharacterIds.size !== characterIds.length) {
+      throw new NotFoundException(
+        'Chaque personnage ne peut etre assigne qu une seule fois par requete.',
+      );
+    }
+
+    const ownedCharacters = await this.prisma.character.findMany({
+      where: {
+        id: { in: [...uniqueCharacterIds] },
+        userId,
+      },
+      select: { id: true },
+    });
+
+    if (ownedCharacters.length !== uniqueCharacterIds.size) {
+      throw new NotFoundException(
+        'Un ou plusieurs personnages sont introuvables pour ce compte.',
+      );
+    }
+
+    await this.prisma.$transaction(
+      assignments.map((assignment) =>
+        this.prisma.character.update({
+          where: { id: assignment.characterId },
+          data: { sharedProfile: assignment.sharedProfile ?? null },
+        }),
+      ),
+    );
+
+    return this.prisma.character.findMany({
+      where: { userId },
+      orderBy: [{ name: 'asc' }, { ilvl: 'desc' }],
+    });
   }
 
   getRoster() {
@@ -65,12 +123,25 @@ export class CharactersService {
     return this.prisma.character.update({ where: { id }, data: dto });
   }
 
-  async setRosterCharacter(userId: string, characterId: string) {
+  async setRosterCharacter(
+    userId: string,
+    characterId: string,
+    sharedProfileHeader?: string,
+  ) {
+    const selectedProfile = await this.getSelectedSharedProfile(
+      userId,
+      sharedProfileHeader,
+    );
+
     const character = await this.prisma.character.findUnique({
       where: { id: characterId },
     });
 
-    if (!character || character.userId !== userId) {
+    if (
+      !character ||
+      character.userId !== userId ||
+      (selectedProfile !== null && character.sharedProfile !== selectedProfile)
+    ) {
       throw new NotFoundException(
         `Character #${characterId} not found or does not belong to user`,
       );
@@ -78,7 +149,10 @@ export class CharactersService {
 
     const [, updatedCharacter] = await this.prisma.$transaction([
       this.prisma.character.updateMany({
-        where: { userId },
+        where: {
+          userId,
+          ...(selectedProfile ? { sharedProfile: selectedProfile } : {}),
+        },
         data: { inRoster: false },
       }),
       this.prisma.character.update({
@@ -96,12 +170,25 @@ export class CharactersService {
     return this.prisma.character.delete({ where: { id } });
   }
 
-  async setMainCharacter(userId: string, characterId: string) {
+  async setMainCharacter(
+    userId: string,
+    characterId: string,
+    sharedProfileHeader?: string,
+  ) {
+    const selectedProfile = await this.getSelectedSharedProfile(
+      userId,
+      sharedProfileHeader,
+    );
+
     // Vérifier que le personnage existe et appartient à cet utilisateur
     const character = await this.prisma.character.findUnique({
       where: { id: characterId },
     });
-    if (!character || character.userId !== userId) {
+    if (
+      !character ||
+      character.userId !== userId ||
+      (selectedProfile !== null && character.sharedProfile !== selectedProfile)
+    ) {
       throw new NotFoundException(
         `Character #${characterId} not found or does not belong to user`,
       );
@@ -111,7 +198,10 @@ export class CharactersService {
     return this.prisma.$transaction([
       // 1) Mettre isMain: false pour TOUS les personnages de cet userId
       this.prisma.character.updateMany({
-        where: { userId },
+        where: {
+          userId,
+          ...(selectedProfile ? { sharedProfile: selectedProfile } : {}),
+        },
         data: { isMain: false },
       }),
       // 2) Mettre isMain: true pour le characterId ciblé
@@ -126,5 +216,47 @@ export class CharactersService {
     const character = await this.prisma.character.findUnique({ where: { id } });
     if (!character) throw new NotFoundException(`Character #${id} not found`);
     return character;
+  }
+
+  private async getSelectedSharedProfile(
+    userId: string,
+    sharedProfileHeader?: string,
+  ): Promise<SharedProfile | null> {
+    const profile = this.parseSharedProfile(sharedProfileHeader);
+
+    if (!profile) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isSharedAccount: true },
+    });
+
+    if (!user?.isSharedAccount) {
+      return null;
+    }
+
+    return profile;
+  }
+
+  private parseSharedProfile(
+    value?: string,
+  ): SharedProfile | null {
+    const normalized = value?.trim().toUpperCase();
+
+    if (normalized === SharedProfile.A) {
+      return SharedProfile.A;
+    }
+
+    if (normalized === SharedProfile.B) {
+      return SharedProfile.B;
+    }
+
+    if (normalized === SharedProfile.C) {
+      return SharedProfile.C;
+    }
+
+    return null;
   }
 }

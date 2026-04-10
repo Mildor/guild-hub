@@ -100,8 +100,12 @@ export function EventDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const authUser = useAuthStore((s) => s.user);
+  const activeSharedProfile = useAuthStore((s) => s.activeSharedProfile);
   const { data: event, isLoading, isError } = useGetEvent(id);
-  const { data: myCharacters, isLoading: isCharactersLoading } = useGetMyCharacters(authUser?.userId);
+  const { data: myCharacters, isLoading: isCharactersLoading } = useGetMyCharacters(
+    authUser?.userId,
+    activeSharedProfile,
+  );
   const upsertAttendance = useUpsertAttendance();
 
   const myAttendance = useMemo(

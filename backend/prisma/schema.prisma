@@ -29,12 +29,19 @@ enum AttendanceStatus {
   LATE
 }
 
+enum SharedProfile {
+  A
+  B
+  C
+}
+
 model User {
   id         String   @id @default(uuid()) @db.Uuid
   bnetId          Int      @unique
   battletag       String
   bnetAccessToken String?
   discordId       String?
+  isSharedAccount Boolean  @default(false)
   appRole    AppRole  @default(GUEST)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -59,6 +66,7 @@ model Character {
   ilvl       Float    @default(0)
   isMain     Boolean  @default(false)
   inRoster   Boolean  @default(false)
+  sharedProfile SharedProfile?
   guildRank  Int?
   lastSyncAt DateTime @default(now())
 

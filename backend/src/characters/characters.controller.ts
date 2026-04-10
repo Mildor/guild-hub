@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -22,6 +23,7 @@ import { BlizzardService } from '../blizzard/blizzard.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
 import { ToggleRosterStatusDto } from './dto/toggle-roster-status.dto';
+import { UpdateSharedProfilesDto } from './dto/update-shared-profiles.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -79,6 +81,7 @@ export class CharactersController {
   findByUserId(
     @Param('userId') userId: string,
     @Req() req: { user: { userId: string } },
+    @Headers('x-shared-profile') sharedProfile: string | undefined,
   ) {
     // Vérifier que l'utilisateur accède seulement ses propres personnages
     if (req.user.userId !== userId) {
@@ -86,7 +89,39 @@ export class CharactersController {
         "Vous ne pouvez accéder qu'à vos propres personnages",
       );
     }
-    return this.charactersService.findByUserId(userId);
+    return this.charactersService.findByUserId(userId, sharedProfile);
+  }
+
+  @Get('user/:userId/all-for-shared-config')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Retourne tous les personnages du joueur pour config partagee' })
+  @ApiResponse({ status: 200, description: 'Liste complete des personnages du joueur.' })
+  @ApiResponse({ status: 403, description: 'Acces non autorise.' })
+  getAllByUserIdForSharedConfig(
+    @Param('userId') userId: string,
+    @Req() req: { user: { userId: string } },
+  ) {
+    if (req.user.userId !== userId) {
+      throw new ForbiddenException(
+        "Vous ne pouvez accéder qu'à vos propres personnages",
+      );
+    }
+
+    return this.charactersService.findByUserIdForSharedConfig(userId);
+  }
+
+  @Patch('shared-profiles')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Affecte les personnages aux profils partages A/B/C' })
+  @ApiResponse({ status: 200, description: 'Affectations mises a jour.' })
+  assignSharedProfiles(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: UpdateSharedProfilesDto,
+  ) {
+    return this.charactersService.assignSharedProfiles(
+      req.user.userId,
+      dto.assignments,
+    );
   }
 
   @Get('roster')
@@ -119,8 +154,13 @@ export class CharactersController {
   setRosterCharacter(
     @Param('id') id: string,
     @Req() req: { user: { userId: string } },
+    @Headers('x-shared-profile') sharedProfile: string | undefined,
   ) {
-    return this.charactersService.setRosterCharacter(req.user.userId, id);
+    return this.charactersService.setRosterCharacter(
+      req.user.userId,
+      id,
+      sharedProfile,
+    );
   }
 
   @Patch(':id/guild-roster')
@@ -159,8 +199,9 @@ export class CharactersController {
   setMainCharacter(
     @Param('id') id: string,
     @Req() req: { user: { userId: string } },
+    @Headers('x-shared-profile') sharedProfile: string | undefined,
   ) {
-    return this.charactersService.setMainCharacter(req.user.userId, id);
+    return this.charactersService.setMainCharacter(req.user.userId, id, sharedProfile);
   }
 
   @Delete(':id')

@@ -67,6 +67,65 @@ export class UsersService {
     return this.prisma.user.update({ where: { id }, data: dto });
   }
 
+  async getMySharedAccountConfig(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isSharedAccount: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User #${userId} not found`);
+    }
+
+    return {
+      userId: user.id,
+      isSharedAccount: user.isSharedAccount,
+    };
+  }
+
+  async updateMySharedAccountConfig(userId: string, isSharedAccount: boolean) {
+    const user = await this.findOne(userId);
+
+    if (!isSharedAccount) {
+      await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: user.id },
+          data: { isSharedAccount: false },
+          select: {
+            id: true,
+            isSharedAccount: true,
+          },
+        }),
+        this.prisma.character.updateMany({
+          where: { userId: user.id },
+          data: { sharedProfile: null },
+        }),
+      ]);
+
+      return {
+        userId: user.id,
+        isSharedAccount: false,
+      };
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isSharedAccount: true },
+      select: {
+        id: true,
+        isSharedAccount: true,
+      },
+    });
+
+    return {
+      userId: updated.id,
+      isSharedAccount: updated.isSharedAccount,
+    };
+  }
+
   async deleteMyAccount(userId: string) {
     await this.findOne(userId);
 

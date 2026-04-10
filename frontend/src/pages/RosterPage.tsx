@@ -534,12 +534,16 @@ function RosterManagementTab() {
 
 function PersonalRosterSelector() {
     const user = useAuthStore((s) => s.user);
+    const activeSharedProfile = useAuthStore((s) => s.activeSharedProfile);
     const canSelectRoster =
         user?.appRole === AppRole.MEMBER ||
         user?.appRole === AppRole.OFFICER ||
         user?.appRole === AppRole.ADMIN;
 
-    const { data: myCharacters, isLoading } = useGetMyCharacters(user?.userId);
+    const { data: myCharacters, isLoading } = useGetMyCharacters(
+        user?.userId,
+        activeSharedProfile,
+    );
     const setRosterMutation = useSetRosterCharacter(user?.userId);
 
     const charactersSorted = useMemo(() => {

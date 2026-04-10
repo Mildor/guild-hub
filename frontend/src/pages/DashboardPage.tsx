@@ -129,7 +129,11 @@ function CharactersTableSkeleton() {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { data: characters, isLoading, error } = useGetMyCharacters(user?.userId);
+  const activeSharedProfile = useAuthStore((s) => s.activeSharedProfile);
+  const { data: characters, isLoading, error } = useGetMyCharacters(
+    user?.userId,
+    activeSharedProfile,
+  );
   const { data: events } = useGetEvents();
   const { data: polls } = useGetPolls();
   const { data: roster } = useGetRoster();

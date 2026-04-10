@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AppRole, type User } from '@/types/auth';
+import { AppRole, type SharedProfile, type User } from '@/types/auth';
 import type { Character } from '@/types/character';
 
 export interface CharacterWithUser extends Character {
@@ -123,6 +123,16 @@ export interface UpdateCharacterPayload {
   isMain?: boolean;
 }
 
+export interface SharedAccountConfig {
+  userId: string;
+  isSharedAccount: boolean;
+}
+
+export interface SharedProfileAssignment {
+  characterId: string;
+  sharedProfile: SharedProfile | null;
+}
+
 // Récupère l'utilisateur actuel
 export const useGetMe = () => {
   return useQuery({
@@ -167,10 +177,84 @@ export const useDeleteUserByAdmin = () => {
   });
 };
 
-// Récupère les personnages d'un utilisateur
-export const useGetMyCharacters = (userId: string | null | undefined) => {
+export const useGetMySharedAccountConfig = () => {
   return useQuery({
-    queryKey: ['characters', userId],
+    queryKey: ['users', 'me', 'shared-account'],
+    queryFn: async () => {
+      const { data } = await api.get<SharedAccountConfig>('/users/me/shared-account');
+      return data;
+    },
+  });
+};
+
+const updateMySharedAccountConfig = async (isSharedAccount: boolean) => {
+  const { data } = await api.patch<SharedAccountConfig>('/users/me/shared-account', {
+    isSharedAccount,
+  });
+  return data;
+};
+
+export const useUpdateMySharedAccountConfig = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateMySharedAccountConfig,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
+        queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+      ]);
+    },
+  });
+};
+
+const assignMySharedProfiles = async (assignments: SharedProfileAssignment[]) => {
+  const { data } = await api.patch<Character[]>('/characters/shared-profiles', {
+    assignments,
+  });
+  return data;
+};
+
+export const useAssignMySharedProfiles = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: assignMySharedProfiles,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+        queryClient.invalidateQueries({ queryKey: ['professions'] }),
+      ]);
+    },
+  });
+};
+
+export const useGetAllMyCharactersForSharedConfig = (
+  userId: string | null | undefined,
+) => {
+  return useQuery({
+    queryKey: ['characters', userId, 'shared-config-all'],
+    queryFn: async () => {
+      if (!userId) throw new Error('User ID is required');
+      const { data } = await api.get<Character[]>(
+        `/characters/user/${userId}/all-for-shared-config`,
+      );
+      return data;
+    },
+    enabled: !!userId,
+    retry: 1,
+    staleTime: 0,
+  });
+};
+
+// Récupère les personnages d'un utilisateur
+export const useGetMyCharacters = (
+  userId: string | null | undefined,
+  activeSharedProfile?: SharedProfile | null,
+) => {
+  return useQuery({
+    queryKey: ['characters', userId, activeSharedProfile ?? 'none'],
     queryFn: async () => {
       if (!userId) throw new Error('User ID is required');
       const { data } = await api.get<Character[]>(`/characters/user/${userId}`);

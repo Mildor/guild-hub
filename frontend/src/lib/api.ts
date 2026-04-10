@@ -5,6 +5,20 @@ const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window === 'undefined') {
+    return config;
+  }
+
+  const activeSharedProfile = window.localStorage.getItem('gh_active_shared_profile');
+  if (activeSharedProfile) {
+    config.headers = config.headers ?? {};
+    config.headers['x-shared-profile'] = activeSharedProfile;
+  }
+
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

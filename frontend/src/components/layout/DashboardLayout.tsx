@@ -13,8 +13,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
-import { useDeleteMyAccount, useGetGuildProfile, useGetStrategies, useSyncCharacters } from '@/api/queries';
+import {
+  useAssignMySharedProfiles,
+  useDeleteMyAccount,
+  useGetAllMyCharactersForSharedConfig,
+  useGetGuildProfile,
+  useGetMySharedAccountConfig,
+  useGetStrategies,
+  useSyncCharacters,
+  useUpdateMySharedAccountConfig,
+} from '@/api/queries';
 import { AppRole } from '@/types/auth';
+import type { SharedProfile } from '@/types/auth';
 import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy, Search, RefreshCw } from 'lucide-react';
 import {
   Dialog,
@@ -27,6 +37,8 @@ import {
 } from '@/components/ui/dialog';
 import { Footer } from '@/components/layout/Footer';
 import { useGetWowToken } from '@/api/queries';
+import { Switch } from '@/components/ui/switch';
+import { Select } from '@/components/ui/select';
 
 const GUILD_REALM = 'archimonde';
 const GUILD_NAME = 'The Good Place';
@@ -56,12 +68,20 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
+  const activeSharedProfile = useAuthStore((s) => s.activeSharedProfile);
+  const setActiveSharedProfile = useAuthStore((s) => s.setActiveSharedProfile);
   const logout = useAuthStore((s) => s.logout);
   const deleteMyAccount = useDeleteMyAccount();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sharedDialogOpen, setSharedDialogOpen] = useState(false);
+  const [profileAssignments, setProfileAssignments] = useState<Record<string, SharedProfile | null>>({});
   const { data: wowToken } = useGetWowToken();
   const { data: guildProfile } = useGetGuildProfile(GUILD_REALM, GUILD_NAME);
   const syncCharactersMutation = useSyncCharacters(user?.userId);
+  const { data: sharedAccountConfig } = useGetMySharedAccountConfig();
+  const updateSharedAccountConfig = useUpdateMySharedAccountConfig();
+  const assignSharedProfilesMutation = useAssignMySharedProfiles();
+  const { data: sharedConfigCharacters } = useGetAllMyCharactersForSharedConfig(user?.userId);
 
   const { data: strategies } = useGetStrategies();
 
@@ -75,6 +95,33 @@ export function DashboardLayout() {
   useEffect(() => {
     setMobileSidebarOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!sharedConfigCharacters) {
+      return;
+    }
+
+    const nextAssignments = sharedConfigCharacters.reduce<Record<string, SharedProfile | null>>(
+      (acc, character) => {
+        acc[character.id] = character.sharedProfile ?? null;
+        return acc;
+      },
+      {},
+    );
+
+    setProfileAssignments(nextAssignments);
+  }, [sharedConfigCharacters]);
+
+  useEffect(() => {
+    if (!user?.isSharedAccount && activeSharedProfile !== null) {
+      setActiveSharedProfile(null);
+      return;
+    }
+
+    if (user?.isSharedAccount && activeSharedProfile === null) {
+      setActiveSharedProfile('A');
+    }
+  }, [activeSharedProfile, setActiveSharedProfile, user?.isSharedAccount]);
 
   const groupedByRaid = useMemo(() => {
     if (!strategies) return {};
@@ -99,6 +146,29 @@ export function DashboardLayout() {
     } finally {
       setDeleteDialogOpen(false);
     }
+  };
+
+  const handleSharedToggle = async (checked: boolean) => {
+    await updateSharedAccountConfig.mutateAsync(checked);
+
+    if (!checked) {
+      setActiveSharedProfile(null);
+      return;
+    }
+
+    setActiveSharedProfile(activeSharedProfile ?? 'A');
+  };
+
+  const handleSaveProfileAssignments = async () => {
+    const assignments = Object.entries(profileAssignments).map(
+      ([characterId, sharedProfile]) => ({
+        characterId,
+        sharedProfile,
+      }),
+    );
+
+    await assignSharedProfilesMutation.mutateAsync(assignments);
+    setSharedDialogOpen(false);
   };
 
   const navItems = [
@@ -392,6 +462,33 @@ export function DashboardLayout() {
                   <p className="text-xs text-muted-foreground">{user?.appRole || 'Membre'}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <button
+                    type="button"
+                    onClick={() => setSharedDialogOpen(true)}
+                    className="w-full"
+                  >
+                    Compte partage et profils
+                  </button>
+                </DropdownMenuItem>
+                {user?.isSharedAccount ? (
+                  <div className="px-2 pb-2">
+                    <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Profil actif
+                    </p>
+                    <Select
+                      value={activeSharedProfile ?? 'A'}
+                      onChange={(event) =>
+                        setActiveSharedProfile(event.target.value as SharedProfile)
+                      }
+                    >
+                      <option value="A">Profil A</option>
+                      <option value="B">Profil B</option>
+                      <option value="C">Profil C</option>
+                    </Select>
+                  </div>
+                ) : null}
+                <DropdownMenuSeparator />
                 <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                   <DialogTrigger asChild>
                     <DropdownMenuItem
@@ -439,6 +536,97 @@ export function DashboardLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Dialog open={sharedDialogOpen} onOpenChange={setSharedDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Compte partage</DialogTitle>
+                  <DialogDescription>
+                    Activez cette option uniquement si plusieurs personnes utilisent le meme compte Battle.net,
+                    puis affectez chaque personnage a un profil A/B/C.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-card/40 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Mode compte partage</p>
+                      <p className="text-xs text-muted-foreground">
+                        Aucun impact pour les comptes non partages.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={sharedAccountConfig?.isSharedAccount ?? !!user?.isSharedAccount}
+                      onChange={(event) => {
+                        void handleSharedToggle(event.target.checked);
+                      }}
+                      disabled={updateSharedAccountConfig.isPending}
+                    />
+                  </div>
+
+                  {(sharedAccountConfig?.isSharedAccount ?? !!user?.isSharedAccount) ? (
+                    <div className="space-y-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Affectation des personnages
+                      </p>
+                      <div className="max-h-72 space-y-2 overflow-auto pr-1">
+                        {(sharedConfigCharacters ?? []).map((character) => (
+                          <div
+                            key={character.id}
+                            className="grid grid-cols-[1fr_150px] items-center gap-3 rounded-md border border-border/60 bg-background/60 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{character.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {character.class} · {character.realm}
+                              </p>
+                            </div>
+                            <Select
+                              value={profileAssignments[character.id] ?? 'NONE'}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setProfileAssignments((previous) => ({
+                                  ...previous,
+                                  [character.id]:
+                                    value === 'NONE' ? null : (value as SharedProfile),
+                                }));
+                              }}
+                            >
+                              <option value="NONE">Non assigne</option>
+                              <option value="A">Profil A</option>
+                              <option value="B">Profil B</option>
+                              <option value="C">Profil C</option>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <DialogFooter className="w-full">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSharedDialogOpen(false)}
+                    className="w-full md:w-auto"
+                  >
+                    Fermer
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      void handleSaveProfileAssignments();
+                    }}
+                    disabled={
+                      assignSharedProfilesMutation.isPending ||
+                      !(sharedAccountConfig?.isSharedAccount ?? !!user?.isSharedAccount)
+                    }
+                    className="w-full md:w-auto"
+                  >
+                    {assignSharedProfilesMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
