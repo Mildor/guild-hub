@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -123,22 +124,24 @@ function DialogContent({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-all"
-                onClick={() => onOpenChange(false)}
-            />
-            <div
-                className={cn(
-                    "relative z-50 grid w-full max-w-lg max-h-[90vh] gap-4 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg sm:rounded-lg md:p-6 animate-in fade-in-90 zoom-in-95",
-                    className,
-                )}
-                {...props}
-            >
-                {children}
-                {showCloseButton && <DialogClose />}
+        <DialogPortal>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-all"
+                    onClick={() => onOpenChange(false)}
+                />
+                <div
+                    className={cn(
+                        "relative z-50 grid w-full max-w-lg max-h-[90vh] gap-4 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg sm:rounded-lg md:p-6 animate-in fade-in-90 zoom-in-95",
+                        className,
+                    )}
+                    {...props}
+                >
+                    {children}
+                    {showCloseButton && <DialogClose />}
+                </div>
             </div>
-        </div>
+        </DialogPortal>
     );
 }
 
@@ -202,7 +205,11 @@ function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
 }
 
 function DialogPortal({ children }: { children: React.ReactNode }) {
-    return <>{children}</>;
+    if (typeof document === "undefined") {
+        return null;
+    }
+
+    return createPortal(children, document.body);
 }
 function DialogOverlay() {
     return null;
