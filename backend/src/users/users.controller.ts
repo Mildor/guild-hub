@@ -38,18 +38,6 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  @Get(':id')
-  @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
-  @ApiOperation({ summary: 'Retourne un utilisateur avec ses personnages' })
-  @ApiResponse({
-    status: 200,
-    description: 'Utilisateur trouvé avec ses personnages.',
-  })
-  @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
   @Get('me/shared-account')
   @ApiOperation({ summary: 'Retourne la configuration de compte partage du compte connecte' })
   @ApiResponse({ status: 200, description: 'Configuration partagee retournee avec succes.' })
@@ -68,6 +56,18 @@ export class UsersController {
       req.user.userId,
       dto.isSharedAccount,
     );
+  }
+
+  @Get(':id')
+  @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
+  @ApiOperation({ summary: 'Retourne un utilisateur avec ses personnages' })
+  @ApiResponse({
+    status: 200,
+    description: 'Utilisateur trouvé avec ses personnages.',
+  })
+  @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
   }
 
   @Patch(':id/role')

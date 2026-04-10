@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SharedProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
@@ -222,19 +222,21 @@ export class CharactersService {
     userId: string,
     sharedProfileHeader?: string,
   ): Promise<SharedProfile | null> {
-    const profile = this.parseSharedProfile(sharedProfileHeader);
-
-    if (!profile) {
-      return null;
-    }
-
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { isSharedAccount: true },
     });
 
+    const profile = this.parseSharedProfile(sharedProfileHeader);
+
     if (!user?.isSharedAccount) {
       return null;
+    }
+
+    if (!profile) {
+      throw new BadRequestException(
+        'Profil partage invalide ou manquant. Selectionnez un profil A/B/C.',
+      );
     }
 
     return profile;
