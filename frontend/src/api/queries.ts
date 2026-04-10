@@ -58,6 +58,13 @@ export interface RaiderIoGuildLeaderboardEntry {
   bestKeyLevel: number | null;
 }
 
+export interface RaiderIoGuildUnlinkedMember {
+  name: string;
+  realm: string;
+  class: string | null;
+  guildRank: number | null;
+}
+
 export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
 
 export interface EventAttendance {
@@ -382,6 +389,24 @@ export const useGetGuildLeaderboard = (realm: string, name: string) => {
     },
     enabled: !!realm && !!name,
     staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useGetGuildUnlinkedMembers = (realm: string, name: string) => {
+  return useQuery({
+    queryKey: ['raiderio', 'guild', 'unlinked-members', realm, name],
+    queryFn: async () => {
+      const { data } = await api.get<RaiderIoGuildUnlinkedMember[]>(
+        '/raiderio/guild/unlinked-members',
+        {
+          params: { realm, name },
+        },
+      );
+      return data;
+    },
+    enabled: !!realm && !!name,
+    retry: 1,
+    staleTime: 60 * 1000,
   });
 };
 

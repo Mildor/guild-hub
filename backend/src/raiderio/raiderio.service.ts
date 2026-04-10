@@ -43,6 +43,26 @@ export interface RaiderIoGuildLeaderboardEntry {
   bestKeyLevel: number | null;
 }
 
+export interface RaiderIoGuildUnlinkedMember {
+  name: string;
+  realm: string;
+  class: string | null;
+  guildRank: number | null;
+}
+
+interface RaiderIoGuildMembersResponse {
+  members?: Array<{
+    rank?: number;
+    character?: {
+      name?: string;
+      class?: string;
+      realm?: {
+        name?: string;
+      };
+    };
+  }>;
+}
+
 type CachedMplusValue = {
   score: number;
   bestKeyLevel: number | null;
@@ -204,6 +224,88 @@ export class RaiderioService {
     return leaderboard.sort((a, b) => b.rioScore - a.rioScore);
   }
 
+  async getGuildUnlinkedMembers(
+    realm: string,
+    name: string,
+  ): Promise<RaiderIoGuildUnlinkedMember[]> {
+    const realmSlug = this.toRealmSlug(realm);
+
+    let membersResponse: RaiderIoGuildMembersResponse;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<RaiderIoGuildMembersResponse>(
+          'https://raider.io/api/v1/guilds/profile',
+          {
+            params: {
+              region: 'eu',
+              realm: realmSlug,
+              name,
+              fields: 'members',
+            },
+          },
+        ),
+      );
+      membersResponse = response.data;
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 400) {
+        this.logger.warn(
+          `Raider.IO guilde introuvable pour ${name}-${realmSlug}`,
+        );
+        return [];
+      }
+
+      this.logger.error(
+        `Erreur Raider.IO membres guilde pour ${name}-${realmSlug}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new BadGatewayException(
+        'Impossible de recuperer la liste des membres de guilde Raider.IO',
+      );
+    }
+
+    const members = membersResponse.members ?? [];
+    if (members.length === 0) {
+      return [];
+    }
+
+    const linkedCharacters = await this.prisma.character.findMany({
+      select: {
+        name: true,
+        realm: true,
+      },
+    });
+
+    const linkedCharacterKeys = new Set(
+      linkedCharacters.map((character) =>
+        this.toCharacterKey(character.name, character.realm),
+      ),
+    );
+
+    const unlinkedMembers: RaiderIoGuildUnlinkedMember[] = [];
+    for (const member of members) {
+      const memberName = member.character?.name?.trim();
+      const memberRealm = member.character?.realm?.name?.trim() || realm;
+
+      if (!memberName) {
+        continue;
+      }
+
+      const characterKey = this.toCharacterKey(memberName, memberRealm);
+      if (linkedCharacterKeys.has(characterKey)) {
+        continue;
+      }
+
+      unlinkedMembers.push({
+        name: memberName,
+        realm: memberRealm,
+        class: member.character?.class ?? null,
+        guildRank: member.rank ?? null,
+      });
+    }
+
+    return unlinkedMembers.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  }
+
   private async getCharacterMplusSummary(
     realm: string,
     characterName: string,
@@ -277,5 +379,18 @@ export class RaiderioService {
 
   private toRealmSlug(realm: string): string {
     return realm.trim().toLowerCase().replace(/\s+/g, '-');
+  }
+
+  private toCharacterKey(name: string, realm: string): string {
+    return `${this.normalize(name)}:${this.normalize(realm)}`;
+  }
+
+  private normalize(value: string): string {
+    return value
+      .trim()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, '-');
   }
 }

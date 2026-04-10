@@ -6,7 +6,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { AppRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { RaiderioService } from './raiderio.service';
 
 @ApiTags('raiderio')
@@ -50,5 +53,29 @@ export class RaiderioGuildController {
     const guildName = (name || this.defaultGuildName).trim();
 
     return this.raiderioService.getGuildLeaderboard(guildRealm, guildName);
+  }
+
+  @Get('guild/unlinked-members')
+  @UseGuards(RolesGuard)
+  @Roles(AppRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Retourne les personnages de guilde non relies a un personnage de la base',
+  })
+  @ApiQuery({ name: 'realm', required: false, example: 'archimonde' })
+  @ApiQuery({ name: 'name', required: false, example: 'The Good Place' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des personnages de guilde sans lien de compte.',
+  })
+  @ApiResponse({ status: 403, description: 'Acces interdit.' })
+  async getGuildUnlinkedMembers(
+    @Query('realm') realm?: string,
+    @Query('name') name?: string,
+  ) {
+    const guildRealm = (realm || this.defaultGuildRealm).trim();
+    const guildName = (name || this.defaultGuildName).trim();
+
+    return this.raiderioService.getGuildUnlinkedMembers(guildRealm, guildName);
   }
 }

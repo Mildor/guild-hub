@@ -13,6 +13,7 @@ import {
   useDeleteUserByAdmin,
   useGetAllCharacters,
   useGetAllEvents,
+  useGetGuildUnlinkedMembers,
   useGetAllUsers,
   useGetPolls,
   useGetStrategies,
@@ -28,6 +29,7 @@ import {
   type CharacterWithUser,
   type EventWithMeta,
   type Poll,
+  type RaiderIoGuildUnlinkedMember,
   type Strategy,
 } from "@/api/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,8 +48,11 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Pencil, Plus, Save, X, Shield, Database, RefreshCcw } from "lucide-react";
+import { Trash2, Pencil, Plus, Save, X, Shield, Database, RefreshCcw, Link2Off } from "lucide-react";
 import { getClassColorClass, ROLE_BADGE_STYLES } from "@/lib/wowColors";
+
+const GUILD_REALM = "archimonde";
+const GUILD_NAME = "The Good Place";
 
 const availableRoles: AppRole[] = [
   AppRole.ADMIN,
@@ -254,6 +259,86 @@ function UsersTab({ users, isLoading }: { users: AdminUser[]; isLoading: boolean
           </TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+function UnlinkedGuildMembersTab({
+  members,
+  isLoading,
+}: {
+  members: RaiderIoGuildUnlinkedMember[];
+  isLoading: boolean;
+}) {
+  const [query, setQuery] = useState("");
+
+  const filteredMembers = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) {
+      return members;
+    }
+
+    return members.filter((member) => {
+      return (
+        member.name.toLowerCase().includes(search) ||
+        member.realm.toLowerCase().includes(search) ||
+        (member.class || "").toLowerCase().includes(search)
+      );
+    });
+  }, [members, query]);
+
+  if (isLoading) {
+    return <LoadingRows />;
+  }
+
+  return (
+    <div className="space-y-4 pt-5">
+      <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-card/60 p-4">
+        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Personnages sans compte lie</p>
+        <p className="mt-2 text-3xl font-black text-foreground">{members.length}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Personnages presents sur Raider.IO mais absents des personnages lies dans l'application.
+        </p>
+      </div>
+
+      <Input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Rechercher personnage, royaume ou classe"
+      />
+
+      {filteredMembers.length === 0 ? (
+        <Alert>
+          <AlertDescription>
+            Aucun personnage non relie trouve avec les filtres actuels.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/40">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Personnage</TableHead>
+                <TableHead>Royaume</TableHead>
+                <TableHead>Classe</TableHead>
+                <TableHead>Rang guilde</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMembers.map((member) => (
+                <TableRow key={`${member.name}-${member.realm}`}>
+                  <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell>{member.realm}</TableCell>
+                  <TableCell className={member.class ? getClassColorClass(member.class) : ""}>
+                    {member.class || "Inconnu"}
+                  </TableCell>
+                  <TableCell>{member.guildRank ?? "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
@@ -1306,6 +1391,10 @@ export function AdminPage() {
   const { data: events = [], isLoading: isEventsLoading } = useGetAllEvents();
   const { data: polls = [], isLoading: isPollsLoading } = useGetPolls();
   const { data: strategies = [], isLoading: isStrategiesLoading } = useGetStrategies();
+  const {
+    data: unlinkedGuildMembers = [],
+    isLoading: isUnlinkedGuildMembersLoading,
+  } = useGetGuildUnlinkedMembers(GUILD_REALM, GUILD_NAME);
 
   const isOverviewLoading =
     isUsersLoading ||
@@ -1334,9 +1423,13 @@ export function AdminPage() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 md:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 md:grid-cols-7">
               <TabsTrigger value="overview">Vue globale</TabsTrigger>
               <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+              <TabsTrigger value="unlinked-members">
+                <Link2Off className="mr-2 h-4 w-4" />
+                Sans compte
+              </TabsTrigger>
               <TabsTrigger value="characters">Personnages</TabsTrigger>
               <TabsTrigger value="events">Evenements</TabsTrigger>
               <TabsTrigger value="polls">Sondages</TabsTrigger>
@@ -1356,6 +1449,13 @@ export function AdminPage() {
 
             <TabsContent value="users">
               <UsersTab users={users} isLoading={isUsersLoading} />
+            </TabsContent>
+
+            <TabsContent value="unlinked-members">
+              <UnlinkedGuildMembersTab
+                members={unlinkedGuildMembers}
+                isLoading={isUnlinkedGuildMembersLoading}
+              />
             </TabsContent>
 
             <TabsContent value="characters">
