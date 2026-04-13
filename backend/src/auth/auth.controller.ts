@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -10,17 +11,22 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { AppRole, User } from '@prisma/client';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { BlizzardService } from '../blizzard/blizzard.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { Roles } from './decorators/roles.decorator';
+import { BnetCallbackGuard } from './guards/bnet-callback.guard';
 
 interface VerifyGuildDto {
   characterName: string;
   realm?: string;
 }
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -37,7 +43,7 @@ export class AuthController {
   }
 
   @Get('bnet/callback')
-  @UseGuards(AuthGuard('bnet'))
+  @UseGuards(BnetCallbackGuard)
   bnetCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as User;
     const token = this.authService.generateJwt(user);
@@ -117,5 +123,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getMe(@Req() req: Request) {
     return req.user;
+  }
+
+  @Get('failed-login-attempts')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Retourne les tentatives de connexion echouees' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN)
+  getFailedLoginAttempts(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedPage = page ? Number(page) : 1;
+    const parsedLimit = limit ? Number(limit) : 50;
+
+    return this.authService.getFailedLoginAttempts(parsedPage, parsedLimit);
   }
 }

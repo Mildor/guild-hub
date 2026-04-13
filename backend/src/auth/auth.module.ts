@@ -8,6 +8,7 @@ import { BnetStrategy } from './strategies/bnet.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { BlizzardModule } from '../blizzard/blizzard.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BnetCallbackGuard } from './guards/bnet-callback.guard';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       }),
     }),
   ],
-  providers: [AuthService, BnetStrategy, JwtStrategy],
+  providers: [AuthService, BnetStrategy, JwtStrategy, BnetCallbackGuard],
   controllers: [AuthController],
   exports: [AuthService],
 })

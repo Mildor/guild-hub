@@ -17,6 +17,25 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface FailedLoginAttempt {
+  id: string;
+  provider: string;
+  identifier: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  reason: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface FailedLoginAttemptsResponse {
+  items: FailedLoginAttempt[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface EventWithMeta {
   id: string;
   title: string;
@@ -1042,6 +1061,22 @@ export const useGetAllUsers = () => {
     queryKey: ['users'],
     queryFn: async () => {
       const { data } = await api.get<AdminUser[]>('/users');
+      return data;
+    },
+    retry: 1,
+  });
+};
+
+export const useGetFailedLoginAttempts = (page = 1, limit = 50) => {
+  return useQuery({
+    queryKey: ['auth', 'failed-login-attempts', page, limit],
+    queryFn: async () => {
+      const { data } = await api.get<FailedLoginAttemptsResponse>(
+        '/auth/failed-login-attempts',
+        {
+          params: { page, limit },
+        },
+      );
       return data;
     },
     retry: 1,

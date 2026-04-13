@@ -13,6 +13,7 @@ import {
   useDeleteUserByAdmin,
   useGetAllCharacters,
   useGetAllEvents,
+  useGetFailedLoginAttempts,
   useGetGuildUnlinkedMembers,
   useGetAllUsers,
   useGetPolls,
@@ -28,6 +29,8 @@ import {
   type AdminUser,
   type CharacterWithUser,
   type EventWithMeta,
+  type FailedLoginAttempt,
+  type FailedLoginAttemptsResponse,
   type Poll,
   type RaiderIoGuildUnlinkedMember,
   type Strategy,
@@ -48,7 +51,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Pencil, Plus, Save, X, Shield, Database, RefreshCcw, Link2Off } from "lucide-react";
+import { Trash2, Pencil, Plus, Save, X, Shield, Database, RefreshCcw, Link2Off, AlertTriangle } from "lucide-react";
 import { getClassColorClass, ROLE_BADGE_STYLES } from "@/lib/wowColors";
 
 const GUILD_REALM = "archimonde";
@@ -258,6 +261,129 @@ function UsersTab({ users, isLoading }: { users: AdminUser[]; isLoading: boolean
             })}
           </TableBody>
         </Table>
+      </div>
+    </div>
+  );
+}
+
+function FailedLoginsTab({
+  data,
+  isLoading,
+  page,
+  onPageChange,
+}: {
+  data: FailedLoginAttemptsResponse | undefined;
+  isLoading: boolean;
+  page: number;
+  onPageChange: (nextPage: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const rows = data?.items ?? [];
+
+  const filteredRows = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) {
+      return rows;
+    }
+
+    return rows.filter((attempt: FailedLoginAttempt) => {
+      const identifier = attempt.identifier?.toLowerCase() ?? "";
+      const ipAddress = attempt.ipAddress?.toLowerCase() ?? "";
+      const reason = attempt.reason.toLowerCase();
+      const provider = attempt.provider.toLowerCase();
+
+      return (
+        identifier.includes(search) ||
+        ipAddress.includes(search) ||
+        reason.includes(search) ||
+        provider.includes(search)
+      );
+    });
+  }, [rows, query]);
+
+  if (isLoading) {
+    return <LoadingRows />;
+  }
+
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+
+  return (
+    <div className="space-y-4 pt-5">
+      <div className="rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/15 to-card/60 p-4">
+        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Connexions echouees</p>
+        <p className="mt-2 text-3xl font-black text-foreground">{total}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Journal des tentatives de connexion refusees sur l'authentification Battle.net.
+        </p>
+      </div>
+
+      <Input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Rechercher par IP, identifiant, provider ou raison"
+      />
+
+      {filteredRows.length === 0 ? (
+        <Alert>
+          <AlertDescription>Aucune tentative echouee sur cette page avec ce filtre.</AlertDescription>
+        </Alert>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/40">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Identifiant</TableHead>
+                <TableHead>IP</TableHead>
+                <TableHead>Raison</TableHead>
+                <TableHead>User-Agent</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRows.map((attempt) => (
+                <TableRow key={attempt.id}>
+                  <TableCell>{formatDateTime(attempt.createdAt)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{attempt.provider}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{attempt.identifier || "-"}</TableCell>
+                  <TableCell>{attempt.ipAddress || "-"}</TableCell>
+                  <TableCell>{attempt.reason}</TableCell>
+                  <TableCell className="max-w-[320px] truncate text-xs text-muted-foreground">
+                    {attempt.userAgent || "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Page {page} sur {totalPages}
+        </p>
+        <div className="inline-flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            Precedent
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Suivant
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -1386,11 +1512,17 @@ function OperationsTab() {
 }
 
 export function AdminPage() {
+  const [failedLoginsPage, setFailedLoginsPage] = useState(1);
+
   const { data: users = [], isLoading: isUsersLoading } = useGetAllUsers();
   const { data: characters = [], isLoading: isCharactersLoading } = useGetAllCharacters();
   const { data: events = [], isLoading: isEventsLoading } = useGetAllEvents();
   const { data: polls = [], isLoading: isPollsLoading } = useGetPolls();
   const { data: strategies = [], isLoading: isStrategiesLoading } = useGetStrategies();
+  const {
+    data: failedLoginAttempts,
+    isLoading: isFailedLoginAttemptsLoading,
+  } = useGetFailedLoginAttempts(failedLoginsPage, 50);
   const {
     data: unlinkedGuildMembers = [],
     isLoading: isUnlinkedGuildMembersLoading,
@@ -1423,9 +1555,13 @@ export function AdminPage() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 md:grid-cols-7">
+            <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 md:grid-cols-8">
               <TabsTrigger value="overview">Vue globale</TabsTrigger>
               <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+              <TabsTrigger value="failed-logins">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Connexions KO
+              </TabsTrigger>
               <TabsTrigger value="unlinked-members">
                 <Link2Off className="mr-2 h-4 w-4" />
                 Sans compte
@@ -1449,6 +1585,15 @@ export function AdminPage() {
 
             <TabsContent value="users">
               <UsersTab users={users} isLoading={isUsersLoading} />
+            </TabsContent>
+
+            <TabsContent value="failed-logins">
+              <FailedLoginsTab
+                data={failedLoginAttempts}
+                isLoading={isFailedLoginAttemptsLoading}
+                page={failedLoginsPage}
+                onPageChange={setFailedLoginsPage}
+              />
             </TabsContent>
 
             <TabsContent value="unlinked-members">
