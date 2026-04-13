@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useGetUpcomingEvents } from '@/api/queries';
 import { RoleGuard } from '@/components/RoleGuard';
 import { CreateEventDialog } from '@/components/events/CreateEventDialog';
@@ -41,6 +42,13 @@ function truncateDescription(value: string, maxLength = 120) {
 
 export function CalendarPage() {
   const { data: events, isLoading } = useGetUpcomingEvents();
+  const sortedEvents = useMemo(
+    () =>
+      [...(events ?? [])].sort(
+        (a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime(),
+      ),
+    [events],
+  );
 
   return (
     <div className="min-h-full bg-background">
@@ -68,7 +76,7 @@ export function CalendarPage() {
           </div>
         ) : null}
 
-        {!isLoading && (!events || events.length === 0) ? (
+        {!isLoading && sortedEvents.length === 0 ? (
           <Card className="bg-card/40 border-border/60">
             <CardHeader>
               <CardTitle>Aucun événement à venir</CardTitle>
@@ -79,9 +87,9 @@ export function CalendarPage() {
           </Card>
         ) : null}
 
-        {!isLoading && events && events.length > 0 ? (
+        {!isLoading && sortedEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.map((event) => (
+            {sortedEvents.map((event) => (
               <Card key={event.id} className="bg-card/40 border-border/60">
                 <CardHeader>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
