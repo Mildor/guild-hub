@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import { AuthService } from '../auth.service';
@@ -13,12 +14,13 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
     super();
   }
 
-  handleRequest(
-    err: Error | null,
+  handleRequest<TUser = unknown>(
+    err: unknown,
     user: unknown,
     info: unknown,
     context: ExecutionContext,
-  ) {
+    status?: unknown,
+  ): TUser {
     if (err || !user) {
       const request = context.switchToHttp().getRequest<Request>();
       const reason = this.extractReason(info, request);
@@ -33,10 +35,18 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
         metadata: this.buildMetadata(request, info),
       });
 
-      throw err ?? new UnauthorizedException('Connexion Battle.net echouee');
+      if (err instanceof Error) {
+        throw err;
+      }
+
+      throw new UnauthorizedException(
+        typeof status === 'string' && status.length > 0
+          ? status
+          : 'Connexion Battle.net echouee',
+      );
     }
 
-    return user;
+    return user as TUser;
   }
 
   private extractReason(info: unknown, request: Request): string {
@@ -91,7 +101,7 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
   private buildMetadata(
     request: Request,
     info: unknown,
-  ): Record<string, unknown> {
+  ): Prisma.InputJsonValue {
     return {
       path: request.originalUrl,
       info:
