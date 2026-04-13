@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { Footer } from '@/components/layout/Footer';
 import frenchRealms from '@/data/french-realms.json';
+import { useGetBlizzardRealms } from '@/api/queries';
 
 const FR_REALMS = frenchRealms;
-const DEFAULT_REALM = FR_REALMS[0] ?? 'Archimonde';
+const DEFAULT_REALM = 'Archimonde';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +18,25 @@ export function LoginPage() {
   const [characterName, setCharacterName] = useState('');
   const [realm, setRealm] = useState(DEFAULT_REALM);
   const [error, setError] = useState('');
+  const { data: euRealms } = useGetBlizzardRealms();
   const reconnectReason = searchParams.get('reason');
+
+  const allRealmNames = useMemo(() => {
+    const realmNames = euRealms?.map((realmOption) => realmOption.name) ?? [];
+    const frSet = new Set(FR_REALMS.map((name) => name.toLowerCase()));
+
+    return [
+      ...FR_REALMS,
+      ...realmNames.filter((name) => !frSet.has(name.toLowerCase())),
+    ];
+  }, [euRealms]);
+
+  const preferredFrenchRealms = FR_REALMS;
+
+  const otherEuRealms = useMemo(() => {
+    const frSet = new Set(preferredFrenchRealms.map((name) => name.toLowerCase()));
+    return allRealmNames.filter((name) => !frSet.has(name.toLowerCase()));
+  }, [allRealmNames, preferredFrenchRealms]);
 
   // Rediriger vers dashboard si déjà authentifié
   useEffect(() => {
@@ -34,9 +52,14 @@ export function LoginPage() {
       return;
     }
 
+    if (!realm.trim()) {
+      setError('Veuillez entrer ou choisir un royaume');
+      return;
+    }
+
     // Sauvegarder le nom du personnage en attente
     localStorage.setItem('pendingCharacter', characterName.trim());
-    localStorage.setItem('pendingRealm', realm);
+    localStorage.setItem('pendingRealm', realm.trim());
 
     // Rediriger vers l'OAuth Battle.net
     window.location.href = `${import.meta.env.VITE_API_URL}/auth/bnet`;
@@ -74,22 +97,29 @@ export function LoginPage() {
           <CardContent className="flex flex-col gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
-                Royaume FR
+                Royaume (EU)
               </label>
-              <Select
+              <Input
+                list="eu-realms"
+                placeholder="Ex: Silvermoon"
                 value={realm}
                 onChange={(e) => {
                   setRealm(e.target.value);
                   setError('');
                 }}
                 className="w-full"
-              >
-                {FR_REALMS.map((realmOption) => (
-                  <option key={realmOption} value={realmOption}>
-                    {realmOption}
-                  </option>
+              />
+              <datalist id="eu-realms">
+                {preferredFrenchRealms.map((realmOption) => (
+                  <option key={`fr-${realmOption}`} value={realmOption} />
                 ))}
-              </Select>
+                {otherEuRealms.map((realmOption) => (
+                  <option key={`eu-${realmOption}`} value={realmOption} />
+                ))}
+              </datalist>
+              <p className="text-xs text-muted-foreground">
+                Les royaumes FR sont proposes en priorite, mais tous les royaumes EU sont acceptes.
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">

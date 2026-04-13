@@ -136,6 +136,15 @@ interface BnetWowTokenResponse {
   price: number;
 }
 
+interface BnetRealmIndexResponse {
+  realms?: Array<{
+    key?: {
+      href?: string;
+    };
+    name?: string;
+  }>;
+}
+
 interface TrackTokenResult {
   price: number;
   createdAt: Date;
@@ -163,6 +172,11 @@ export interface BlizzardGuildUnlinkedMember {
   realm: string;
   class: string | null;
   guildRank: number | null;
+}
+
+export interface BlizzardRealmOption {
+  slug: string;
+  name: string;
 }
 
 export interface SyncAllCharactersResult {
@@ -229,6 +243,8 @@ export class BlizzardService {
   private readonly logger = new Logger(BlizzardService.name);
   private readonly itemIconCache: Map<number, string> = new Map();
   private readonly recipeNameCache: Map<string, string> = new Map();
+  private realmCache: { data: BlizzardRealmOption[]; expiresAt: number } | null =
+    null;
 
   constructor(
     private readonly httpService: HttpService,
@@ -240,7 +256,7 @@ export class BlizzardService {
     return process.env.BNET_REGION || 'eu';
   }
 
-  private async getClientAccessToken(): Promise<string> {
+  private async getClientAccessToken(regionOverride?: string): Promise<string> {
     const clientId = process.env.BNET_CLIENT_ID;
     const clientSecret = process.env.BNET_CLIENT_SECRET;
 
@@ -250,7 +266,7 @@ export class BlizzardService {
       );
     }
 
-    const region = this.getBnetRegion();
+    const region = regionOverride || this.getBnetRegion();
 
     const response = await firstValueFrom(
       this.httpService.post<BnetOAuthTokenResponse>(
@@ -278,8 +294,8 @@ export class BlizzardService {
   }
 
   private async fetchAndPersistTokenPrice(): Promise<TrackTokenResult> {
-    const region = this.getBnetRegion();
-    const accessToken = await this.getClientAccessToken();
+    const region = 'eu';
+    const accessToken = await this.getClientAccessToken(region);
 
     const response = await firstValueFrom(
       this.httpService.get<BnetWowTokenResponse>(
@@ -360,6 +376,66 @@ export class BlizzardService {
       currentPrice: currentPrice?.price ?? null,
       history,
     };
+  }
+
+  async getEuRealms(): Promise<BlizzardRealmOption[]> {
+    const now = Date.now();
+    if (this.realmCache && this.realmCache.expiresAt > now) {
+      return this.realmCache.data;
+    }
+
+    const region = this.getBnetRegion();
+    const accessToken = await this.getClientAccessToken();
+
+    const response = await firstValueFrom(
+      this.httpService.get<BnetRealmIndexResponse>(
+        `https://${region}.api.blizzard.com/data/wow/realm/index`,
+        {
+          params: {
+            namespace: `dynamic-${region}`,
+            locale: 'en_GB',
+          },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      ),
+    );
+
+    const realms = (response.data.realms ?? [])
+      .map((realm) => {
+        const href = realm.key?.href ?? '';
+        const match = href.match(/\/realm\/([^/?]+)/);
+        const slug = match?.[1]?.trim();
+        const name = realm.name?.trim();
+
+        if (!slug || !name) {
+          return null;
+        }
+
+        return {
+          slug,
+          name,
+        };
+      })
+      .filter((realm): realm is BlizzardRealmOption => realm !== null)
+      .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+
+    const deduped = Array.from(
+      realms.reduce((map, realm) => {
+        if (!map.has(realm.slug)) {
+          map.set(realm.slug, realm);
+        }
+        return map;
+      }, new Map<string, BlizzardRealmOption>()).values(),
+    );
+
+    this.realmCache = {
+      data: deduped,
+      expiresAt: now + 12 * 60 * 60 * 1000,
+    };
+
+    return deduped;
   }
 
   async getGuildUnlinkedMembers(

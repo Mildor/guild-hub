@@ -38,6 +38,11 @@ export class BlizzardController {
     return this.blizzardService.getWowTokenHistory();
   }
 
+  @Get('blizzard/realms')
+  async getEuRealms() {
+    return this.blizzardService.getEuRealms();
+  }
+
   @Post('blizzard/token/track')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AppRole.ADMIN, AppRole.OFFICER)

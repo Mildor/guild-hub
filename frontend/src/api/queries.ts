@@ -65,6 +65,11 @@ export interface RaiderIoGuildUnlinkedMember {
   guildRank: number | null;
 }
 
+export interface BlizzardRealmOption {
+  slug: string;
+  name: string;
+}
+
 export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
 
 export interface EventAttendance {
@@ -142,6 +147,17 @@ export const useGetMe = () => {
       return data;
     },
     retry: false,
+  });
+};
+
+export const useGetBlizzardRealms = () => {
+  return useQuery({
+    queryKey: ['blizzard', 'realms'],
+    queryFn: async () => {
+      const { data } = await api.get<BlizzardRealmOption[]>('/blizzard/realms');
+      return data;
+    },
+    staleTime: 1000 * 60 * 60,
   });
 };
 
