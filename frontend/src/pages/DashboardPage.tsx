@@ -146,7 +146,7 @@ export function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'roster'>('events');
   const [quickAttendanceStatus, setQuickAttendanceStatus] = useState<AttendanceStatus>('TENTATIVE');
   const [quickAttendanceCharacterId, setQuickAttendanceCharacterId] = useState('');
-  const [selectedPollOptionId, setSelectedPollOptionId] = useState('');
+  const [selectedPollOptionIds, setSelectedPollOptionIds] = useState<string[]>([]);
   const [showAllRosterQuickSwitch, setShowAllRosterQuickSwitch] = useState(false);
 
   if (error) {
@@ -209,16 +209,16 @@ export function DashboardPage() {
     return activePolls[0] || null;
   }, [polls]);
 
-  const myPollVote = useMemo(() => {
+  const myPollVotes = useMemo(() => {
     if (!activePoll || !user?.userId) {
-      return undefined;
+      return [];
     }
 
-    return activePoll.votes.find((vote) => vote.userId === user.userId);
+    return activePoll.votes.filter((vote) => vote.userId === user.userId);
   }, [activePoll, user?.userId]);
 
-  const hasVotedActivePoll = Boolean(myPollVote);
-  const canSubmitPollVote = !!activePoll?.id && !!selectedPollOptionId && !votePollMutation.isPending;
+  const hasVotedActivePoll = myPollVotes.length > 0;
+  const canSubmitPollVote = !!activePoll?.id && selectedPollOptionIds.length > 0 && !votePollMutation.isPending;
 
   const pollLeader = useMemo(() => {
     if (!activePoll) {
@@ -233,6 +233,15 @@ export function DashboardPage() {
     countsByOptionId.sort((a, b) => b.count - a.count);
     return countsByOptionId[0] ?? null;
   }, [activePoll]);
+
+  useEffect(() => {
+    if (!activePoll) {
+      setSelectedPollOptionIds([]);
+      return;
+    }
+
+    setSelectedPollOptionIds(myPollVotes.map((vote) => vote.optionId));
+  }, [activePoll?.id, myPollVotes]);
 
   const rosterCounts = useMemo(() => {
     const base = { TANK: 0, HEALER: 0, DPS: 0 };
@@ -515,50 +524,70 @@ export function DashboardPage() {
                 ) : (
                   <div>
                     <h2 className="text-lg font-bold text-slate-100">{activePoll.question}</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {activePoll.allowMultipleSelections ? 'Réponses multiples autorisées' : 'Réponse unique'}
+                    </p>
 
-                    {!hasVotedActivePoll ? (
-                      <form
-                        className="mt-4 space-y-2"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          if (!canSubmitPollVote || !activePoll?.id) {
-                            return;
-                          }
+                    <form
+                      className="mt-4 space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!canSubmitPollVote || !activePoll?.id) {
+                          return;
+                        }
 
-                          votePollMutation.mutate({
-                            pollId: activePoll.id,
-                            optionId: selectedPollOptionId,
-                          });
-                        }}
-                      >
-                        {activePoll.options.map((option) => (
+                        votePollMutation.mutate({
+                          pollId: activePoll.id,
+                          optionIds: selectedPollOptionIds,
+                        });
+                      }}
+                    >
+                      {activePoll.options.map((option) => {
+                        const isSelected = selectedPollOptionIds.includes(option.id);
+
+                        return (
                           <button
                             key={option.id}
                             type="button"
-                            onClick={() => setSelectedPollOptionId(option.id)}
+                            onClick={() => {
+                              if (activePoll.allowMultipleSelections) {
+                                setSelectedPollOptionIds((current) => {
+                                  if (current.includes(option.id)) {
+                                    return current.filter((selectedOptionId) => selectedOptionId !== option.id);
+                                  }
+
+                                  return [...current, option.id];
+                                });
+                                return;
+                              }
+
+                              setSelectedPollOptionIds([option.id]);
+                            }}
                             disabled={votePollMutation.isPending}
-                            className={selectedPollOptionId === option.id
+                            className={isSelected
                               ? 'mb-2 w-full rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-300'
                               : 'mb-2 w-full rounded bg-slate-800 px-3 py-2 text-left text-sm hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60'}
                           >
                             {option.text}
                           </button>
-                        ))}
+                        );
+                      })}
 
-                        <button
-                          type="submit"
-                          disabled={!canSubmitPollVote}
-                          className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {votePollMutation.isPending ? 'Vote en cours...' : 'Voter'}
-                        </button>
-                      </form>
-                    ) : (
+                      <button
+                        type="submit"
+                        disabled={!canSubmitPollVote}
+                        className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {votePollMutation.isPending ? 'Vote en cours...' : 'Voter'}
+                      </button>
+                    </form>
+
+                    {hasVotedActivePoll ? (
                       <div className="mt-4 space-y-2 text-sm text-slate-300">
                         <p>
                           Vous avez vote pour :{' '}
                           <span className="font-semibold text-slate-100">
-                            {myPollVote?.option?.text || 'Option inconnue'}
+                            {myPollVotes.map((vote) => vote.option.text).join(', ') || 'Option inconnue'}
                           </span>
                         </p>
                         <p>
@@ -569,7 +598,7 @@ export function DashboardPage() {
                           {pollLeader ? ` (${pollLeader.count} vote${pollLeader.count > 1 ? 's' : ''})` : ''}
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )
               ) : null}

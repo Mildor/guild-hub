@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  IsBoolean,
   IsArray,
   IsOptional,
   IsString,
@@ -20,6 +21,11 @@ export class UpdatePollDto {
   @IsString()
   @Length(1, 2000)
   description?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  allowMultipleSelections?: boolean;
 
   @ApiPropertyOptional({
     type: [String],

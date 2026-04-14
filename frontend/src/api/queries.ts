@@ -854,6 +854,7 @@ export interface Poll {
   description: string | null;
   createdAt: string;
   isActive: boolean;
+  allowMultipleSelections: boolean;
   createdById: string;
   createdBy: {
     id: string;
@@ -867,17 +868,19 @@ export interface CreatePollPayload {
   question: string;
   description?: string;
   options: string[];
+  allowMultipleSelections?: boolean;
 }
 
 export interface UpdatePollPayload {
   question?: string;
   description?: string;
   options?: string[];
+  allowMultipleSelections?: boolean;
 }
 
 export interface VotePollPayload {
   pollId: string;
-  optionId: string;
+  optionIds: string[];
 }
 
 export interface WowTokenPricePoint {
@@ -932,8 +935,8 @@ export const useVotePoll = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ pollId, optionId }: VotePollPayload) => {
-      const { data } = await api.post(`/polls/${pollId}/vote`, { optionId });
+    mutationFn: async ({ pollId, optionIds }: VotePollPayload) => {
+      const { data } = await api.post(`/polls/${pollId}/vote`, { optionIds });
       return data;
     },
     onSuccess: async () => {

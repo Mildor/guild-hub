@@ -991,11 +991,13 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
     question: "",
     description: "",
     options: "",
+    allowMultipleSelections: false,
   });
   const [editForm, setEditForm] = useState({
     question: "",
     description: "",
     options: "",
+    allowMultipleSelections: false,
   });
 
   if (isLoading) {
@@ -1026,6 +1028,16 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
             onChange={(event) => setCreateForm((prev) => ({ ...prev, options: event.target.value }))}
             placeholder="Options (une par ligne)"
           />
+          <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={createForm.allowMultipleSelections}
+              onChange={(event) =>
+                setCreateForm((prev) => ({ ...prev, allowMultipleSelections: event.target.checked }))
+              }
+            />
+            Autoriser plusieurs réponses
+          </label>
         </div>
         <Button
           className="mt-3"
@@ -1046,10 +1058,11 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
                 question: createForm.question,
                 description: createForm.description || undefined,
                 options,
+                allowMultipleSelections: createForm.allowMultipleSelections,
               },
               {
                 onSuccess: () => {
-                  setCreateForm({ question: "", description: "", options: "" });
+                  setCreateForm({ question: "", description: "", options: "", allowMultipleSelections: false });
                 },
               },
             );
@@ -1068,9 +1081,14 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
           return (
             <div key={poll.id} className="rounded-2xl border border-border/60 bg-card/40 p-4 md:p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <Badge variant={poll.isActive ? "default" : "secondary"}>
-                  {poll.isActive ? "Actif" : "Ferme"}
-                </Badge>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={poll.isActive ? "default" : "secondary"}>
+                    {poll.isActive ? "Actif" : "Ferme"}
+                  </Badge>
+                  <Badge variant="outline">
+                    {poll.allowMultipleSelections ? "Réponses multiples" : "Réponse unique"}
+                  </Badge>
+                </div>
                 <div className="inline-flex gap-2">
                   <Button
                     variant="outline"
@@ -1091,6 +1109,7 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
                           question: poll.question,
                           description: poll.description || "",
                           options: optionsText,
+                          allowMultipleSelections: poll.allowMultipleSelections,
                         });
                       }}
                     >
@@ -1140,6 +1159,16 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
                     }
                     placeholder="Options (une par ligne)"
                   />
+                  <label className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={editForm.allowMultipleSelections}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({ ...prev, allowMultipleSelections: event.target.checked }))
+                      }
+                    />
+                    Autoriser plusieurs réponses
+                  </label>
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
@@ -1160,6 +1189,7 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
                               question: editForm.question,
                               description: editForm.description || undefined,
                               options,
+                              allowMultipleSelections: editForm.allowMultipleSelections,
                             },
                           },
                           { onSuccess: () => setEditingId(null) },
@@ -1178,6 +1208,9 @@ function PollsTab({ polls, isLoading }: { polls: Poll[]; isLoading: boolean }) {
               ) : (
                 <div>
                   <p className="text-lg font-semibold text-foreground">{poll.question}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {poll.allowMultipleSelections ? "Réponses multiples autorisées" : "Réponse unique"}
+                  </p>
                   {poll.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{poll.description}</p>
                   ) : null}

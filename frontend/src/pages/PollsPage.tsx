@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { BarChart3, Lock, Plus, Vote } from 'lucide-react';
+import { BarChart3, Check, Lock, Plus, Vote } from 'lucide-react';
 import { useCreatePoll, useGetPolls, useTogglePoll, useVotePoll, type Poll } from '@/api/queries';
 import { useAuthStore } from '@/store/authStore';
 import { AppRole } from '@/types/auth';
@@ -20,7 +20,9 @@ export function PollsPage() {
   const [question, setQuestion] = useState('');
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['', '']);
+  const [allowMultipleSelections, setAllowMultipleSelections] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedOptionsByPoll, setSelectedOptionsByPoll] = useState<Record<string, string[]>>({});
 
   const isOfficerOrAdmin =
     user?.appRole === AppRole.ADMIN || user?.appRole === AppRole.OFFICER;
@@ -37,6 +39,7 @@ export function PollsPage() {
     setQuestion('');
     setDescription('');
     setOptions(['', '']);
+    setAllowMultipleSelections(false);
     setFormError(null);
   };
 
@@ -65,6 +68,7 @@ export function PollsPage() {
         question: question.trim(),
         description: description.trim() || undefined,
         options: cleanedOptions,
+        allowMultipleSelections,
       });
       resetForm();
       setShowCreateForm(false);
@@ -74,9 +78,36 @@ export function PollsPage() {
     }
   };
 
-  const handleVote = async (pollId: string, optionId: string) => {
+  const handleVote = async (pollId: string, optionIds: string[]) => {
     try {
-      await votePoll.mutateAsync({ pollId, optionId });
+      await votePoll.mutateAsync({ pollId, optionIds });
+    } catch (error) {
+      console.error('Erreur vote:', error);
+    }
+  };
+
+  const handleToggleSelection = (pollId: string, optionId: string) => {
+    setSelectedOptionsByPoll((current) => {
+      const currentSelection = current[pollId] ?? [];
+
+      if (currentSelection.includes(optionId)) {
+        return {
+          ...current,
+          [pollId]: currentSelection.filter((selectedOptionId) => selectedOptionId !== optionId),
+        };
+      }
+
+      return {
+        ...current,
+        [pollId]: [...currentSelection, optionId],
+      };
+    });
+  };
+
+  const handleSubmitMultipleVote = async (pollId: string, optionIds: string[]) => {
+    try {
+      await votePoll.mutateAsync({ pollId, optionIds });
+      setSelectedOptionsByPoll((current) => ({ ...current, [pollId]: optionIds }));
     } catch (error) {
       console.error('Erreur vote:', error);
     }
@@ -193,6 +224,16 @@ export function PollsPage() {
                     Retirer la derniere option
                   </button>
                 </div>
+
+                <label className="mt-4 flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={allowMultipleSelections}
+                    onChange={(event) => setAllowMultipleSelections(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500"
+                  />
+                  Autoriser plusieurs réponses
+                </label>
               </div>
             </div>
 
@@ -234,10 +275,13 @@ export function PollsPage() {
           )}
 
           {polls?.map((poll) => {
-            const userVote = poll.votes.find((vote) => vote.userId === user?.userId);
-            const hasVoted = Boolean(userVote);
+            const userVoteOptionIds = poll.votes
+              .filter((vote) => vote.userId === user?.userId)
+              .map((vote) => vote.optionId);
+            const hasVoted = userVoteOptionIds.length > 0;
             const totalVotes = poll.votes.length;
             const showResults = hasVoted || !poll.isActive;
+            const selectedOptionIds = selectedOptionsByPoll[poll.id] ?? userVoteOptionIds;
 
             return (
               <article
@@ -247,6 +291,9 @@ export function PollsPage() {
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-100 md:text-xl">{poll.question}</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {poll.allowMultipleSelections ? 'Réponses multiples autorisées' : 'Réponse unique'}
+                    </p>
                     {poll.description && (
                       <p className="mt-2 whitespace-pre-wrap text-slate-400 break-words">{poll.description}</p>
                     )}
@@ -280,33 +327,70 @@ export function PollsPage() {
 
                 {poll.isActive && (
                   <div className="space-y-3">
-                    {poll.options.map((option) => {
-                      const isUserChoice = userVote?.optionId === option.id;
+                    {poll.allowMultipleSelections ? (
+                      <>
+                        <p className="text-xs text-slate-400">
+                          Sélectionnez une ou plusieurs réponses puis validez.
+                        </p>
 
-                      return (
+                        {poll.options.map((option) => {
+                          const isSelected = selectedOptionIds.includes(option.id);
+
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              disabled={votePoll.isPending}
+                              onClick={() => handleToggleSelection(poll.id, option.id)}
+                              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                isSelected
+                                  ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
+                                  : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
+                              }`}
+                            >
+                              <span>{option.text}</span>
+                              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                                {isSelected ? <Check className="h-3.5 w-3.5" /> : <Vote className="h-3.5 w-3.5" />}
+                                {isSelected ? 'Sélectionnée' : 'Choisir'}
+                              </span>
+                            </button>
+                          );
+                        })}
+
                         <button
-                          key={option.id}
                           type="button"
-                          disabled={votePoll.isPending}
-                          onClick={() => handleVote(poll.id, option.id)}
-                          className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                            isUserChoice
-                              ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
-                              : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
-                          }`}
+                          disabled={selectedOptionIds.length === 0 || votePoll.isPending}
+                          onClick={() => handleSubmitMultipleVote(poll.id, selectedOptionIds)}
+                          className="rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <span>{option.text}</span>
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                            <Vote className="h-3.5 w-3.5" />
-                            {isUserChoice
-                              ? 'Votre choix'
-                              : hasVoted
-                                ? 'Changer mon vote'
-                                : 'Voter'}
-                          </span>
+                          {votePoll.isPending ? 'Enregistrement...' : 'Valider mes réponses'}
                         </button>
-                      );
-                    })}
+                      </>
+                    ) : (
+                      poll.options.map((option) => {
+                        const isUserChoice = userVoteOptionIds.includes(option.id);
+
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            disabled={votePoll.isPending}
+                            onClick={() => handleVote(poll.id, [option.id])}
+                            className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                              isUserChoice
+                                ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
+                                : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
+                            }`}
+                          >
+                            <span>{option.text}</span>
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                              <Vote className="h-3.5 w-3.5" />
+                              {isUserChoice ? 'Votre choix' : hasVoted ? 'Changer mon vote' : 'Voter'}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
 
                     {hasVoted && (
                       <p className="text-xs text-slate-400">
@@ -321,7 +405,7 @@ export function PollsPage() {
                     {poll.options.map((option) => {
                       const optionVotes = getVoteCountForOption(poll, option.id);
                       const percent = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
-                      const isUserChoice = userVote?.optionId === option.id;
+                      const isUserChoice = userVoteOptionIds.includes(option.id);
 
                       return (
                         <div

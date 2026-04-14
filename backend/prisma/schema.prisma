@@ -155,6 +155,7 @@ model Poll {
   description String?      @db.Text
   createdAt   DateTime     @default(now())
   isActive    Boolean      @default(true)
+  allowMultipleSelections Boolean @default(false)
   createdById String       @db.Uuid
   createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
   options     PollOption[]
@@ -181,7 +182,8 @@ model PollVote {
   option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([pollId, userId])
+  @@unique([pollId, userId, optionId])
+  @@index([pollId, userId])
 }
 
 model WowTokenPrice {

@@ -38,6 +38,7 @@ export class PollsService {
       data: {
         question: dto.question.trim(),
         description: dto.description?.trim() || null,
+        allowMultipleSelections: dto.allowMultipleSelections ?? false,
         createdById,
         options: {
           create: options.map((option) => ({ text: option })),
@@ -110,14 +111,32 @@ export class PollsService {
     });
   }
 
-  async vote(pollId: string, userId: string, optionId: string) {
-    const db = this.prisma as any;
+  private normalizeVoteOptions(optionIds: string[]) {
+    const cleaned = optionIds.map((optionId) => optionId.trim()).filter((optionId) => optionId.length > 0);
 
+    if (cleaned.length < 1) {
+      throw new BadRequestException('Au moins une option doit etre selectionnee.');
+    }
+
+    if (new Set(cleaned).size !== cleaned.length) {
+      throw new BadRequestException('Les options selectionnees doivent etre uniques.');
+    }
+
+    return cleaned;
+  }
+
+  private async voteWithOptions(
+    db: any,
+    pollId: string,
+    userId: string,
+    selectedOptionIds: string[],
+  ) {
     const poll = await db.poll.findUnique({
       where: { id: pollId },
       select: {
         id: true,
         isActive: true,
+        allowMultipleSelections: true,
         options: {
           select: { id: true },
         },
@@ -132,27 +151,91 @@ export class PollsService {
       throw new BadRequestException('Ce sondage est ferme.');
     }
 
-    const optionExists = poll.options.some((option) => option.id === optionId);
-    if (!optionExists) {
+    if (!poll.allowMultipleSelections && selectedOptionIds.length !== 1) {
+      throw new BadRequestException('Ce sondage n autorise qu une seule reponse.');
+    }
+
+    const pollOptionIds = new Set(poll.options.map((option) => option.id));
+    const invalidOptionIds = selectedOptionIds.filter((optionId) => !pollOptionIds.has(optionId));
+
+    if (invalidOptionIds.length > 0) {
       throw new BadRequestException('Option invalide pour ce sondage.');
     }
 
-    return db.pollVote.upsert({
-      where: {
-        pollId_userId: {
+    return db.$transaction(async (tx: any) => {
+      if (poll.allowMultipleSelections) {
+        await tx.pollVote.deleteMany({
+          where: {
+            pollId,
+            userId,
+            optionId: {
+              notIn: selectedOptionIds,
+            },
+          },
+        });
+
+        const existingVotes = await tx.pollVote.findMany({
+          where: {
+            pollId,
+            userId,
+          },
+          select: {
+            optionId: true,
+          },
+        });
+
+        const existingOptionIds = new Set(existingVotes.map((vote: { optionId: string }) => vote.optionId));
+        const optionIdsToCreate = selectedOptionIds.filter((selectedOptionId) => !existingOptionIds.has(selectedOptionId));
+
+        if (optionIdsToCreate.length > 0) {
+          await tx.pollVote.createMany({
+            data: optionIdsToCreate.map((optionId) => ({
+              pollId,
+              userId,
+              optionId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } else {
+        await tx.pollVote.deleteMany({ where: { pollId, userId } });
+        await tx.pollVote.create({
+          data: {
+            pollId,
+            userId,
+            optionId: selectedOptionIds[0],
+          },
+        });
+      }
+
+      return tx.pollVote.findMany({
+        where: {
           pollId,
           userId,
         },
-      },
-      update: {
-        optionId,
-      },
-      create: {
-        pollId,
-        optionId,
-        userId,
-      },
+        include: {
+          user: {
+            select: {
+              id: true,
+              battletag: true,
+            },
+          },
+          option: {
+            select: {
+              id: true,
+              text: true,
+            },
+          },
+        },
+      });
     });
+  }
+
+  async voteMultiple(pollId: string, userId: string, optionIds: string[]) {
+    const db = this.prisma as any;
+    const selectedOptionIds = this.normalizeVoteOptions(optionIds);
+
+    return this.voteWithOptions(db, pollId, userId, selectedOptionIds);
   }
 
   async toggle(pollId: string) {
@@ -206,10 +289,16 @@ export class PollsService {
 
     const hasOptionsUpdate = Array.isArray(dto.options);
     const options = hasOptionsUpdate ? this.formatOptions(dto.options ?? []) : null;
+    const shouldResetVotes =
+      hasOptionsUpdate ||
+      (dto.allowMultipleSelections !== undefined && dto.allowMultipleSelections === false && existing.allowMultipleSelections);
 
     const result = await db.$transaction(async (tx: any) => {
-      if (hasOptionsUpdate) {
+      if (shouldResetVotes) {
         await tx.pollVote.deleteMany({ where: { pollId } });
+      }
+
+      if (hasOptionsUpdate) {
         await tx.pollOption.deleteMany({ where: { pollId } });
       }
 
@@ -219,6 +308,9 @@ export class PollsService {
           ...(dto.question !== undefined ? { question: dto.question.trim() } : {}),
           ...(dto.description !== undefined
             ? { description: dto.description?.trim() || null }
+            : {}),
+          ...(dto.allowMultipleSelections !== undefined
+            ? { allowMultipleSelections: dto.allowMultipleSelections }
             : {}),
           ...(hasOptionsUpdate
             ? {

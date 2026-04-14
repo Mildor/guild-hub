@@ -70,7 +70,7 @@ export class PollsController {
     @Req() req: { user: { userId?: string; id?: string } },
     @Body() dto: VotePollDto,
   ) {
-    return this.pollsService.vote(pollId, this.getAuthUserId(req), dto.optionId);
+    return this.pollsService.voteMultiple(pollId, this.getAuthUserId(req), dto.optionIds);
   }
 
   @Patch(':pollId/toggle')
