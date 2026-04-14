@@ -357,20 +357,6 @@ export function DashboardPage() {
     setQuickAttendanceCharacterId(mainCharacter?.id ?? '');
   }, [myNextEventAttendance, mainCharacter?.id]);
 
-  useEffect(() => {
-    if (!activePoll) {
-      setSelectedPollOptionId('');
-      return;
-    }
-
-    if (myPollVote?.optionId) {
-      setSelectedPollOptionId(myPollVote.optionId);
-      return;
-    }
-
-    setSelectedPollOptionId('');
-  }, [activePoll, myPollVote?.optionId]);
-
   if (!user) {
     return null;
   }
