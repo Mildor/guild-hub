@@ -9,6 +9,14 @@ export interface VaultSlotViewModel {
 
 type RaidDifficulty = 'lfr' | 'normal' | 'heroic' | 'mythic';
 
+export interface RaidWeeklyDifficultyProgress {
+  lfr: number;
+  normal: number;
+  heroic: number;
+  mythic: number;
+  totalKilledBosses?: number;
+}
+
 export interface MidnightVaultConfig {
   mythicPlus: {
     slots: [number, number, number];
@@ -17,6 +25,10 @@ export interface MidnightVaultConfig {
   raid: {
     slots: [number, number, number];
     rewardByDifficulty: Record<RaidDifficulty, number>;
+  };
+  world: {
+    tier8Required: number;
+    rewardItemLevel: number;
   };
 }
 
@@ -34,14 +46,16 @@ export const MIDNIGHT_S1_VAULT_CONFIG: MidnightVaultConfig = {
   },
   raid: {
     slots: [2, 4, 6],
-    // Raid Vault ilvl depends on raid difficulty and bosses killed at that difficulty.
-    // Values below use Midnight S1 raid boss drop breakpoints per difficulty.
     rewardByDifficulty: {
       lfr: 240,
       normal: 253,
       heroic: 266,
       mythic: 279,
     },
+  },
+  world: {
+    tier8Required: 1,
+    rewardItemLevel: 272,
   },
 };
 
@@ -172,6 +186,93 @@ export const buildRaidSlots = (
       details: `Difficulte detectee: ${getDifficultyLabel(difficulty)}`,
     };
   });
+};
+
+const getBestDifficultyForThreshold = (
+  progress: RaidWeeklyDifficultyProgress,
+  required: number,
+): RaidDifficulty | null => {
+  if (progress.mythic >= required) {
+    return 'mythic';
+  }
+  if (progress.heroic >= required) {
+    return 'heroic';
+  }
+  if (progress.normal >= required) {
+    return 'normal';
+  }
+  if (progress.lfr >= required) {
+    return 'lfr';
+  }
+
+  return null;
+};
+
+const getRaidTotalKills = (progress: RaidWeeklyDifficultyProgress): number => {
+  if (typeof progress.totalKilledBosses === 'number') {
+    return Math.max(progress.totalKilledBosses, 0);
+  }
+
+  return Math.max(progress.lfr, progress.normal, progress.heroic, progress.mythic);
+};
+
+export const buildRaidSlotsFromDifficultyProgress = (
+  progress: RaidWeeklyDifficultyProgress | undefined,
+  config: MidnightVaultConfig = MIDNIGHT_S1_VAULT_CONFIG,
+): VaultSlotViewModel[] => {
+  const safeProgress: RaidWeeklyDifficultyProgress = progress ?? {
+    lfr: 0,
+    normal: 0,
+    heroic: 0,
+    mythic: 0,
+  };
+
+  const totalKills = getRaidTotalKills(safeProgress);
+
+  return config.raid.slots.map((required, index) => {
+    const completed = Math.min(totalKills, required);
+    const state = completed >= required
+      ? 'completed'
+      : completed > 0
+        ? 'in-progress'
+        : 'locked';
+    const bestDifficulty = getBestDifficultyForThreshold(safeProgress, required);
+
+    return {
+      slot: (index + 1) as 1 | 2 | 3,
+      required,
+      completed,
+      state,
+      rewardItemLevel: bestDifficulty
+        ? config.raid.rewardByDifficulty[bestDifficulty]
+        : null,
+      details: `LFR ${safeProgress.lfr} | NM ${safeProgress.normal} | HM ${safeProgress.heroic} | MM ${safeProgress.mythic}`,
+    };
+  });
+};
+
+export const buildWorldSlots = (
+  delvesTier8Completed: number,
+  config: MidnightVaultConfig = MIDNIGHT_S1_VAULT_CONFIG,
+): VaultSlotViewModel[] => {
+  const required = config.world.tier8Required;
+  const completed = Math.min(Math.max(delvesTier8Completed, 0), required);
+  const state = completed >= required
+    ? 'completed'
+    : completed > 0
+      ? 'in-progress'
+      : 'locked';
+
+  return [
+    {
+      slot: 1,
+      required,
+      completed,
+      state,
+      rewardItemLevel: config.world.rewardItemLevel,
+      details: 'Gouffres: validez un palier 8+ cette semaine',
+    },
+  ];
 };
 
 export const getVaultOptimizationTip = (

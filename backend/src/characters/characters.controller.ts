@@ -20,6 +20,7 @@ import {
 import { AppRole } from '@prisma/client';
 import { CharactersService } from './characters.service';
 import { BlizzardService } from '../blizzard/blizzard.service';
+import { RaiderioService } from '../raiderio/raiderio.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
 import { ToggleRosterStatusDto } from './dto/toggle-roster-status.dto';
@@ -44,7 +45,52 @@ export class CharactersController {
   constructor(
     private readonly charactersService: CharactersService,
     private readonly blizzardService: BlizzardService,
+    private readonly raiderioService: RaiderioService,
   ) {}
+
+  @Get(':id/vault-progress')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Retourne la progression Great Vault (Raid Blizzard + M+ Raider.IO)' })
+  @ApiResponse({ status: 200, description: 'Progression Great Vault recuperee.' })
+  @ApiResponse({ status: 403, description: 'Acces non autorise.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  async getVaultProgress(
+    @Param('id') id: string,
+    @Req() req: { user: { userId: string } },
+  ) {
+    const character = await this.charactersService.findOneById(id);
+
+    if (character.userId !== req.user.userId) {
+      throw new ForbiddenException(
+        "Vous ne pouvez acceder qu'a vos propres personnages",
+      );
+    }
+
+    const [rioProfile, raidProgress] = await Promise.all([
+      this.raiderioService.getCharacterProfile(character.realm, character.name),
+      this.blizzardService.getWeeklyRaidProgress(
+        req.user.userId,
+        character.realm,
+        character.name,
+      ),
+    ]);
+
+    return {
+      resetAt: raidProgress.resetAt,
+      raid: {
+        lfr: raidProgress.lfr,
+        normal: raidProgress.normal,
+        heroic: raidProgress.heroic,
+        mythic: raidProgress.mythic,
+        totalKilledBosses: raidProgress.totalKilledBosses,
+        raidName: raidProgress.raidName,
+      },
+      mythicPlusWeeklyRuns: rioProfile?.mythic_plus_weekly_highest_level_runs ?? [],
+      world: {
+        delvesTier8Completed: 0,
+      },
+    };
+  }
 
   @Post('sync')
   @UseGuards(JwtAuthGuard)

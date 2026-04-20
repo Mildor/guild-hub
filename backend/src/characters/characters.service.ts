@@ -170,6 +170,10 @@ export class CharactersService {
     return this.prisma.character.delete({ where: { id } });
   }
 
+  async findOneById(id: string) {
+    return this.findOneOrFail(id);
+  }
+
   async setMainCharacter(
     userId: string,
     characterId: string,

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useGetMyCharacters, useGetRaiderIoProfile } from '@/api/queries';
+import { useGetMyCharacters, useGetVaultProgress } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   buildMythicPlusSlots,
-  buildRaidSlots,
+  buildRaidSlotsFromDifficultyProgress,
   type VaultSlotViewModel,
 } from '@/lib/vaultMapper';
 
@@ -136,24 +136,18 @@ export function VaultPage() {
     return charactersSorted.find((character) => character.id === selectedCharacterId) ?? null;
   }, [charactersSorted, selectedCharacterId]);
 
-  const { data: raiderIoProfile, isLoading: isRaiderIoLoading } = useGetRaiderIoProfile(
+  const { data: vaultProgress, isLoading: isVaultProgressLoading } = useGetVaultProgress(
     selectedCharacter?.id,
   );
 
   const mythicSlots = useMemo(
-    () => buildMythicPlusSlots(raiderIoProfile?.mythic_plus_weekly_highest_level_runs),
-    [raiderIoProfile?.mythic_plus_weekly_highest_level_runs],
+    () => buildMythicPlusSlots(vaultProgress?.mythicPlusWeeklyRuns),
+    [vaultProgress?.mythicPlusWeeklyRuns],
   );
 
   const raidSlots = useMemo(
-    () => buildRaidSlots(
-      raiderIoProfile?.raid_weekly_progress?.killedBosses ?? 0,
-      raiderIoProfile?.raid_weekly_progress?.summary,
-    ),
-    [
-      raiderIoProfile?.raid_weekly_progress?.killedBosses,
-      raiderIoProfile?.raid_weekly_progress?.summary,
-    ],
+    () => buildRaidSlotsFromDifficultyProgress(vaultProgress?.raid),
+    [vaultProgress?.raid],
   );
 
   if (!user) {
@@ -240,7 +234,7 @@ export function VaultPage() {
           </div>
         </header>
 
-        {isCharactersLoading || isRaiderIoLoading ? (
+        {isCharactersLoading || isVaultProgressLoading ? (
           <div className="grid grid-cols-1 gap-4">
             {[1, 2, 3].map((index) => (
               <Skeleton key={index} className="h-56 w-full rounded-xl" />
@@ -250,7 +244,7 @@ export function VaultPage() {
           <div className="space-y-4">
             <VaultSection
               title="Raid"
-              subtitle={`Progression detectee: ${raiderIoProfile?.raid_weekly_progress?.summary ?? '0/0'}`}
+              subtitle={`Progression sur les raids de la semaine (2 / 5 / 8 boss)`}
               slots={raidSlots}
             />
 

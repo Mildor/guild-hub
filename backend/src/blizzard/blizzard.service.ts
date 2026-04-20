@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Character } from '@prisma/client';
 import { EncryptionService } from '../encryption/encryption.service';
 import { Cron } from '@nestjs/schedule';
+import { getLastWednesdayReset } from '../lib/dateUtils';
 
 interface BnetCharacter {
   id: number;
@@ -48,6 +49,40 @@ interface BnetWowAccount {
 
 interface BnetProfileResponse {
   wow_accounts: BnetWowAccount[];
+}
+
+interface BlizzardRaidEncountersResponse {
+  expansions?: Array<{
+    expansion?: {
+      id?: number;
+      name?: string;
+    };
+    instances?: BlizzardRaidInstance[];
+  }>;
+}
+
+interface BlizzardRaidInstance {
+  instance?: {
+    id?: number;
+    name?: string;
+  };
+  modes?: Array<{
+    difficulty?: {
+      name?: string;
+      type?: string;
+    };
+    progress?: {
+      encounters?: Array<{
+        encounter?: {
+          id?: number;
+          name?: string;
+        };
+        completed_count?: number;
+        last_encounter_timestamp?: number;
+        last_kill_timestamp?: number;
+      }>;
+    };
+  }>;
 }
 
 interface BnetCharacterProfile {
@@ -209,6 +244,16 @@ export interface SyncAllCharactersResult {
     battletag: string;
     reason: string;
   }>;
+}
+
+export interface WeeklyRaidProgress {
+  lfr: number;
+  normal: number;
+  heroic: number;
+  mythic: number;
+  totalKilledBosses: number;
+  raidName: string;
+  resetAt: string;
 }
 
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
@@ -643,6 +688,76 @@ export class BlizzardService {
     return character;
   }
 
+  async getWeeklyRaidProgress(
+    userId: string,
+    realm: string,
+    name: string,
+  ): Promise<WeeklyRaidProgress> {
+    const accessToken = await this.getUserAccessToken(userId);
+    const realmSlug = this.toRealmSlug(realm);
+    const characterSlug = encodeURIComponent(name.trim().toLowerCase());
+    const resetAt = getLastWednesdayReset();
+
+    const raidData = await this.fetchCharacterRaidEncounters(
+      realmSlug,
+      characterSlug,
+      accessToken,
+    );
+
+    const seasonInstance = this.pickCurrentSeasonRaidInstance(raidData);
+    if (!seasonInstance) {
+      return {
+        lfr: 0,
+        normal: 0,
+        heroic: 0,
+        mythic: 0,
+        totalKilledBosses: 0,
+        raidName: 'Inconnu',
+        resetAt: resetAt.toISOString(),
+      };
+    }
+
+    const counts = {
+      lfr: new Set<number | string>(),
+      normal: new Set<number | string>(),
+      heroic: new Set<number | string>(),
+      mythic: new Set<number | string>(),
+    };
+    const allBosses = new Set<number | string>();
+
+    for (const mode of seasonInstance.modes ?? []) {
+      const difficulty = this.getDifficultyKey(mode.difficulty?.name, mode.difficulty?.type);
+      if (!difficulty) {
+        continue;
+      }
+
+      for (const encounter of mode.progress?.encounters ?? []) {
+        const timestamp = this.getEncounterTimestamp(encounter);
+        if (!timestamp || timestamp <= resetAt.getTime()) {
+          continue;
+        }
+
+        const bossId = encounter.encounter?.id ?? encounter.encounter?.name;
+        if (bossId === undefined) {
+          continue;
+        }
+
+        counts[difficulty].add(bossId);
+        allBosses.add(bossId);
+      }
+    }
+
+    return {
+      lfr: counts.lfr.size,
+      normal: counts.normal.size,
+      heroic: counts.heroic.size,
+      mythic: counts.mythic.size,
+      totalKilledBosses: allBosses.size,
+      raidName: seasonInstance.instance?.name ?? 'Inconnu',
+      resetAt: resetAt.toISOString(),
+    };
+  }
+
   async getCharactersFromApi(userId: string): Promise<BlizzardAccountCharacter[]> {
     const { accessToken, allCharacters } = await this.fetchUserCharactersFromApi(userId);
 
@@ -1033,6 +1148,161 @@ export class BlizzardService {
       accessToken,
       allCharacters,
     };
+  }
+
+  private async getUserAccessToken(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { bnetAccessToken: true },
+    });
+
+    if (!user?.bnetAccessToken) {
+      throw new UnauthorizedException(
+        'Aucun token Battle.net trouvé. Veuillez vous reconnecter via Battle.net.',
+      );
+    }
+
+    return this.encryptionService.decrypt(user.bnetAccessToken);
+  }
+
+  private async fetchCharacterRaidEncounters(
+    realmSlug: string,
+    characterSlug: string,
+    token: string,
+  ): Promise<BlizzardRaidEncountersResponse | null> {
+    const basePath = `https://eu.api.blizzard.com/profile/wow/character/${realmSlug}/${characterSlug}/encounters`;
+    const endpoints = ['raid', 'raids'];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get<BlizzardRaidEncountersResponse>(
+            `${basePath}/${endpoint}`,
+            {
+              params: {
+                namespace: 'profile-eu',
+                locale: 'en_GB',
+              },
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          ),
+        );
+
+        return response.data;
+      } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 404) {
+          continue;
+        }
+
+        if (error instanceof AxiosError && (error.response?.status === 401 || error.response?.status === 403)) {
+          throw new UnauthorizedException(
+            'Token Battle.net expiré ou invalide. Veuillez vous reconnecter via /auth/bnet.',
+          );
+        }
+
+        this.logger.warn(
+          `Impossible de recuperer les encounters raid de ${characterSlug}-${realmSlug}: ${(error as AxiosError).response?.status}`,
+        );
+        throw new BadGatewayException(
+          "Erreur lors de la communication avec l'API Blizzard.",
+        );
+      }
+    }
+
+    return null;
+  }
+
+  private pickCurrentSeasonRaidInstance(
+    raidData: BlizzardRaidEncountersResponse | null,
+  ): BlizzardRaidInstance | null {
+    if (!raidData?.expansions?.length) {
+      return null;
+    }
+
+    const allInstances = raidData.expansions.flatMap((expansion) =>
+      expansion.instances ?? [],
+    );
+
+    if (!allInstances.length) {
+      return null;
+    }
+
+    const priorities = [
+      'manaforge omega',
+      'eco dome aldani',
+      'liberation of undermine',
+      'nerubar palace',
+    ];
+
+    const byName = allInstances.find((instance) => {
+      const normalizedName = this.normalizeComparableName(
+        instance.instance?.name ?? '',
+      );
+
+      return priorities.some((token) => normalizedName.includes(token));
+    });
+
+    if (byName) {
+      return byName;
+    }
+
+    return [...allInstances].sort(
+      (left, right) =>
+        this.getLatestEncounterTimestamp(right) -
+        this.getLatestEncounterTimestamp(left),
+    )[0] ?? null;
+  }
+
+  private getLatestEncounterTimestamp(instance: BlizzardRaidInstance): number {
+    let latest = 0;
+
+    for (const mode of instance.modes ?? []) {
+      for (const encounter of mode.progress?.encounters ?? []) {
+        latest = Math.max(latest, this.getEncounterTimestamp(encounter) ?? 0);
+      }
+    }
+
+    return latest;
+  }
+
+  private getEncounterTimestamp(encounter: {
+    completed_count?: number;
+    last_encounter_timestamp?: number;
+    last_kill_timestamp?: number;
+  }): number | null {
+    if (typeof encounter.last_encounter_timestamp === 'number') {
+      return encounter.last_encounter_timestamp;
+    }
+
+    if (typeof encounter.last_kill_timestamp === 'number') {
+      return encounter.last_kill_timestamp;
+    }
+
+    return null;
+  }
+
+  private getDifficultyKey(
+    difficultyName?: string,
+    difficultyType?: string,
+  ): 'lfr' | 'normal' | 'heroic' | 'mythic' | null {
+    const raw = `${difficultyType ?? ''} ${difficultyName ?? ''}`.toLowerCase();
+
+    if (raw.includes('raid-finder') || raw.includes('lfr')) {
+      return 'lfr';
+    }
+    if (raw.includes('normal')) {
+      return 'normal';
+    }
+    if (raw.includes('heroic')) {
+      return 'heroic';
+    }
+    if (raw.includes('mythic')) {
+      return 'mythic';
+    }
+
+    return null;
   }
 
   private async syncCharacterData(

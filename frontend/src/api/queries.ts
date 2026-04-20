@@ -71,6 +71,27 @@ export interface RaiderIoProfile {
   };
 }
 
+export interface VaultProgressResponse {
+  resetAt: string;
+  raid: {
+    lfr: number;
+    normal: number;
+    heroic: number;
+    mythic: number;
+    totalKilledBosses: number;
+    raidName: string;
+  };
+  mythicPlusWeeklyRuns: {
+    dungeon: string;
+    short_name: string;
+    mythic_level: number;
+    url: string;
+  }[];
+  world: {
+    delvesTier8Completed: number;
+  };
+}
+
 export interface RaiderIoGuildProfile {
   name: string;
   realm: string;
@@ -591,6 +612,20 @@ export const useGetRaiderIoProfile = (characterId?: string) => {
     },
     enabled: !!characterId,
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useGetVaultProgress = (characterId?: string) => {
+  return useQuery({
+    queryKey: ['vault-progress', characterId],
+    queryFn: async () => {
+      const { data } = await api.get<VaultProgressResponse>(
+        `/characters/${characterId}/vault-progress`,
+      );
+      return data;
+    },
+    enabled: !!characterId,
+    staleTime: 2 * 60 * 1000,
   });
 };
 
