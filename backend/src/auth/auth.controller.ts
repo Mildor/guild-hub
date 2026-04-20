@@ -20,10 +20,19 @@ import { BlizzardService } from '../blizzard/blizzard.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from './decorators/roles.decorator';
 import { BnetCallbackGuard } from './guards/bnet-callback.guard';
+import { ConfirmOnboardingDto } from './dto/confirm-onboarding.dto';
 
 interface VerifyGuildDto {
   characterName: string;
   realm?: string;
+}
+
+interface OnboardingCharacterResponse {
+  name: string;
+  realm: string;
+  class: string;
+  level: number;
+  avatar: string | null;
 }
 
 @ApiTags('auth')
@@ -57,6 +66,81 @@ export class AuthController {
     });
 
     res.redirect(`${frontendUrl}/login/success`);
+  }
+
+  @Get('onboarding/check')
+  @UseGuards(JwtAuthGuard)
+  async checkOnboardingCharacters(@Req() req: Request) {
+    const user = req.user as any;
+    const userId = user.userId || user.id;
+    const guildName = (process.env.GUILD_NAME || 'The Good Place').trim();
+
+    const allCharacters = await this.blizzardService.getCharactersFromApi(userId);
+
+    const guildCharacters: OnboardingCharacterResponse[] = allCharacters
+      .filter(
+        (character) =>
+          character.guildName &&
+          this.isSameNormalizedName(character.guildName, guildName),
+      )
+      .map((character) => ({
+        name: character.name,
+        realm: character.realm,
+        class: character.className,
+        level: character.level,
+        avatar: character.avatarUrl,
+      }));
+
+    return guildCharacters;
+  }
+
+  @Post('onboarding/confirm')
+  @UseGuards(JwtAuthGuard)
+  async confirmOnboarding(
+    @Req() req: Request,
+    @Body() body: ConfirmOnboardingDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = req.user as any;
+    const userId = user.userId || user.id;
+    const guildName = (process.env.GUILD_NAME || 'The Good Place').trim();
+
+    const syncedCharacters = await this.blizzardService.syncSelectedCharacters(
+      userId,
+      body.characters,
+      guildName,
+    );
+
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!currentUser) {
+      throw new Error('Utilisateur introuvable');
+    }
+
+    const effectiveUser =
+      currentUser.appRole === AppRole.GUEST
+        ? await this.prisma.user.update({
+            where: { id: userId },
+            data: { appRole: AppRole.MEMBER },
+          })
+        : currentUser;
+
+    const token = this.authService.generateJwt(effectiveUser);
+
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return {
+      message: 'Onboarding termine avec succes.',
+      token,
+      characters: syncedCharacters,
+    };
   }
 
   @Post('verify-guild')
@@ -140,5 +224,23 @@ export class AuthController {
     const parsedLimit = limit ? Number(limit) : 50;
 
     return this.authService.getFailedLoginAttempts(parsedPage, parsedLimit);
+  }
+
+  private isSameNormalizedName(left: string, right: string): boolean {
+    return (
+      this.normalizeComparableName(left) === this.normalizeComparableName(right)
+    );
+  }
+
+  private normalizeComparableName(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

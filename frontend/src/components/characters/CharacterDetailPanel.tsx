@@ -144,7 +144,7 @@ const ARCHON_SPEC_MAP: Record<string, string> = {
 
 interface CharacterDetailPanelProps {
     data: Character;
-    onSyncAll?: () => void;
+    onSyncCharacter?: () => void;
     isSyncing?: boolean;
 }
 
@@ -185,7 +185,7 @@ function getItemBySlotType(
 
 export function CharacterDetailPanel({
     data,
-    onSyncAll,
+    onSyncCharacter,
     isSyncing = false,
 }: CharacterDetailPanelProps) {
     const equipment = data.equipment || [];
@@ -243,10 +243,10 @@ export function CharacterDetailPanel({
                     Données de personnage non synchronisées. Cliquez sur
                     "Synchroniser" pour charger l'équipement.
                 </p>
-                {onSyncAll ? (
+                {onSyncCharacter ? (
                     <Button
                         type="button"
-                        onClick={onSyncAll}
+                        onClick={onSyncCharacter}
                         disabled={isSyncing}
                         className="mt-4 inline-flex items-center gap-2"
                     >
@@ -255,7 +255,7 @@ export function CharacterDetailPanel({
                         />
                         {isSyncing
                             ? "Synchronisation..."
-                            : "Synchroniser mes personnages"}
+                            : "Synchroniser ce personnage"}
                     </Button>
                 ) : null}
             </div>
@@ -280,11 +280,11 @@ export function CharacterDetailPanel({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                    {onSyncAll ? (
+                    {onSyncCharacter ? (
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={onSyncAll}
+                            onClick={onSyncCharacter}
                             disabled={isSyncing}
                             className="h-8 rounded-full border-sky-500/30 bg-sky-500/10 px-3 text-[11px] font-semibold text-sky-200 hover:bg-sky-500/20"
                         >

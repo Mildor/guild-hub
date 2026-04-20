@@ -14,20 +14,17 @@ export function AuthCallbackPage() {
   const hydrateUserAndProceed = async () => {
     const { data } = await api.get<User>('/auth/me');
     setUser(data);
+    return data;
   };
 
   useEffect(() => {
-    const pendingCharacter = localStorage.getItem('pendingCharacter');
-    const pendingRealm = localStorage.getItem('pendingRealm') || 'Archimonde';
-
     const run = async () => {
       try {
-        if (pendingCharacter) {
-          // Appeler la route verify-guild
-          await verifyGuildAndProceed(pendingCharacter, pendingRealm);
+        const me = await hydrateUserAndProceed();
+
+        if (me.appRole === 'GUEST') {
+          navigate('/onboarding', { replace: true });
         } else {
-          await hydrateUserAndProceed();
-          // Pas de character en attente, rediriger vers dashboard
           navigate('/dashboard', { replace: true });
         }
       } catch (err: any) {
@@ -40,8 +37,6 @@ export function AuthCallbackPage() {
 
         setError(errorMessage);
         await logout();
-        localStorage.removeItem('pendingCharacter');
-        localStorage.removeItem('pendingRealm');
 
         setTimeout(() => {
           navigate('/', { replace: true });
@@ -51,39 +46,6 @@ export function AuthCallbackPage() {
 
     void run();
   }, [setUser, logout, navigate]);
-
-  const verifyGuildAndProceed = async (characterName: string, realm: string) => {
-    try {
-      await api.post('/auth/verify-guild', { characterName, realm });
-      await hydrateUserAndProceed();
-
-      // Supprimer pendingCharacter du localStorage
-      localStorage.removeItem('pendingCharacter');
-      localStorage.removeItem('pendingRealm');
-
-      // Rediriger vers dashboard
-      navigate('/dashboard', { replace: true });
-    } catch (err: any) {
-      const errorData = err.response?.data;
-      let errorMessage = 'Erreur lors de la vérification de la guilde. Veuillez réessayer.';
-
-      if (errorData?.message) {
-        errorMessage = errorData.message;
-      }
-
-      setError(errorMessage);
-
-      // Nettoyer la session locale
-      await logout();
-      localStorage.removeItem('pendingCharacter');
-      localStorage.removeItem('pendingRealm');
-
-      // Rediriger vers login après 3 secondes
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 3000);
-    }
-  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -114,7 +76,7 @@ export function AuthCallbackPage() {
           </div>
           <div>
             <p className="text-lg font-semibold mb-2 animate-pulse">
-              Vérification de guilde en cours...
+              Finalisation de connexion...
             </p>
             <p className="text-sm text-muted-foreground">
               Authentification sécurisée

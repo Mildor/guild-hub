@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import {
   useGetMyCharacters,
-  useSyncCharacters,
+  useSyncCharacter,
   useSetMainCharacter,
   useSetRosterCharacter,
   useGetRaiderIoProfile,
@@ -20,12 +21,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Search } from 'lucide-react';
 import { WowIcon } from '@/components/ui/WowIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { classIcons, roleIcons } from '@/lib/wowData';
 import type { GameRole } from '@/types/character';
 import { CharacterDetailPanel } from '@/components/characters/CharacterDetailPanel';
+import { SyncMissingCharactersModal } from '@/components/characters/SyncMissingCharactersModal';
 
 // Mapping des badges pour les rôles
 const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -128,6 +130,7 @@ function CharactersTableSkeleton() {
 }
 
 export function DashboardPage() {
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const activeSharedProfile = useAuthStore((s) => s.activeSharedProfile);
   const { data: characters, isLoading, error } = useGetMyCharacters(
@@ -139,15 +142,17 @@ export function DashboardPage() {
   const { data: roster } = useGetRoster();
   const votePollMutation = useVotePoll();
   const upsertAttendance = useUpsertAttendance();
-  const syncMutation = useSyncCharacters(user?.userId);
+  const syncCharacterMutation = useSyncCharacter(user?.userId);
   const setMainMutation = useSetMainCharacter(user?.userId);
   const setRosterMutation = useSetRosterCharacter(user?.userId);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'roster'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'roster' | 'sync'>('events');
   const [quickAttendanceStatus, setQuickAttendanceStatus] = useState<AttendanceStatus>('TENTATIVE');
   const [quickAttendanceCharacterId, setQuickAttendanceCharacterId] = useState('');
   const [selectedPollOptionIds, setSelectedPollOptionIds] = useState<string[]>([]);
   const [showAllRosterQuickSwitch, setShowAllRosterQuickSwitch] = useState(false);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
 
   if (error) {
     console.error('❌ Erreur API:', error);
@@ -357,6 +362,41 @@ export function DashboardPage() {
     setQuickAttendanceCharacterId(mainCharacter?.id ?? '');
   }, [myNextEventAttendance, mainCharacter?.id]);
 
+  useEffect(() => {
+    if (!activePoll) {
+      setSelectedPollOptionId('');
+      return;
+    }
+
+    if (myPollVote?.optionId) {
+      setSelectedPollOptionId(myPollVote.optionId);
+      return;
+    }
+
+    setSelectedPollOptionId('');
+  }, [activePoll, myPollVote?.optionId]);
+
+  useEffect(() => {
+    if (!syncToastMessage) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setSyncToastMessage(null);
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [syncToastMessage]);
+
+  const handleImportedCharacters = async (count: number) => {
+    await queryClient.invalidateQueries({ queryKey: ['characters'] });
+    setSyncToastMessage(
+      `${count} personnage${count > 1 ? 's' : ''} importe${count > 1 ? 's' : ''} avec succes.`,
+    );
+  };
+
   if (!user) {
     return null;
   }
@@ -405,6 +445,16 @@ export function DashboardPage() {
                     : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
                 >
                   Roster
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('sync')}
+                  className={activeTab === 'sync'
+                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
+                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                >
+                  Synchronisation
                 </button>
               </div>
 
@@ -690,6 +740,28 @@ export function DashboardPage() {
                   </div>
                 )
               ) : null}
+
+              {activeTab === 'sync' ? (
+                <div className="space-y-4 rounded-lg border border-slate-700/80 bg-slate-800/30 p-4 text-sm text-slate-300">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Gestion du roster</p>
+                    <h2 className="mt-1 text-lg font-semibold text-slate-100">Synchronisation manuelle</h2>
+                    <p className="mt-1 text-slate-400">
+                      Recherchez les personnages de votre compte Battle.net presents dans la guilde
+                      The Good Place qui ne sont pas encore importes sur le site.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSyncModalOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+                  >
+                    <Search className="h-4 w-4" />
+                    Chercher de nouveaux personnages
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
@@ -778,8 +850,8 @@ export function DashboardPage() {
 
                       <CharacterDetailPanel
                         data={selectedCharacter}
-                        onSyncAll={() => syncMutation.mutate()}
-                        isSyncing={syncMutation.isPending}
+                        onSyncCharacter={() => syncCharacterMutation.mutate(selectedCharacter.id)}
+                        isSyncing={syncCharacterMutation.isPending}
                       />
                     </>
                   ) : (
@@ -879,6 +951,18 @@ export function DashboardPage() {
             )}
           </aside>
         </div>
+
+        <SyncMissingCharactersModal
+          open={syncModalOpen}
+          onOpenChange={setSyncModalOpen}
+          onImported={handleImportedCharacters}
+        />
+
+        {syncToastMessage ? (
+          <div className="fixed bottom-5 right-5 z-50 rounded-md border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 text-sm font-medium text-emerald-200 shadow-lg backdrop-blur">
+            {syncToastMessage}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadGatewayException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -19,6 +20,26 @@ interface BnetCharacter {
   playable_class: { name: string };
   level: number;
   guild?: { name: string };
+}
+
+export interface OnboardingCharacterSelection {
+  name: string;
+  realm: string;
+}
+
+export interface BlizzardAccountCharacter {
+  name: string;
+  realm: string;
+  className: string;
+  ilvl: number;
+  level: number;
+  avatarUrl: string | null;
+  guildName: string | null;
+}
+
+interface SyncSelectedCharactersOptions {
+  resetMainCharacter?: boolean;
+  pruneMissingCharacters?: boolean;
 }
 
 interface BnetWowAccount {
@@ -622,54 +643,158 @@ export class BlizzardService {
     return character;
   }
 
+  async getCharactersFromApi(userId: string): Promise<BlizzardAccountCharacter[]> {
+    const { accessToken, allCharacters } = await this.fetchUserCharactersFromApi(userId);
+
+    const characters = await Promise.all(
+      allCharacters.map(async (character) => {
+        const [profile, media] = await Promise.all([
+          this.fetchCharacterProfile(
+            character.realm.slug,
+            character.name.toLowerCase(),
+            accessToken,
+          ),
+          this.fetchMediaUrls(
+            character.realm.slug,
+            character.name.toLowerCase(),
+            accessToken,
+          ),
+        ]);
+
+        return {
+          name: character.name,
+          realm: character.realm.slug,
+          className: character.playable_class.name,
+          ilvl: profile?.equipped_item_level ?? 0,
+          level: character.level,
+          avatarUrl: media.avatarUrl ?? null,
+          guildName: profile?.guild?.name ?? character.guild?.name ?? null,
+        };
+      }),
+    );
+
+    return characters.sort((left, right) => {
+      if (right.level !== left.level) {
+        return right.level - left.level;
+      }
+
+      return left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' });
+    });
+  }
+
+  async syncSelectedCharacters(
+    userId: string,
+    selectedCharacters: OnboardingCharacterSelection[],
+    targetGuild = 'The Good Place',
+    options: SyncSelectedCharactersOptions = {},
+  ): Promise<Character[]> {
+    const resetMainCharacter = options.resetMainCharacter ?? true;
+    const pruneMissingCharacters = options.pruneMissingCharacters ?? true;
+
+    const { user, accessToken, allCharacters } =
+      await this.fetchUserCharactersFromApi(userId);
+
+    const requestedKeys = new Set(
+      selectedCharacters.map((character) =>
+        this.toCharacterKey(character.name, character.realm),
+      ),
+    );
+
+    const selectedByKey = new Map<string, BnetCharacter>();
+    for (const character of allCharacters) {
+      const key = this.toCharacterKey(character.name, character.realm.slug);
+      if (requestedKeys.has(key) && !selectedByKey.has(key)) {
+        selectedByKey.set(key, character);
+      }
+    }
+
+    if (selectedByKey.size !== requestedKeys.size) {
+      throw new UnauthorizedException(
+        "Un ou plusieurs personnages sélectionnés n'appartiennent pas à ce compte Battle.net.",
+      );
+    }
+
+    const syncedCharacters: Character[] = [];
+    const syncedCharacterIds: string[] = [];
+
+    for (const selectedCharacter of selectedByKey.values()) {
+      const details = await this.fetchCharacterProfile(
+        selectedCharacter.realm.slug,
+        selectedCharacter.name.toLowerCase(),
+        accessToken,
+      );
+
+      const characterGuild = details?.guild?.name ?? selectedCharacter.guild?.name;
+
+      if (!characterGuild || !this.isSameNormalizedName(characterGuild, targetGuild)) {
+        throw new UnauthorizedException(
+          `Le personnage ${selectedCharacter.name}-${selectedCharacter.realm.slug} n'est pas dans la guilde ${targetGuild}.`,
+        );
+      }
+
+      const synced = await this.syncCharacterData(
+        userId,
+        selectedCharacter,
+        accessToken,
+      );
+
+      syncedCharacters.push(synced);
+      syncedCharacterIds.push(synced.id);
+    }
+
+    if (resetMainCharacter || pruneMissingCharacters) {
+      const mainCharacter = syncedCharacters.reduce((best, character) => {
+        if (!best) {
+          return character;
+        }
+
+        if (character.ilvl > best.ilvl) {
+          return character;
+        }
+
+        if (character.ilvl === best.ilvl && character.isMain) {
+          return character;
+        }
+
+        return best;
+      }, syncedCharacters[0]);
+
+      await this.prisma.$transaction(async (tx) => {
+        if (resetMainCharacter) {
+          await tx.character.updateMany({
+            where: { userId },
+            data: { isMain: false },
+          });
+
+          if (mainCharacter) {
+            await tx.character.update({
+              where: { id: mainCharacter.id },
+              data: { isMain: true },
+            });
+          }
+        }
+
+        if (pruneMissingCharacters) {
+          await tx.character.deleteMany({
+            where: {
+              userId: user.id,
+              id: {
+                notIn: syncedCharacterIds,
+              },
+            },
+          });
+        }
+      });
+    }
+
+    return syncedCharacters;
+  }
+
   async syncUserCharacters(userId: string): Promise<Character[]> {
     const targetGuild = 'The Good Place';
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-
-    if (!user?.bnetAccessToken) {
-      throw new UnauthorizedException(
-        'Aucun token Battle.net trouvé. Veuillez vous reconnecter via Battle.net.',
-      );
-    }
-
-    const accessToken = this.encryptionService.decrypt(user.bnetAccessToken);
-
-    let response;
-    try {
-      response = await firstValueFrom(
-        this.httpService.get<BnetProfileResponse>(
-          'https://eu.api.blizzard.com/profile/user/wow',
-          {
-            params: {
-              namespace: 'profile-eu',
-              locale: 'fr_FR',
-            },
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          },
-        ),
-      );
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        this.logger.error(
-          `Blizzard API error: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`,
-        );
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          throw new UnauthorizedException(
-            'Token Battle.net expiré ou invalide. Veuillez vous reconnecter via /auth/bnet.',
-          );
-        }
-      }
-      throw new BadGatewayException(
-        "Erreur lors de la communication avec l'API Blizzard.",
-      );
-    }
-
-    const allCharacters = response.data.wow_accounts.flatMap(
-      (account) => account.characters ?? [],
-    );
+    const { user, accessToken, allCharacters } =
+      await this.fetchUserCharactersFromApi(userId);
 
     const maxLevelCharacters = allCharacters.filter((char) => char.level >= 80);
 
@@ -700,87 +825,7 @@ export class BlizzardService {
         );
       }
 
-      const activeSpec = details?.active_spec?.name ?? 'Unknown';
-      const ilvl = details?.equipped_item_level ?? 0;
-      const gameRole = SPEC_TO_ROLE[activeSpec] ?? 'DPS';
-
-      const [media, equipmentData, specializationInfo, professions] =
-        await Promise.all([
-          this.fetchMediaUrls(
-            char.realm.slug,
-            char.name.toLowerCase(),
-            accessToken,
-          ),
-          this.fetchEquipment(
-            char.realm.slug,
-            char.name.toLowerCase(),
-            accessToken,
-          ),
-          this.fetchSpecializations(
-            char.realm.slug,
-            char.name.toLowerCase(),
-            accessToken,
-          ),
-          this.fetchCharacterProfessions(
-            char.realm.slug,
-            char.name.toLowerCase(),
-            accessToken,
-          ),
-        ]);
-
-      let existingCharacter = await this.prisma.character.findFirst({
-        where: {
-          userId,
-          blizzardId: char.id,
-        },
-      });
-
-      if (!existingCharacter) {
-        existingCharacter = await this.prisma.character.findFirst({
-          where: {
-            userId,
-            name: {
-              equals: char.name,
-              mode: 'insensitive',
-            },
-            realm: {
-              equals: char.realm.slug,
-              mode: 'insensitive',
-            },
-          },
-        });
-      }
-
-      const characterPayload = {
-        blizzardId: char.id,
-        name: char.name,
-        realm: char.realm.slug,
-        class: char.playable_class.name,
-        activeSpec,
-        ilvl,
-        gameRole,
-        avatarUrl: media.avatarUrl,
-        renderUrl: media.renderUrl,
-        insetUrl: media.insetUrl,
-        activeSpecName: specializationInfo.activeSpecName,
-        activeSpecIcon: specializationInfo.activeSpecIcon,
-        equipment: equipmentData as any,
-        lastSyncAt: new Date(),
-      };
-
-      const synced = existingCharacter
-        ? await this.prisma.character.update({
-            where: { id: existingCharacter.id },
-            data: characterPayload,
-          })
-        : await this.prisma.character.create({
-            data: {
-              userId,
-              ...characterPayload,
-            },
-          });
-
-      await this.upsertCharacterProfessions(synced.id, professions);
+      const synced = await this.syncCharacterData(userId, char, accessToken);
 
       syncedCharacters.push(synced);
       syncedCharacterIds.push(synced.id);
@@ -835,6 +880,239 @@ export class BlizzardService {
     }
 
     return syncedCharacters;
+  }
+
+  async syncSingleCharacter(userId: string, characterId: string): Promise<Character> {
+    const existingCharacter = await this.prisma.character.findFirst({
+      where: {
+        id: characterId,
+        userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        realm: true,
+        blizzardId: true,
+      },
+    });
+
+    if (!existingCharacter) {
+      throw new NotFoundException('Personnage introuvable pour ce compte.');
+    }
+
+    const targetGuild = 'The Good Place';
+    const { accessToken, allCharacters } =
+      await this.fetchUserCharactersFromApi(userId);
+
+    let targetCharacter = allCharacters.find(
+      (character) =>
+        existingCharacter.blizzardId !== null &&
+        character.id === existingCharacter.blizzardId,
+    );
+
+    if (!targetCharacter) {
+      const existingCharacterKey = this.toCharacterKey(
+        existingCharacter.name,
+        existingCharacter.realm,
+      );
+
+      targetCharacter = allCharacters.find(
+        (character) =>
+          this.toCharacterKey(character.name, character.realm.slug) ===
+          existingCharacterKey,
+      );
+    }
+
+    if (!targetCharacter) {
+      throw new NotFoundException(
+        'Le personnage n a pas ete trouve sur votre compte Battle.net.',
+      );
+    }
+
+    const details = await this.fetchCharacterProfile(
+      targetCharacter.realm.slug,
+      targetCharacter.name.toLowerCase(),
+      accessToken,
+    );
+
+    const characterGuild = details?.guild?.name ?? targetCharacter.guild?.name;
+    if (
+      characterGuild &&
+      !this.isSameNormalizedName(characterGuild, targetGuild)
+    ) {
+      throw new UnauthorizedException(
+        `Le personnage ${targetCharacter.name}-${targetCharacter.realm.slug} n'est pas dans la guilde ${targetGuild}.`,
+      );
+    }
+
+    if (!characterGuild) {
+      this.logger.warn(
+        `Guilde introuvable pour ${targetCharacter.name}-${targetCharacter.realm.slug}, synchronisation maintenue.`,
+      );
+    }
+
+    return this.syncCharacterData(userId, targetCharacter, accessToken);
+  }
+
+  private async fetchUserCharactersFromApi(userId: string): Promise<{
+    user: { id: string; bnetAccessToken: string | null };
+    accessToken: string;
+    allCharacters: BnetCharacter[];
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        bnetAccessToken: true,
+      },
+    });
+
+    if (!user?.bnetAccessToken) {
+      throw new UnauthorizedException(
+        'Aucun token Battle.net trouvé. Veuillez vous reconnecter via Battle.net.',
+      );
+    }
+
+    const accessToken = this.encryptionService.decrypt(user.bnetAccessToken);
+
+    let response;
+    try {
+      response = await firstValueFrom(
+        this.httpService.get<BnetProfileResponse>(
+          'https://eu.api.blizzard.com/profile/user/wow',
+          {
+            params: {
+              namespace: 'profile-eu',
+              locale: 'fr_FR',
+            },
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        this.logger.error(
+          `Blizzard API error: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`,
+        );
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          throw new UnauthorizedException(
+            'Token Battle.net expiré ou invalide. Veuillez vous reconnecter via /auth/bnet.',
+          );
+        }
+      }
+
+      throw new BadGatewayException(
+        "Erreur lors de la communication avec l'API Blizzard.",
+      );
+    }
+
+    const allCharacters = response.data.wow_accounts.flatMap(
+      (account) => account.characters ?? [],
+    );
+
+    return {
+      user,
+      accessToken,
+      allCharacters,
+    };
+  }
+
+  private async syncCharacterData(
+    userId: string,
+    character: BnetCharacter,
+    accessToken: string,
+  ): Promise<Character> {
+    const details = await this.fetchCharacterProfile(
+      character.realm.slug,
+      character.name.toLowerCase(),
+      accessToken,
+    );
+
+    const activeSpec = details?.active_spec?.name ?? 'Unknown';
+    const ilvl = details?.equipped_item_level ?? 0;
+    const gameRole = SPEC_TO_ROLE[activeSpec] ?? 'DPS';
+
+    const [media, equipmentData, specializationInfo, professions] =
+      await Promise.all([
+        this.fetchMediaUrls(
+          character.realm.slug,
+          character.name.toLowerCase(),
+          accessToken,
+        ),
+        this.fetchEquipment(
+          character.realm.slug,
+          character.name.toLowerCase(),
+          accessToken,
+        ),
+        this.fetchSpecializations(
+          character.realm.slug,
+          character.name.toLowerCase(),
+          accessToken,
+        ),
+        this.fetchCharacterProfessions(
+          character.realm.slug,
+          character.name.toLowerCase(),
+          accessToken,
+        ),
+      ]);
+
+    let existingCharacter = await this.prisma.character.findFirst({
+      where: {
+        userId,
+        blizzardId: character.id,
+      },
+    });
+
+    if (!existingCharacter) {
+      existingCharacter = await this.prisma.character.findFirst({
+        where: {
+          userId,
+          name: {
+            equals: character.name,
+            mode: 'insensitive',
+          },
+          realm: {
+            equals: character.realm.slug,
+            mode: 'insensitive',
+          },
+        },
+      });
+    }
+
+    const characterPayload = {
+      blizzardId: character.id,
+      name: character.name,
+      realm: character.realm.slug,
+      class: character.playable_class.name,
+      activeSpec,
+      ilvl,
+      gameRole,
+      avatarUrl: media.avatarUrl,
+      renderUrl: media.renderUrl,
+      insetUrl: media.insetUrl,
+      activeSpecName: specializationInfo.activeSpecName,
+      activeSpecIcon: specializationInfo.activeSpecIcon,
+      equipment: equipmentData as any,
+      lastSyncAt: new Date(),
+    };
+
+    const syncedCharacter = existingCharacter
+      ? await this.prisma.character.update({
+          where: { id: existingCharacter.id },
+          data: characterPayload,
+        })
+      : await this.prisma.character.create({
+          data: {
+            userId,
+            ...characterPayload,
+          },
+        });
+
+    await this.upsertCharacterProfessions(syncedCharacter.id, professions);
+
+    return syncedCharacter;
   }
 
   async syncAllUsersCharacters(): Promise<SyncAllCharactersResult> {

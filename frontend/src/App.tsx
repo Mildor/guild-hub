@@ -19,6 +19,7 @@ import { PollsPage } from '@/pages/PollsPage';
 import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TokenPage } from '@/pages/TokenPage';
 import { CrafterHubPage } from '@/pages/CrafterHubPage';
+import { OnboardingPage } from '@/pages/OnboardingPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleGuard } from '@/components/RoleGuard';
 import { AppRole } from '@/types/auth';
@@ -95,6 +96,8 @@ function AppContent() {
 
         {/* Layout avec les pages protégées */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/calendar" element={<CalendarPage />} />

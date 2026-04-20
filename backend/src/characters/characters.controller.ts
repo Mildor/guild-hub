@@ -24,9 +24,18 @@ import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
 import { ToggleRosterStatusDto } from './dto/toggle-roster-status.dto';
 import { UpdateSharedProfilesDto } from './dto/update-shared-profiles.dto';
+import { ImportSelectedCharactersDto } from './dto/import-selected-characters.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+
+interface DetectNewCharacterResponse {
+  name: string;
+  realm: string;
+  class: string;
+  ilvl: number;
+  avatar: string | null;
+}
 
 @ApiTags('characters')
 @ApiBearerAuth()
@@ -47,6 +56,110 @@ export class CharactersController {
   @ApiResponse({ status: 401, description: 'Token Battle.net manquant.' })
   async sync(@Req() req: { user: { userId: string } }) {
     return this.blizzardService.syncUserCharacters(req.user.userId);
+  }
+
+  @Post(':id/sync')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Synchronise un personnage depuis Blizzard' })
+  @ApiResponse({
+    status: 200,
+    description: 'Personnage synchronise avec succes.',
+  })
+  @ApiResponse({ status: 401, description: 'Token Battle.net manquant.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  syncSingleCharacter(
+    @Param('id') id: string,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.blizzardService.syncSingleCharacter(req.user.userId, id);
+  }
+
+  @Get('detect-new')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Detecte les personnages Blizzard de la guilde non encore enregistres localement',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des personnages detectes et non encore synchronises.',
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifie.' })
+  async detectNewCharacters(@Req() req: { user: { userId?: string; id?: string } }) {
+    const userId = req.user.userId ?? req.user.id;
+
+    if (!userId) {
+      throw new ForbiddenException('Utilisateur introuvable dans le token.');
+    }
+
+    const guildName = (process.env.GUILD_NAME || 'The Good Place').trim();
+
+    const [allCharactersFromApi, existingCharacters] = await Promise.all([
+      this.blizzardService.getCharactersFromApi(userId),
+      this.charactersService.findByUserIdForSharedConfig(userId),
+    ]);
+
+    const existingCharacterKeys = new Set(
+      existingCharacters.map((character) =>
+        this.toCharacterKey(character.name, character.realm),
+      ),
+    );
+
+    const newCharacters: DetectNewCharacterResponse[] = allCharactersFromApi
+      .filter(
+        (character) =>
+          character.guildName &&
+          this.isSameNormalizedName(character.guildName, guildName),
+      )
+      .filter(
+        (character) =>
+          !existingCharacterKeys.has(
+            this.toCharacterKey(character.name, character.realm),
+          ),
+      )
+      .map((character) => ({
+        name: character.name,
+        realm: character.realm,
+        class: character.className,
+        ilvl: character.ilvl,
+        avatar: character.avatarUrl,
+      }));
+
+    return newCharacters;
+  }
+
+  @Post('import-selected')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Importe une selection de personnages sans supprimer les personnages deja synchronises',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Personnages importes avec succes.',
+  })
+  @ApiResponse({ status: 401, description: 'Non authentifie.' })
+  async importSelectedCharacters(
+    @Req() req: { user: { userId?: string; id?: string } },
+    @Body() dto: ImportSelectedCharactersDto,
+  ) {
+    const userId = req.user.userId ?? req.user.id;
+
+    if (!userId) {
+      throw new ForbiddenException('Utilisateur introuvable dans le token.');
+    }
+
+    const guildName = (process.env.GUILD_NAME || 'The Good Place').trim();
+
+    return this.blizzardService.syncSelectedCharacters(
+      userId,
+      dto.characters,
+      guildName,
+      {
+        resetMainCharacter: false,
+        pruneMissingCharacters: false,
+      },
+    );
   }
 
   @Post('sync-all')
@@ -213,5 +326,27 @@ export class CharactersController {
   @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
   remove(@Param('id') id: string) {
     return this.charactersService.remove(id);
+  }
+
+  private toCharacterKey(name: string, realm: string): string {
+    return `${this.normalizeComparableName(name)}::${this.normalizeComparableName(realm)}`;
+  }
+
+  private isSameNormalizedName(left: string, right: string): boolean {
+    return (
+      this.normalizeComparableName(left) === this.normalizeComparableName(right)
+    );
+  }
+
+  private normalizeComparableName(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

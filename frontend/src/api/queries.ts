@@ -157,6 +157,19 @@ export interface SharedProfileAssignment {
   sharedProfile: SharedProfile | null;
 }
 
+export interface DetectNewCharacter {
+  name: string;
+  realm: string;
+  class: string;
+  ilvl: number;
+  avatar: string | null;
+}
+
+export interface ImportSelectedCharactersPayload {
+  name: string;
+  realm: string;
+}
+
 // Récupère l'utilisateur actuel
 export const useGetMe = () => {
   return useQuery({
@@ -307,6 +320,53 @@ const syncCharacters = async () => {
   return data;
 };
 
+const syncCharacter = async (characterId: string) => {
+  const { data } = await api.post(`/characters/${characterId}/sync`);
+  return data;
+};
+
+const detectNewCharacters = async () => {
+  const { data } = await api.get<DetectNewCharacter[]>('/characters/detect-new');
+  return data;
+};
+
+const importSelectedCharacters = async (
+  selectedCharacters: ImportSelectedCharactersPayload[],
+) => {
+  const { data } = await api.post<Character[]>(
+    '/characters/import-selected',
+    {
+      characters: selectedCharacters,
+    },
+  );
+
+  return data;
+};
+
+export const useDetectNewCharacters = (enabled: boolean) => {
+  return useQuery({
+    queryKey: ['characters', 'detect-new'],
+    queryFn: detectNewCharacters,
+    enabled,
+    staleTime: 0,
+  });
+};
+
+export const useImportSelectedCharacters = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: importSelectedCharacters,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
+        queryClient.invalidateQueries({ queryKey: ['professions'] }),
+      ]);
+    },
+  });
+};
+
 // Mutation pour synchroniser les caractères
 export const useSyncCharacters = (userId: string | null | undefined) => {
   const queryClient = useQueryClient();
@@ -325,6 +385,27 @@ export const useSyncCharacters = (userId: string | null | undefined) => {
     },
     onError: (error) => {
       console.error('❌ Erreur sync:', error);
+    },
+  });
+};
+
+export const useSyncCharacter = (userId: string | null | undefined) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncCharacter,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['characters'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['professions'],
+        }),
+      ]);
+    },
+    onError: (error) => {
+      console.error('❌ Erreur sync personnage:', error);
     },
   });
 };
