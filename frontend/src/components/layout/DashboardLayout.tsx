@@ -24,7 +24,7 @@ import {
 } from '@/api/queries';
 import { AppRole } from '@/types/auth';
 import type { SharedProfile } from '@/types/auth';
-import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X, Home, Calendar, Users, Shield, BookOpen, Swords, Plus, BarChart3, Coins, Trophy, Search, Package } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -173,6 +173,7 @@ export function DashboardLayout() {
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Calendar, label: 'Calendrier', href: '/calendar' },
     { icon: Users, label: 'Roster', href: '/roster' },
+    { icon: Package, label: 'Great Vault', href: '/vault' },
     { icon: Search, label: 'Crafter Hub', href: '/crafter-hub' },
     { icon: Trophy, label: 'Classement & Progress', href: '/guild-link' },
     ...(user?.appRole !== AppRole.GUEST

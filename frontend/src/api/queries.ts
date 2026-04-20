@@ -56,7 +56,19 @@ export interface EventWithMeta {
 export interface RaiderIoProfile {
   name: string;
   mythic_plus_scores_by_season: { scores: { all: number } }[];
+  mythic_plus_weekly_highest_level_runs: {
+    dungeon: string;
+    short_name: string;
+    mythic_level: number;
+    url: string;
+  }[];
   raid_progression: Record<string, { summary: string }>;
+  raid_weekly_progress?: {
+    raidSlug: string;
+    summary: string;
+    killedBosses: number;
+    totalBosses: number;
+  };
 }
 
 export interface RaiderIoGuildProfile {

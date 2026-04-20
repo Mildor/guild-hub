@@ -20,6 +20,7 @@ import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TokenPage } from '@/pages/TokenPage';
 import { CrafterHubPage } from '@/pages/CrafterHubPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
+import { VaultPage } from '@/pages/VaultPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleGuard } from '@/components/RoleGuard';
 import { AppRole } from '@/types/auth';
@@ -118,6 +119,7 @@ function AppContent() {
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/roster" element={<RosterPage />} />
             <Route path="/guild-link" element={<GuildLinkPage />} />
+            <Route path="/vault" element={<VaultPage />} />
             <Route path="/token" element={<TokenPage />} />
             <Route path="/crafter-hub" element={<CrafterHubPage />} />
             <Route

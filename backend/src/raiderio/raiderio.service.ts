@@ -11,7 +11,19 @@ export interface RaiderIoProfile {
       all?: number;
     };
   }>;
+  mythic_plus_weekly_highest_level_runs?: Array<{
+    dungeon?: string;
+    short_name?: string;
+    mythic_level?: number;
+    url?: string;
+  }>;
   raid_progression?: Record<string, { summary: string }>;
+  raid_weekly_progress?: {
+    raidSlug: string;
+    summary: string;
+    killedBosses: number;
+    totalBosses: number;
+  };
 }
 
 interface RaiderIoCharacterMplusResponse {
@@ -73,6 +85,13 @@ type CachedMplusEntry = {
   value: CachedMplusValue;
 };
 
+const MIDNIGHT_RAID_PRIORITY_SLUGS = [
+  'manaforge-omega',
+  'eco-dome-aldani',
+  'liberation-of-undermine',
+  'nerubar-palace',
+];
+
 @Injectable()
 export class RaiderioService {
   private readonly logger = new Logger(RaiderioService.name);
@@ -99,13 +118,21 @@ export class RaiderioService {
               region: 'eu',
               realm: realmSlug,
               name: characterName,
-              fields: 'mythic_plus_scores_by_season:current,raid_progression',
+              fields:
+                'mythic_plus_scores_by_season:current,mythic_plus_weekly_highest_level_runs,raid_progression',
             },
           },
         ),
       );
 
-      return response.data;
+      const raidWeeklyProgress = this.getRaidWeeklyProgress(
+        response.data.raid_progression,
+      );
+
+      return {
+        ...response.data,
+        raid_weekly_progress: raidWeeklyProgress,
+      };
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 400) {
         this.logger.warn(
@@ -375,6 +402,72 @@ export class RaiderioService {
     }
 
     return Math.max(...levels);
+  }
+
+  private getRaidWeeklyProgress(
+    raidProgression?: Record<string, { summary: string }>,
+  ): RaiderIoProfile['raid_weekly_progress'] {
+    if (!raidProgression) {
+      return undefined;
+    }
+
+    for (const slug of MIDNIGHT_RAID_PRIORITY_SLUGS) {
+      const summary = raidProgression[slug]?.summary;
+      if (!summary) {
+        continue;
+      }
+
+      const parsed = this.parseSummaryKills(summary);
+      if (!parsed) {
+        continue;
+      }
+
+      return {
+        raidSlug: slug,
+        summary,
+        killedBosses: parsed.killedBosses,
+        totalBosses: parsed.totalBosses,
+      };
+    }
+
+    const firstEntry = Object.entries(raidProgression).find(
+      ([, value]) => !!value?.summary,
+    );
+    if (!firstEntry) {
+      return undefined;
+    }
+
+    const [raidSlug, raidData] = firstEntry;
+    const parsed = this.parseSummaryKills(raidData.summary);
+
+    if (!parsed) {
+      return undefined;
+    }
+
+    return {
+      raidSlug,
+      summary: raidData.summary,
+      killedBosses: parsed.killedBosses,
+      totalBosses: parsed.totalBosses,
+    };
+  }
+
+  private parseSummaryKills(
+    summary: string,
+  ): { killedBosses: number; totalBosses: number } | null {
+    const match = summary.match(/(\d+)\s*\/\s*(\d+)/);
+    if (!match) {
+      return null;
+    }
+
+    const killedBosses = Number(match[1]);
+    const totalBosses = Number(match[2]);
+
+    if (!Number.isFinite(killedBosses) || !Number.isFinite(totalBosses)) {
+      return null;
+    }
+
+    return { killedBosses, totalBosses };
   }
 
   private toRealmSlug(realm: string): string {
