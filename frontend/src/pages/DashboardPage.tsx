@@ -363,20 +363,6 @@ export function DashboardPage() {
   }, [myNextEventAttendance, mainCharacter?.id]);
 
   useEffect(() => {
-    if (!activePoll) {
-      setSelectedPollOptionId('');
-      return;
-    }
-
-    if (myPollVote?.optionId) {
-      setSelectedPollOptionId(myPollVote.optionId);
-      return;
-    }
-
-    setSelectedPollOptionId('');
-  }, [activePoll, myPollVote?.optionId]);
-
-  useEffect(() => {
     if (!syncToastMessage) {
       return;
     }
