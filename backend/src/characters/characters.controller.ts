@@ -74,6 +74,20 @@ export class CharactersController {
     return this.blizzardService.syncSingleCharacter(req.user.userId, id);
   }
 
+  @Post(':id/admin-sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN)
+  @ApiOperation({ summary: 'Synchronise un personnage (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Personnage synchronise avec succes.',
+  })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  syncSingleCharacterAsAdmin(@Param('id') id: string) {
+    return this.blizzardService.syncSingleCharacterByAdmin(id);
+  }
+
   @Get('detect-new')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({

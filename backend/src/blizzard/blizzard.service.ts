@@ -954,6 +954,22 @@ export class BlizzardService {
     return this.syncCharacterData(userId, targetCharacter, accessToken);
   }
 
+  async syncSingleCharacterByAdmin(characterId: string): Promise<Character> {
+    const character = await this.prisma.character.findUnique({
+      where: { id: characterId },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (!character) {
+      throw new NotFoundException('Personnage introuvable.');
+    }
+
+    return this.syncSingleCharacter(character.userId, character.id);
+  }
+
   private async fetchUserCharactersFromApi(userId: string): Promise<{
     user: { id: string; bnetAccessToken: string | null };
     accessToken: string;

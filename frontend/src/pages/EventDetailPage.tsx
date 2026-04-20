@@ -8,6 +8,7 @@ import {
   type AttendanceStatus,
   type EventAttendance,
 } from '@/api/queries';
+import { AppRole } from '@/types/auth';
 import { WowIcon } from '@/components/ui/WowIcon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,19 @@ function formatEventDate(value: string) {
   });
 }
 
-function RosterGroup({ role, entries }: { role: GameRole; entries: EventAttendance[] }) {
+function RosterGroup({
+  role,
+  entries,
+  canManageOthers,
+  onMarkAbsent,
+  managedUserId,
+}: {
+  role: GameRole;
+  entries: EventAttendance[];
+  canManageOthers: boolean;
+  onMarkAbsent: (attendance: EventAttendance) => void;
+  managedUserId: string | null;
+}) {
   const roleUi = ROLE_STYLES[role];
 
   return (
@@ -86,6 +99,20 @@ function RosterGroup({ role, entries }: { role: GameRole; entries: EventAttendan
                       <p className="text-xs text-muted-foreground">Personnage non renseigné</p>
                     </div>
                   )}
+
+                  {canManageOthers ? (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={managedUserId === attendance.userId}
+                        onClick={() => onMarkAbsent(attendance)}
+                      >
+                        {managedUserId === attendance.userId ? 'Mise a jour...' : 'Marquer absent'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -115,6 +142,7 @@ export function EventDetailPage() {
 
   const [status, setStatus] = useState<AttendanceStatus>('TENTATIVE');
   const [characterId, setCharacterId] = useState('');
+  const [managedUserId, setManagedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!myAttendance) {
@@ -151,6 +179,31 @@ export function EventDetailPage() {
 
   const requiresCharacter = status !== 'DECLINED';
   const canSubmit = !!id && (!requiresCharacter || !!characterId);
+  const canManageOthers =
+    authUser?.appRole === AppRole.ADMIN || authUser?.appRole === AppRole.OFFICER;
+
+  const updateOtherAttendance = async (
+    attendance: EventAttendance,
+    nextStatus: AttendanceStatus,
+  ) => {
+    if (!canManageOthers) return;
+
+    setManagedUserId(attendance.userId);
+
+    try {
+      await upsertAttendance.mutateAsync({
+        eventId: id,
+        userId: attendance.userId,
+        status: nextStatus,
+        characterId:
+          nextStatus === 'DECLINED'
+            ? undefined
+            : (attendance.characterId ?? undefined),
+      });
+    } finally {
+      setManagedUserId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -222,9 +275,33 @@ export function EventDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <RosterGroup role={GameRole.TANK} entries={groupedAccepted.TANK} />
-                <RosterGroup role={GameRole.HEALER} entries={groupedAccepted.HEALER} />
-                <RosterGroup role={GameRole.DPS} entries={groupedAccepted.DPS} />
+                <RosterGroup
+                  role={GameRole.TANK}
+                  entries={groupedAccepted.TANK}
+                  canManageOthers={canManageOthers}
+                  managedUserId={managedUserId}
+                  onMarkAbsent={(attendance) => {
+                    void updateOtherAttendance(attendance, 'DECLINED');
+                  }}
+                />
+                <RosterGroup
+                  role={GameRole.HEALER}
+                  entries={groupedAccepted.HEALER}
+                  canManageOthers={canManageOthers}
+                  managedUserId={managedUserId}
+                  onMarkAbsent={(attendance) => {
+                    void updateOtherAttendance(attendance, 'DECLINED');
+                  }}
+                />
+                <RosterGroup
+                  role={GameRole.DPS}
+                  entries={groupedAccepted.DPS}
+                  canManageOthers={canManageOthers}
+                  managedUserId={managedUserId}
+                  onMarkAbsent={(attendance) => {
+                    void updateOtherAttendance(attendance, 'DECLINED');
+                  }}
+                />
               </div>
             </div>
 
@@ -245,8 +322,31 @@ export function EventDetailPage() {
                         key={`uncertain-${attendance.eventId}-${attendance.userId}`}
                         className="flex items-center justify-between rounded-lg border border-border/60 bg-background/60 px-3 py-2"
                       >
-                        <p className="text-sm truncate">{attendance.user.battletag}</p>
-                        <Badge className={STATUS_STYLES[attendance.status]}>{attendance.status}</Badge>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm truncate">{attendance.user.battletag}</p>
+                        </div>
+                        <div className="ml-3 flex items-center gap-2">
+                          <Badge className={STATUS_STYLES[attendance.status]}>{attendance.status}</Badge>
+                          {canManageOthers ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={managedUserId === attendance.userId}
+                              onClick={() => {
+                                const nextStatus: AttendanceStatus =
+                                  attendance.status === 'DECLINED' ? 'TENTATIVE' : 'DECLINED';
+                                void updateOtherAttendance(attendance, nextStatus);
+                              }}
+                            >
+                              {managedUserId === attendance.userId
+                                ? 'Mise a jour...'
+                                : attendance.status === 'DECLINED'
+                                  ? 'Retirer absence'
+                                  : 'Marquer absent'}
+                            </Button>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>

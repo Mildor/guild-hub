@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Put,
   Req,
   UnauthorizedException,
@@ -42,14 +43,27 @@ export class AttendancesController {
     description: 'Événement ou personnage introuvable.',
   })
   upsert(
-    @Req() req: { user: { userId?: string; id?: string } },
+    @Req()
+    req: { user: { userId?: string; id?: string; role?: AppRole; appRole?: AppRole } },
     @Body() dto: UpsertAttendanceDto,
   ) {
     const authUserId = req.user.userId ?? req.user.id;
+    const authUserRole = req.user.appRole ?? req.user.role;
+
     if (!authUserId) {
       throw new UnauthorizedException('Utilisateur non authentifie');
     }
 
-    return this.attendancesService.upsert(authUserId, dto);
+    const targetUserId = dto.userId ?? authUserId;
+    const canManageOtherUsers =
+      authUserRole === AppRole.ADMIN || authUserRole === AppRole.OFFICER;
+
+    if (targetUserId !== authUserId && !canManageOtherUsers) {
+      throw new ForbiddenException(
+        'Vous ne pouvez modifier que votre propre inscription.',
+      );
+    }
+
+    return this.attendancesService.upsert(targetUserId, dto);
   }
 }

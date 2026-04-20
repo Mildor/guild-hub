@@ -23,7 +23,7 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
   ): TUser {
     if (err || !user) {
       const request = context.switchToHttp().getRequest<Request>();
-      const reason = this.extractReason(info, request);
+      const reason = this.extractReason(info, request, err);
       const identifier = this.extractIdentifier(request);
 
       void this.authService.logFailedLoginAttempt({
@@ -49,9 +49,16 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
     return user as TUser;
   }
 
-  private extractReason(info: unknown, request: Request): string {
+  private extractReason(info: unknown, request: Request, err: unknown): string {
+    const errorQuery = request.query.error;
+    const errorDescriptionQuery = request.query.error_description;
+
+    if (typeof errorQuery === 'string' && errorQuery.length > 0) {
+      return this.mapOAuthError(errorQuery, errorDescriptionQuery);
+    }
+
     if (typeof info === 'string' && info.trim().length > 0) {
-      return info;
+      return `oauth_callback_info:${this.normalizeReasonMessage(info)}`;
     }
 
     if (
@@ -60,15 +67,57 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
       'message' in info &&
       typeof (info as { message?: unknown }).message === 'string'
     ) {
-      return (info as { message: string }).message;
+      return `oauth_callback_info:${this.normalizeReasonMessage(
+        (info as { message: string }).message,
+      )}`;
     }
 
-    const errorQuery = request.query.error;
-    if (typeof errorQuery === 'string' && errorQuery.length > 0) {
-      return errorQuery;
+    if (err instanceof Error) {
+      if (
+        typeof err.message === 'string' &&
+        err.message.toLowerCase().includes('state')
+      ) {
+        return 'oauth_state_mismatch';
+      }
+
+      return `oauth_callback_error:${this.normalizeReasonMessage(`${err.name}: ${err.message}`)}`;
     }
 
-    return 'unknown_oauth_failure';
+    return 'oauth_callback_failed_without_error_context';
+  }
+
+  private mapOAuthError(
+    errorCode: string,
+    errorDescriptionQuery: unknown,
+  ): string {
+    const normalizedCode = errorCode.trim().toLowerCase();
+    const normalizedDescription =
+      typeof errorDescriptionQuery === 'string'
+        ? this.normalizeReasonMessage(errorDescriptionQuery)
+        : undefined;
+
+    const knownCodes = new Set([
+      'access_denied',
+      'invalid_request',
+      'unauthorized_client',
+      'invalid_scope',
+      'server_error',
+      'temporarily_unavailable',
+    ]);
+
+    if (knownCodes.has(normalizedCode)) {
+      return normalizedDescription
+        ? `oauth_error_${normalizedCode}: ${normalizedDescription}`
+        : `oauth_error_${normalizedCode}`;
+    }
+
+    return normalizedDescription
+      ? `oauth_error_${normalizedCode}: ${normalizedDescription}`
+      : `oauth_error_${normalizedCode}`;
+  }
+
+  private normalizeReasonMessage(message: string): string {
+    return message.trim().replace(/\s+/g, ' ');
   }
 
   private extractIdentifier(request: Request): string | undefined {

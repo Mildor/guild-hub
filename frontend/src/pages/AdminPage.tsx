@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AppRole } from "@/types/auth";
 import { RoleGuard } from "@/components/RoleGuard";
 import {
+  useAdminSyncCharacter,
   useCreateCharacter,
   useCreateEvent,
   useCreatePoll,
@@ -18,7 +19,6 @@ import {
   useGetAllUsers,
   useGetPolls,
   useGetStrategies,
-  useSyncAllCharacters,
   useTogglePoll,
   useToggleRoster,
   useUpdateCharacter,
@@ -51,7 +51,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Pencil, Plus, Save, X, Shield, Database, RefreshCcw, Link2Off, AlertTriangle } from "lucide-react";
+import { Trash2, Pencil, Plus, Save, X, Shield, RefreshCcw, Link2Off, AlertTriangle } from "lucide-react";
 import { getClassColorClass, ROLE_BADGE_STYLES } from "@/lib/wowColors";
 
 const GUILD_REALM = "archimonde";
@@ -90,6 +90,50 @@ function toLocalDateTimeInput(value: string) {
 
 function toIsoFromLocalInput(value: string) {
   return new Date(value).toISOString();
+}
+
+function formatFailedLoginReason(reason: string): string {
+  const normalized = reason.trim().toLowerCase();
+
+  const knownReasons: Record<string, string> = {
+    access_denied: "Acces refuse par l'utilisateur sur Battle.net",
+    invalid_request: "Requete OAuth invalide",
+    unauthorized_client: "Client OAuth non autorise",
+    invalid_scope: "Scope OAuth invalide",
+    server_error: "Erreur temporaire du fournisseur OAuth",
+    temporarily_unavailable: "Service OAuth temporairement indisponible",
+    oauth_error_access_denied: "Acces refuse pendant le callback OAuth",
+    oauth_error_invalid_request: "Callback OAuth invalide",
+    oauth_error_unauthorized_client: "Client OAuth non autorise au callback",
+    oauth_error_invalid_scope: "Scope OAuth invalide au callback",
+    oauth_error_server_error: "Erreur serveur OAuth pendant le callback",
+    oauth_error_temporarily_unavailable:
+      "Fournisseur OAuth temporairement indisponible pendant le callback",
+    oauth_state_mismatch: "Etat OAuth invalide ou session expiree (state mismatch)",
+    oauth_callback_failed_without_error_context:
+      "Echec OAuth sans detail renvoye par Battle.net",
+    unknown_oauth_failure: "Echec OAuth non detaille (Battle.net n'a fourni aucun contexte)",
+  };
+
+  if (knownReasons[normalized]) {
+    return knownReasons[normalized];
+  }
+
+  if (normalized.startsWith("oauth_callback_error:")) {
+    const detail = reason.slice("oauth_callback_error:".length).trim();
+    return detail
+      ? `Erreur OAuth au callback: ${detail}`
+      : "Erreur OAuth au callback";
+  }
+
+  if (normalized.startsWith("oauth_callback_info:")) {
+    const detail = reason.slice("oauth_callback_info:".length).trim();
+    return detail
+      ? `Rejet OAuth: ${detail}`
+      : "Rejet OAuth sans detail";
+  }
+
+  return reason;
 }
 
 function LoadingRows() {
@@ -351,7 +395,7 @@ function FailedLoginsTab({
                   </TableCell>
                   <TableCell className="font-medium">{attempt.identifier || "-"}</TableCell>
                   <TableCell>{attempt.ipAddress || "-"}</TableCell>
-                  <TableCell>{attempt.reason}</TableCell>
+                  <TableCell>{formatFailedLoginReason(attempt.reason)}</TableCell>
                   <TableCell className="max-w-[320px] truncate text-xs text-muted-foreground">
                     {attempt.userAgent || "-"}
                   </TableCell>
@@ -482,6 +526,10 @@ function CharactersTab({
   const updateCharacterMutation = useUpdateCharacter();
   const deleteCharacterMutation = useDeleteCharacter();
   const toggleRosterMutation = useToggleRoster();
+  const adminSyncCharacterMutation = useAdminSyncCharacter();
+  const [syncFeedbackByCharacterId, setSyncFeedbackByCharacterId] = useState<
+    Record<string, { type: "success" | "error"; message: string }>
+  >({});
 
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -620,6 +668,9 @@ function CharactersTab({
               const isEditing = editingId === character.id;
               const isDeleting =
                 deleteCharacterMutation.isPending && deleteCharacterMutation.variables === character.id;
+              const isSyncing =
+                adminSyncCharacterMutation.isPending &&
+                adminSyncCharacterMutation.variables === character.id;
 
               return (
                 <TableRow key={character.id}>
@@ -687,75 +738,120 @@ function CharactersTab({
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="inline-flex gap-2">
-                      {isEditing ? (
-                        <>
-                          <Button
-                            size="icon"
-                            onClick={() => {
-                              const ilvlValue = Number(editForm.ilvl);
-                              if (Number.isNaN(ilvlValue) || ilvlValue < 0) {
-                                window.alert("iLvl invalide.");
-                                return;
-                              }
-
-                              updateCharacterMutation.mutate(
-                                {
-                                  id: character.id,
-                                  payload: {
-                                    ilvl: ilvlValue,
-                                    activeSpec: editForm.activeSpec,
-                                    gameRole: editForm.gameRole,
-                                  },
-                                },
-                                {
-                                  onSuccess: () => setEditingId(null),
-                                },
-                              );
-                            }}
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setEditingId(null)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="inline-flex gap-2">
                         <Button
                           variant="outline"
                           size="icon"
+                          title="Resynchroniser ce personnage"
+                          disabled={isSyncing}
+                          onClick={() =>
+                            adminSyncCharacterMutation.mutate(character.id, {
+                              onSuccess: () => {
+                                setSyncFeedbackByCharacterId((prev) => ({
+                                  ...prev,
+                                  [character.id]: {
+                                    type: "success",
+                                    message: "Resynchronisation terminee",
+                                  },
+                                }));
+                              },
+                              onError: () => {
+                                setSyncFeedbackByCharacterId((prev) => ({
+                                  ...prev,
+                                  [character.id]: {
+                                    type: "error",
+                                    message: "Echec de la resynchronisation",
+                                  },
+                                }));
+                              },
+                            })
+                          }
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </Button>
+
+                        {isEditing ? (
+                          <>
+                            <Button
+                              size="icon"
+                              onClick={() => {
+                                const ilvlValue = Number(editForm.ilvl);
+                                if (Number.isNaN(ilvlValue) || ilvlValue < 0) {
+                                  window.alert("iLvl invalide.");
+                                  return;
+                                }
+
+                                updateCharacterMutation.mutate(
+                                  {
+                                    id: character.id,
+                                    payload: {
+                                      ilvl: ilvlValue,
+                                      activeSpec: editForm.activeSpec,
+                                      gameRole: editForm.gameRole,
+                                    },
+                                  },
+                                  {
+                                    onSuccess: () => setEditingId(null),
+                                  },
+                                );
+                              }}
+                            >
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setEditingId(null)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              setEditingId(character.id);
+                              setEditForm({
+                                ilvl: String(Math.round(character.ilvl)),
+                                activeSpec: character.activeSpec,
+                                gameRole: character.gameRole,
+                              });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          disabled={isDeleting}
                           onClick={() => {
-                            setEditingId(character.id);
-                            setEditForm({
-                              ilvl: String(Math.round(character.ilvl)),
-                              activeSpec: character.activeSpec,
-                              gameRole: character.gameRole,
-                            });
+                            const ok = window.confirm(
+                              `Supprimer le personnage ${character.name} ? Cette action est irreversible.`,
+                            );
+                            if (ok) {
+                              deleteCharacterMutation.mutate(character.id);
+                            }
                           }}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      )}
+                      </div>
 
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        disabled={isDeleting}
-                        onClick={() => {
-                          const ok = window.confirm(
-                            `Supprimer le personnage ${character.name} ? Cette action est irreversible.`,
-                          );
-                          if (ok) {
-                            deleteCharacterMutation.mutate(character.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {syncFeedbackByCharacterId[character.id] ? (
+                        <p
+                          className={`text-xs ${
+                            syncFeedbackByCharacterId[character.id].type === "success"
+                              ? "text-emerald-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {syncFeedbackByCharacterId[character.id].message}
+                        </p>
+                      ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1501,49 +1597,6 @@ function StrategiesTab({
   );
 }
 
-function OperationsTab() {
-  const syncAllMutation = useSyncAllCharacters();
-
-  return (
-    <div className="space-y-4 pt-5">
-      <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-card/50 p-4 md:p-6">
-        <h3 className="text-lg font-semibold text-foreground">Operation globale</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Lance une resynchronisation complete des personnages et metiers de tous les comptes.
-        </p>
-
-        <Button
-          className="mt-4 bg-amber-500 text-black hover:bg-amber-400"
-          disabled={syncAllMutation.isPending}
-          onClick={() => syncAllMutation.mutate()}
-        >
-          <Database className="mr-2 h-4 w-4" />
-          {syncAllMutation.isPending ? "Synchronisation..." : "Synchroniser toute la guilde"}
-        </Button>
-
-        {syncAllMutation.data ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Comptes traites</p>
-              <p className="mt-1 text-xl font-bold">
-                {syncAllMutation.data.processedUsers}/{syncAllMutation.data.totalUsers}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Personnages sync</p>
-              <p className="mt-1 text-xl font-bold">{syncAllMutation.data.syncedCharacters}</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Erreurs</p>
-              <p className="mt-1 text-xl font-bold">{syncAllMutation.data.failedUsers.length}</p>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export function AdminPage() {
   const [failedLoginsPage, setFailedLoginsPage] = useState(1);
 
@@ -1652,8 +1705,6 @@ export function AdminPage() {
               <StrategiesTab strategies={strategies} isLoading={isStrategiesLoading} />
             </TabsContent>
           </Tabs>
-
-          <OperationsTab />
         </div>
       </div>
     </RoleGuard>

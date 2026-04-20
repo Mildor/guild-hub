@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
@@ -39,39 +39,53 @@ function AppContent() {
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
   const { data: meData, isLoading: isMeLoading, error: meError } = useGetMe();
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
 
-  // Update user dans le store quand les données arrivent
+  // Résout l'état d'authentification avant d'afficher le routeur
   useEffect(() => {
-    if (meData && !isMeLoading) {
-      setUser(meData);
+    if (isMeLoading) {
+      return;
     }
-  }, [meData, isMeLoading, setUser]);
 
-  // Si erreur lors du fetch me, logout (401 unauthorized, 404 user deleted, etc)
-  useEffect(() => {
-    if (meError) {
-      const error = meError as any;
-      const status = error?.response?.status;
+    const syncAuthState = async () => {
+      if (meData) {
+        setUser(meData);
+        setIsAuthResolved(true);
+        return;
+      }
 
-      // Sur 401, l'utilisateur est simplement non connecté.
-      if (status === 401) {
+      if (meError) {
+        const error = meError as any;
+        const status = error?.response?.status;
+
+        // Sur 401, l'utilisateur est simplement non connecté.
+        if (status === 401) {
+          setUser(null);
+          setIsAuthResolved(true);
+          return;
+        }
+
+        // Sur 404, on nettoie aussi le cookie côté backend si la session existe encore.
+        if (status === 404) {
+          console.warn('Logout automatique - Erreur 404: compte invalide ou supprime');
+          await logout();
+          setIsAuthResolved(true);
+          return;
+        }
+
         setUser(null);
-        return;
+      } else {
+        setUser(null);
       }
 
-      // Sur 404, on nettoie aussi le cookie côté backend si la session existe encore.
-      if (status === 404) {
-        console.warn('Logout automatique - Erreur 404: compte invalide ou supprime');
-        void logout();
-        return;
-      }
+      setIsAuthResolved(true);
+    };
 
-      setUser(null);
-    }
-  }, [meError, setUser, logout]);
+    void syncAuthState();
+  }, [isMeLoading, meData, meError, setUser, logout]);
 
   // Pendant l'initialisation de la session via cookie HttpOnly
-  if (isMeLoading) {
+  if (isMeLoading || !isAuthResolved) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-4 w-full max-w-md px-4">

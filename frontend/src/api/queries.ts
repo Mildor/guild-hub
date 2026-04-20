@@ -325,6 +325,11 @@ const syncCharacter = async (characterId: string) => {
   return data;
 };
 
+const adminSyncCharacter = async (characterId: string) => {
+  const { data } = await api.post(`/characters/${characterId}/admin-sync`);
+  return data;
+};
+
 const detectNewCharacters = async () => {
   const { data } = await api.get<DetectNewCharacter[]>('/characters/detect-new');
   return data;
@@ -406,6 +411,25 @@ export const useSyncCharacter = (userId: string | null | undefined) => {
     },
     onError: (error) => {
       console.error('❌ Erreur sync personnage:', error);
+    },
+  });
+};
+
+export const useAdminSyncCharacter = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: adminSyncCharacter,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['characters'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
+        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
+        queryClient.invalidateQueries({ queryKey: ['professions'] }),
+      ]);
+    },
+    onError: (error) => {
+      console.error('❌ Erreur sync admin personnage:', error);
     },
   });
 };
@@ -675,6 +699,7 @@ export const useGetEvent = (id: string) => {
 
 export interface UpsertAttendancePayload {
   eventId: string;
+  userId?: string;
   status: AttendanceStatus;
   characterId?: string;
 }

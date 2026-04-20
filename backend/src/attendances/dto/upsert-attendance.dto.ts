@@ -7,6 +7,14 @@ export class UpsertAttendanceDto {
   @IsUUID()
   eventId: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Utilisateur cible. Reserve aux roles ADMIN/OFFICER (sinon utilisateur authentifie).',
+  })
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+
   @ApiProperty({ enum: AttendanceStatus })
   @IsEnum(AttendanceStatus)
   status: AttendanceStatus;
