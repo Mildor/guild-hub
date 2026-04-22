@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { WclService } from '../wcl/wcl.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { format, subDays } from 'date-fns';
 
 @Injectable()
 export class AdminService {
@@ -20,6 +20,19 @@ export class AdminService {
     if (!raidNights || raidNights.length === 0) {
       return { totalRaidNights: 0, attendance: [] };
     }
+
+    // Récupérer les événements du calendrier sur la même période pour le Moteur de Fiabilité
+    const sixtyDaysAgo = subDays(new Date(), 60);
+    const calendarEvents = await this.prisma.event.findMany({
+      where: {
+        eventDate: {
+          gte: sixtyDaysAgo,
+        },
+      },
+      include: {
+        attendances: true,
+      },
+    });
 
     // Récupérer tous les persos existant dans la bd en minuscule pour le mapping
     const allCharacters = await this.prisma.character.findMany({
@@ -92,18 +105,53 @@ export class AdminService {
 
     for (const user of rosterUsers) {
       let nightsAttended = 0;
+      let noShows = 0;
+      let surprises = 0;
+      let ghosts = 0;
+      let reliable = 0;
 
-      // Pour chaque Soirée valide, on vérifie si l'utilisateur était présent
+      // Pour chaque Soirée valide, on calcule la présence et la fiabilité
       for (const night of validRaidNights) {
         // L'User est présent si au moins 1 de ses perso (tous confondus) est dans la liste de la soirée
-        const wasPresent = user.characters.some((c) =>
+        const wasPresentWcl = user.characters.some((c) =>
           night.players.includes(c.name.toLowerCase()),
         );
 
-        if (wasPresent) {
+        if (wasPresentWcl) {
           nightsAttended++;
         }
+
+        // Matching avec le calendrier
+        const matchedEvent = calendarEvents.find(
+          (e) => format(e.eventDate, 'yyyy-MM-dd') === night.logicalDate,
+        );
+
+        if (matchedEvent) {
+          const userAttendance = matchedEvent.attendances.find(
+            (a) => a.userId === user.id,
+          );
+          const status = userAttendance?.status;
+
+          if (status === 'ACCEPTED' && !wasPresentWcl) {
+            noShows++;
+          } else if ((status === 'DECLINED' || !status) && wasPresentWcl) {
+            surprises++;
+          } else if (!status && !wasPresentWcl) {
+            ghosts++;
+          } else if (
+            (status === 'ACCEPTED' && wasPresentWcl) ||
+            (status === 'DECLINED' && !wasPresentWcl)
+          ) {
+            reliable++;
+          }
+        }
       }
+
+      // Calcul du score de fiabilité (Base 100, -15 par No-Show, -5 par Ghost)
+      let reliabilityScore = 100;
+      reliabilityScore -= noShows * 15;
+      reliabilityScore -= ghosts * 5;
+      reliabilityScore = Math.max(0, reliabilityScore);
 
       const attendancePercentage =
         totalValidRaidNights > 0
@@ -120,6 +168,11 @@ export class AdminService {
         avatarUrl: mainCharacter?.avatarUrl || null,
         nightsAttended,
         attendancePercentage,
+        noShows,
+        surprises,
+        ghosts,
+        reliable,
+        reliabilityScore,
       });
     }
 

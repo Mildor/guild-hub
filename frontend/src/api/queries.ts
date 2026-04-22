@@ -1438,6 +1438,11 @@ export interface WclAttendanceStat {
     class?: string;
     nightsAttended: number;
     attendancePercentage: number;
+    noShows: number;
+    surprises: number;
+    ghosts: number;
+    reliable: number;
+    reliabilityScore: number;
 }
 
 export interface WclAttendanceResponse {

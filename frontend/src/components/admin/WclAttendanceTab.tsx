@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { getClassColorStyle } from "@/lib/wowColors";
+import { Info } from "lucide-react";
 
 export function WclAttendanceTab() {
     const [showLogs, setShowLogs] = useState(false);
@@ -47,14 +48,24 @@ export function WclAttendanceTab() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-muted px-4 py-3 rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground">
-                    Analyse basée sur les{" "}
-                    <strong className="text-foreground">
-                        {totalRaidNights}
-                    </strong>{" "}
-                    dernières soirées de raid (Lundi/Mercredi).
-                </p>
+            <div className="bg-muted px-4 py-3 rounded-lg border border-border flex items-start gap-4">
+                <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                    <p className="text-sm text-foreground font-medium">
+                        Guide du Moteur de Fiabilité des Raideurs
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Analyse basée sur les <strong>{totalRaidNights}</strong>{" "}
+                        dernières soirées de raid (Lundi/Mercredi).
+                        <br />
+                        <strong>No-Show :</strong> Inscrit ACCEPTED mais absent
+                        en log.
+                        <strong> Fantôme :</strong> Aucune réponse au calendrier
+                        et absent.
+                        <strong> Surprise :</strong> Présent en log sans annonce
+                        (DECLINED ou vide).
+                    </p>
+                </div>
             </div>
 
             <div className="rounded-md border">
@@ -66,8 +77,15 @@ export function WclAttendanceTab() {
                             <TableHead className="text-center">
                                 Soirées Présent
                             </TableHead>
+                            <TableHead className="text-center">Taux</TableHead>
+                            <TableHead className="text-center">
+                                Fiabilité
+                            </TableHead>
+                            <TableHead className="text-center">
+                                No-Shows 🐰
+                            </TableHead>
                             <TableHead className="text-right">
-                                Taux d'Assiduité
+                                Fantômes 👻
                             </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -122,12 +140,36 @@ export function WclAttendanceTab() {
                                             {totalRaidNights}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-center">
                                         <span
                                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeClasses}`}
                                         >
                                             {stat.attendancePercentage}%
                                         </span>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <span
+                                            className={`font-bold ${
+                                                stat.reliabilityScore >= 90
+                                                    ? "text-emerald-400"
+                                                    : stat.reliabilityScore >=
+                                                        70
+                                                      ? "text-amber-500"
+                                                      : "text-destructive"
+                                            }`}
+                                        >
+                                            {stat.reliabilityScore}/100
+                                        </span>
+                                    </TableCell>
+                                    <TableCell
+                                        className={`text-center font-bold ${stat.noShows > 0 ? "text-destructive" : "text-muted-foreground opacity-50"}`}
+                                    >
+                                        {stat.noShows}
+                                    </TableCell>
+                                    <TableCell
+                                        className={`text-right font-bold ${stat.ghosts > 0 ? "text-amber-500" : "text-muted-foreground opacity-50"}`}
+                                    >
+                                        {stat.ghosts}
                                     </TableCell>
                                 </TableRow>
                             );
