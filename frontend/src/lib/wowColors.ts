@@ -39,6 +39,7 @@ const FR_TO_EN: Record<string, string> = {
   Druide: 'Druid',
   ChasseurDeDemons: 'DemonHunter',
   Evoker: 'Evoker',
+  Evocateur: 'Evoker',
 };
 
 /**

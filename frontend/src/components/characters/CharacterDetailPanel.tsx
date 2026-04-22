@@ -87,6 +87,7 @@ const ARCHON_CLASS_MAP: Record<string, string> = {
     "chasseur-de-demons": "demon-hunter",
     evoker: "evoker",
     evoqueur: "evoker",
+    evocateur: "evoker",
 };
 
 const ARCHON_SPEC_MAP: Record<string, string> = {

@@ -28,6 +28,7 @@ export const classIcons: Record<string, string> = {
   'Moine': 'classicon_monk',
   'Druide': 'classicon_druid',
   'Chasseur de démons': 'classicon_demonhunter',
+  'Évocateur': 'classicon_evoker',
 };
 
 export const roleIcons: Record<string, string> = {
