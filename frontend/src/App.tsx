@@ -22,6 +22,7 @@ import { CharactersSection } from "@/pages/admin/sections/CharactersSection";
 import { EventsSection } from "@/pages/admin/sections/EventsSection";
 import { PollsSection } from "@/pages/admin/sections/PollsSection";
 import { StrategiesSection } from "@/pages/admin/sections/StrategiesSection";
+import { WclAttendanceSection } from "@/pages/admin/sections/WclAttendanceSection";
 
 import { StrategiesPage } from "@/pages/StrategiesPage";
 import { PollsPage } from "@/pages/PollsPage";
@@ -184,6 +185,10 @@ function AppContent() {
                             <Route
                                 path="strategies"
                                 element={<StrategiesSection />}
+                            />
+                            <Route
+                                path="wcl-attendance"
+                                element={<WclAttendanceSection />}
                             />
                         </Route>
                     </Route>

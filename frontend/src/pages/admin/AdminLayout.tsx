@@ -13,6 +13,7 @@ import {
     Menu,
     X,
     ChevronLeft,
+    Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
     { label: "Evénements", href: "/admin/events", icon: Calendar },
     { label: "Sondages", href: "/admin/polls", icon: BarChart3 },
     { label: "Stratégies", href: "/admin/strategies", icon: BookOpen },
+    { label: "Warcraft Logs", href: "/admin/wcl-attendance", icon: Activity },
 ];
 
 export function AdminLayout() {

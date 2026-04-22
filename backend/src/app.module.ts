@@ -19,6 +19,8 @@ import { EncryptionModule } from './encryption/encryption.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RaiderioModule } from './raiderio/raiderio.module';
 import { ProfessionsModule } from './professions/professions.module';
+import { WclModule } from './wcl/wcl.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { ProfessionsModule } from './professions/professions.module';
     PollsModule,
     RaiderioModule,
     ProfessionsModule,
+    WclModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

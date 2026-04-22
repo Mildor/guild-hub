@@ -1,1308 +1,1466 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
 import {
-  AppRole,
-  type SharedAccountProfile,
-  type SharedProfile,
-  type User,
-} from '@/types/auth';
-import type { Character } from '@/types/character';
+    AppRole,
+    type SharedAccountProfile,
+    type SharedProfile,
+    type User,
+} from "@/types/auth";
+import type { Character } from "@/types/character";
 
 export interface CharacterWithUser extends Character {
-  user: {
-    id: string;
-    battletag: string;
-  };
+    user: {
+        id: string;
+        battletag: string;
+    };
 }
 
 export interface AdminUser {
-  id: string;
-  battletag: string;
-  appRole: AppRole;
-  createdAt: string;
+    id: string;
+    battletag: string;
+    appRole: AppRole;
+    createdAt: string;
 }
 
 export interface FailedLoginAttempt {
-  id: string;
-  provider: string;
-  identifier: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-  reason: string;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
+    id: string;
+    provider: string;
+    identifier: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    reason: string;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
 }
 
 export interface FailedLoginAttemptsResponse {
-  items: FailedLoginAttempt[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
+    items: FailedLoginAttempt[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
 }
 
 export interface EventWithMeta {
-  id: string;
-  title: string;
-  description: string;
-  eventDate: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: {
     id: string;
-    battletag: string;
-  };
-  _count: {
-    attendances: number;
-  };
+    title: string;
+    description: string;
+    eventDate: string;
+    createdById: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: {
+        id: string;
+        battletag: string;
+    };
+    _count: {
+        attendances: number;
+    };
 }
 
 export interface RaiderIoProfile {
-  name: string;
-  mythic_plus_scores_by_season: { scores: { all: number } }[];
-  mythic_plus_weekly_highest_level_runs: {
-    dungeon: string;
-    short_name: string;
-    mythic_level: number;
-    url: string;
-  }[];
-  raid_progression: Record<string, { summary: string }>;
-  raid_weekly_progress?: {
-    raidSlug: string;
-    summary: string;
-    killedBosses: number;
-    totalBosses: number;
-  };
+    name: string;
+    mythic_plus_scores_by_season: { scores: { all: number } }[];
+    mythic_plus_weekly_highest_level_runs: {
+        dungeon: string;
+        short_name: string;
+        mythic_level: number;
+        url: string;
+    }[];
+    raid_progression: Record<string, { summary: string }>;
+    raid_weekly_progress?: {
+        raidSlug: string;
+        summary: string;
+        killedBosses: number;
+        totalBosses: number;
+    };
 }
 
 export interface VaultProgressResponse {
-  resetAt: string;
-  raid: {
-    lfr: number;
-    normal: number;
-    heroic: number;
-    mythic: number;
-    totalKilledBosses: number;
-    raidName: string;
-  };
-  mythicPlusWeeklyRuns: {
-    dungeon: string;
-    short_name: string;
-    mythic_level: number;
-    url: string;
-  }[];
-  world: {
-    delvesTier8Completed: number;
-  };
+    resetAt: string;
+    raid: {
+        lfr: number;
+        normal: number;
+        heroic: number;
+        mythic: number;
+        totalKilledBosses: number;
+        raidName: string;
+    };
+    mythicPlusWeeklyRuns: {
+        dungeon: string;
+        short_name: string;
+        mythic_level: number;
+        url: string;
+    }[];
+    world: {
+        delvesTier8Completed: number;
+    };
 }
 
 export interface RaiderIoGuildProfile {
-  name: string;
-  realm: string;
-  raid_progression?: Record<string, { summary: string }>;
-  raid_rankings?: Record<string, unknown>;
+    name: string;
+    realm: string;
+    raid_progression?: Record<string, { summary: string }>;
+    raid_rankings?: Record<string, unknown>;
 }
 
 export interface RaiderIoGuildLeaderboardEntry {
-  characterId: string;
-  name: string;
-  realm: string;
-  class: string;
-  avatarUrl: string | null;
-  battletag: string;
-  rioScore: number;
-  bestKeyLevel: number | null;
+    characterId: string;
+    name: string;
+    realm: string;
+    class: string;
+    avatarUrl: string | null;
+    battletag: string;
+    rioScore: number;
+    bestKeyLevel: number | null;
 }
 
 export interface RaiderIoGuildUnlinkedMember {
-  name: string;
-  realm: string;
-  class: string | null;
-  guildRank: number | null;
+    name: string;
+    realm: string;
+    class: string | null;
+    guildRank: number | null;
 }
 
 export interface BlizzardRealmOption {
-  slug: string;
-  name: string;
+    slug: string;
+    name: string;
 }
 
-export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
+export type AttendanceStatus = "ACCEPTED" | "TENTATIVE" | "LATE" | "DECLINED";
 
 export interface EventAttendance {
-  eventId: string;
-  userId: string;
-  sharedProfile: SharedProfile;
-  characterId: string | null;
-  status: AttendanceStatus;
-  user: {
-    id: string;
-    battletag: string;
-  };
-  character: Character | null;
+    eventId: string;
+    userId: string;
+    sharedProfile: SharedProfile;
+    characterId: string | null;
+    status: AttendanceStatus;
+    user: {
+        id: string;
+        battletag: string;
+    };
+    character: Character | null;
 }
 
 export interface EventDetail {
-  id: string;
-  title: string;
-  description: string;
-  eventDate: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: {
     id: string;
-    battletag: string;
-  };
-  attendances: EventAttendance[];
+    title: string;
+    description: string;
+    eventDate: string;
+    createdById: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: {
+        id: string;
+        battletag: string;
+    };
+    attendances: EventAttendance[];
 }
 
 export interface CreateEventPayload {
-  title: string;
-  description: string;
-  eventDate: string;
-  autoInviteRoster?: boolean;
+    title: string;
+    description: string;
+    eventDate: string;
+    autoInviteRoster?: boolean;
 }
 
 export interface UpdateEventPayload {
-  title?: string;
-  description?: string;
-  eventDate?: string;
+    title?: string;
+    description?: string;
+    eventDate?: string;
 }
 
 export interface CreateCharacterPayload {
-  userId: string;
-  name: string;
-  realm: string;
-  class: string;
-  activeSpec: string;
-  gameRole: 'TANK' | 'HEALER' | 'DPS';
+    userId: string;
+    name: string;
+    realm: string;
+    class: string;
+    activeSpec: string;
+    gameRole: "TANK" | "HEALER" | "DPS";
 }
 
 export interface UpdateCharacterPayload {
-  ilvl?: number;
-  activeSpec?: string;
-  gameRole?: 'TANK' | 'HEALER' | 'DPS';
-  isMain?: boolean;
+    ilvl?: number;
+    activeSpec?: string;
+    gameRole?: "TANK" | "HEALER" | "DPS";
+    isMain?: boolean;
 }
 
 export interface SharedAccountConfig {
-  userId: string;
-  isSharedAccount: boolean;
-  profiles: SharedAccountProfile[];
+    userId: string;
+    isSharedAccount: boolean;
+    profiles: SharedAccountProfile[];
 }
 
 export interface SharedProfileAssignment {
-  characterId: string;
-  sharedProfile: SharedProfile | null;
+    characterId: string;
+    sharedProfile: SharedProfile | null;
 }
 
 export interface DetectNewCharacter {
-  name: string;
-  realm: string;
-  class: string;
-  ilvl: number;
-  avatar: string | null;
+    name: string;
+    realm: string;
+    class: string;
+    ilvl: number;
+    avatar: string | null;
 }
 
 export interface ImportSelectedCharactersPayload {
-  name: string;
-  realm: string;
+    name: string;
+    realm: string;
 }
 
 // Récupère l'utilisateur actuel
 export const useGetMe = () => {
-  return useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: async () => {
-      const { data } = await api.get<User>('/auth/me');
-      return data;
-    },
-    retry: false,
-  });
+    return useQuery({
+        queryKey: ["auth", "me"],
+        queryFn: async () => {
+            const { data } = await api.get<User>("/auth/me");
+            return data;
+        },
+        retry: false,
+    });
 };
 
 export const useGetBlizzardRealms = () => {
-  return useQuery({
-    queryKey: ['blizzard', 'realms'],
-    queryFn: async () => {
-      const { data } = await api.get<BlizzardRealmOption[]>('/blizzard/realms');
-      return data;
-    },
-    staleTime: 1000 * 60 * 60,
-  });
+    return useQuery({
+        queryKey: ["blizzard", "realms"],
+        queryFn: async () => {
+            const { data } =
+                await api.get<BlizzardRealmOption[]>("/blizzard/realms");
+            return data;
+        },
+        staleTime: 1000 * 60 * 60,
+    });
 };
 
 const deleteMyAccount = async () => {
-  const { data } = await api.delete('/users/me');
-  return data;
+    const { data } = await api.delete("/users/me");
+    return data;
 };
 
 const deleteUserByAdmin = async (id: string) => {
-  const { data } = await api.delete(`/users/${id}`);
-  return data;
+    const { data } = await api.delete(`/users/${id}`);
+    return data;
 };
 
 export const useDeleteMyAccount = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: deleteMyAccount,
-    onSuccess: async () => {
-      await queryClient.clear();
-    },
-  });
+    return useMutation({
+        mutationFn: deleteMyAccount,
+        onSuccess: async () => {
+            await queryClient.clear();
+        },
+    });
 };
 
 export const useDeleteUserByAdmin = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: deleteUserByAdmin,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
+    return useMutation({
+        mutationFn: deleteUserByAdmin,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["users"] });
+        },
+    });
 };
 
 export const useGetMySharedAccountConfig = () => {
-  return useQuery({
-    queryKey: ['users', 'me', 'shared-account'],
-    queryFn: async () => {
-      const { data } = await api.get<SharedAccountConfig>('/users/me/shared-account');
-      return data;
-    },
-  });
+    return useQuery({
+        queryKey: ["users", "me", "shared-account"],
+        queryFn: async () => {
+            const { data } = await api.get<SharedAccountConfig>(
+                "/users/me/shared-account",
+            );
+            return data;
+        },
+    });
 };
 
 const updateMySharedAccountConfig = async (isSharedAccount: boolean) => {
-  const { data } = await api.patch<SharedAccountConfig>('/users/me/shared-account', {
-    isSharedAccount,
-  });
-  return data;
+    const { data } = await api.patch<SharedAccountConfig>(
+        "/users/me/shared-account",
+        {
+            isSharedAccount,
+        },
+    );
+    return data;
 };
 
 const createMySharedProfile = async (name?: string) => {
-  const { data } = await api.patch<SharedAccountProfile>(
-    '/users/me/shared-account/profiles',
-    name ? { name } : {},
-  );
-  return data;
+    const { data } = await api.patch<SharedAccountProfile>(
+        "/users/me/shared-account/profiles",
+        name ? { name } : {},
+    );
+    return data;
 };
 
 const renameMySharedProfile = async ({
-  code,
-  name,
+    code,
+    name,
 }: {
-  code: SharedProfile;
-  name: string;
+    code: SharedProfile;
+    name: string;
 }) => {
-  const { data } = await api.patch<SharedAccountProfile>(
-    `/users/me/shared-account/profiles/${code}`,
-    { name },
-  );
-  return data;
+    const { data } = await api.patch<SharedAccountProfile>(
+        `/users/me/shared-account/profiles/${code}`,
+        { name },
+    );
+    return data;
 };
 
 export const useUpdateMySharedAccountConfig = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: updateMySharedAccountConfig,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
-        queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: updateMySharedAccountConfig,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["users", "me", "shared-account"],
+                }),
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+            ]);
+        },
+    });
 };
 
 export const useCreateMySharedProfile = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: createMySharedProfile,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] });
-    },
-  });
+    return useMutation({
+        mutationFn: createMySharedProfile,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["users", "me", "shared-account"],
+            });
+        },
+    });
 };
 
 export const useRenameMySharedProfile = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: renameMySharedProfile,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] });
-    },
-  });
+    return useMutation({
+        mutationFn: renameMySharedProfile,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["users", "me", "shared-account"],
+            });
+        },
+    });
 };
 
-const assignMySharedProfiles = async (assignments: SharedProfileAssignment[]) => {
-  const { data } = await api.patch<Character[]>('/characters/shared-profiles', {
-    assignments,
-  });
-  return data;
+const assignMySharedProfiles = async (
+    assignments: SharedProfileAssignment[],
+) => {
+    const { data } = await api.patch<Character[]>(
+        "/characters/shared-profiles",
+        {
+            assignments,
+        },
+    );
+    return data;
 };
 
 export const useAssignMySharedProfiles = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: assignMySharedProfiles,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-        queryClient.invalidateQueries({ queryKey: ['professions'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: assignMySharedProfiles,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({ queryKey: ["professions"] }),
+            ]);
+        },
+    });
 };
 
 export const useGetAllMyCharactersForSharedConfig = (
-  userId: string | null | undefined,
+    userId: string | null | undefined,
 ) => {
-  return useQuery({
-    queryKey: ['characters', userId, 'shared-config-all'],
-    queryFn: async () => {
-      if (!userId) throw new Error('User ID is required');
-      const { data } = await api.get<Character[]>(
-        `/characters/user/${userId}/all-for-shared-config`,
-      );
-      return data;
-    },
-    enabled: !!userId,
-    retry: 1,
-    staleTime: 0,
-  });
+    return useQuery({
+        queryKey: ["characters", userId, "shared-config-all"],
+        queryFn: async () => {
+            if (!userId) throw new Error("User ID is required");
+            const { data } = await api.get<Character[]>(
+                `/characters/user/${userId}/all-for-shared-config`,
+            );
+            return data;
+        },
+        enabled: !!userId,
+        retry: 1,
+        staleTime: 0,
+    });
 };
 
 // Récupère les personnages d'un utilisateur
 export const useGetMyCharacters = (
-  userId: string | null | undefined,
-  activeSharedProfile?: SharedProfile | null,
+    userId: string | null | undefined,
+    activeSharedProfile?: SharedProfile | null,
 ) => {
-  return useQuery({
-    queryKey: ['characters', userId, activeSharedProfile ?? 'none'],
-    queryFn: async () => {
-      if (!userId) throw new Error('User ID is required');
-      const { data } = await api.get<Character[]>(`/characters/user/${userId}`);
-      return data;
-    },
-    enabled: !!userId, // Ne faire la requête que si userId existe
-    retry: 1,
-    staleTime: 0, // Les données sont toujours "stale", force le refetch
-  });
+    return useQuery({
+        queryKey: ["characters", userId, activeSharedProfile ?? "none"],
+        queryFn: async () => {
+            if (!userId) throw new Error("User ID is required");
+            const { data } = await api.get<Character[]>(
+                `/characters/user/${userId}`,
+            );
+            return data;
+        },
+        enabled: !!userId, // Ne faire la requête que si userId existe
+        retry: 1,
+        staleTime: 0, // Les données sont toujours "stale", force le refetch
+    });
 };
 
 // Synchronise les personnages avec l'API Blizzard
 const syncCharacters = async () => {
-  const { data } = await api.post('/characters/sync');
-  return data;
+    const { data } = await api.post("/characters/sync");
+    return data;
 };
 
 const syncCharacter = async (characterId: string) => {
-  const { data } = await api.post(`/characters/${characterId}/sync`);
-  return data;
+    const { data } = await api.post(`/characters/${characterId}/sync`);
+    return data;
 };
 
 const adminSyncCharacter = async (characterId: string) => {
-  const { data } = await api.post(`/characters/${characterId}/admin-sync`);
-  return data;
+    const { data } = await api.post(`/characters/${characterId}/admin-sync`);
+    return data;
 };
 
 const detectNewCharacters = async () => {
-  const { data } = await api.get<DetectNewCharacter[]>('/characters/detect-new');
-  return data;
+    const { data } = await api.get<DetectNewCharacter[]>(
+        "/characters/detect-new",
+    );
+    return data;
 };
 
 const importSelectedCharacters = async (
-  selectedCharacters: ImportSelectedCharactersPayload[],
+    selectedCharacters: ImportSelectedCharactersPayload[],
 ) => {
-  const { data } = await api.post<Character[]>(
-    '/characters/import-selected',
-    {
-      characters: selectedCharacters,
-    },
-  );
+    const { data } = await api.post<Character[]>(
+        "/characters/import-selected",
+        {
+            characters: selectedCharacters,
+        },
+    );
 
-  return data;
+    return data;
 };
 
 export const useDetectNewCharacters = (enabled: boolean) => {
-  return useQuery({
-    queryKey: ['characters', 'detect-new'],
-    queryFn: detectNewCharacters,
-    enabled,
-    staleTime: 0,
-  });
+    return useQuery({
+        queryKey: ["characters", "detect-new"],
+        queryFn: detectNewCharacters,
+        enabled,
+        staleTime: 0,
+    });
 };
 
 export const useImportSelectedCharacters = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: importSelectedCharacters,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-        queryClient.invalidateQueries({ queryKey: ['professions'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: importSelectedCharacters,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+                queryClient.invalidateQueries({ queryKey: ["professions"] }),
+            ]);
+        },
+    });
 };
 
 // Mutation pour synchroniser les caractères
 export const useSyncCharacters = (userId: string | null | undefined) => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: syncCharacters,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['characters'],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['professions'],
-        }),
-      ]);
-    },
-    onError: (error) => {
-      console.error('❌ Erreur sync:', error);
-    },
-  });
+    return useMutation({
+        mutationFn: syncCharacters,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["characters"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["professions"],
+                }),
+            ]);
+        },
+        onError: (error) => {
+            console.error("❌ Erreur sync:", error);
+        },
+    });
 };
 
 export const useSyncCharacter = (userId: string | null | undefined) => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: syncCharacter,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['characters'],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['professions'],
-        }),
-      ]);
-    },
-    onError: (error) => {
-      console.error('❌ Erreur sync personnage:', error);
-    },
-  });
+    return useMutation({
+        mutationFn: syncCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["characters"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["professions"],
+                }),
+            ]);
+        },
+        onError: (error) => {
+            console.error("❌ Erreur sync personnage:", error);
+        },
+    });
 };
 
 export const useAdminSyncCharacter = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: adminSyncCharacter,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-        queryClient.invalidateQueries({ queryKey: ['professions'] }),
-      ]);
-    },
-    onError: (error) => {
-      console.error('❌ Erreur sync admin personnage:', error);
-    },
-  });
+    return useMutation({
+        mutationFn: adminSyncCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+                queryClient.invalidateQueries({ queryKey: ["professions"] }),
+            ]);
+        },
+        onError: (error) => {
+            console.error("❌ Erreur sync admin personnage:", error);
+        },
+    });
 };
 
 export interface SyncAllCharactersResult {
-  totalUsers: number;
-  processedUsers: number;
-  syncedCharacters: number;
-  failedUsers: Array<{
-    userId: string;
-    battletag: string;
-    reason: string;
-  }>;
+    totalUsers: number;
+    processedUsers: number;
+    syncedCharacters: number;
+    failedUsers: Array<{
+        userId: string;
+        battletag: string;
+        reason: string;
+    }>;
 }
 
 const syncAllCharacters = async () => {
-  const { data } = await api.post<SyncAllCharactersResult>('/characters/sync-all');
-  return data;
+    const { data } = await api.post<SyncAllCharactersResult>(
+        "/characters/sync-all",
+    );
+    return data;
 };
 
 export const useSyncAllCharacters = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: syncAllCharacters,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-        queryClient.invalidateQueries({ queryKey: ['professions'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: syncAllCharacters,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({ queryKey: ["professions"] }),
+            ]);
+        },
+    });
 };
 
 // Lance un personnage en tant que Main
 const setMainCharacter = async (characterId: string) => {
-  const { data } = await api.patch(`/characters/${characterId}/main`);
-  return data;
+    const { data } = await api.patch(`/characters/${characterId}/main`);
+    return data;
 };
 
 // Mutation pour définir un personnage comme Main
 export const useSetMainCharacter = (userId: string | null | undefined) => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: setMainCharacter,
-    onSuccess: async () => {
-      // Refetch immédiatement les personnages
-      await queryClient.refetchQueries({
-        queryKey: ['characters', userId],
-      });
-    },
-    onError: (error) => {
-      console.error('❌ Erreur setting main:', error);
-    },
-  });
+    return useMutation({
+        mutationFn: setMainCharacter,
+        onSuccess: async () => {
+            // Refetch immédiatement les personnages
+            await queryClient.refetchQueries({
+                queryKey: ["characters", userId],
+            });
+        },
+        onError: (error) => {
+            console.error("❌ Erreur setting main:", error);
+        },
+    });
 };
 
 const setRosterCharacter = async (characterId: string) => {
-  const { data } = await api.patch(`/characters/${characterId}/roster`);
-  return data;
+    const { data } = await api.patch(`/characters/${characterId}/roster`);
+    return data;
 };
 
 const createCharacter = async (payload: CreateCharacterPayload) => {
-  const { data } = await api.post<CharacterWithUser>('/characters', payload);
-  return data;
+    const { data } = await api.post<CharacterWithUser>("/characters", payload);
+    return data;
 };
 
 export const useCreateCharacter = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: createCharacter,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-        queryClient.invalidateQueries({ queryKey: ['users'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: createCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+                queryClient.invalidateQueries({ queryKey: ["users"] }),
+            ]);
+        },
+    });
 };
 
 const updateCharacter = async ({
-  id,
-  payload,
+    id,
+    payload,
 }: {
-  id: string;
-  payload: UpdateCharacterPayload;
+    id: string;
+    payload: UpdateCharacterPayload;
 }) => {
-  const { data } = await api.patch<CharacterWithUser>(`/characters/${id}`, payload);
-  return data;
+    const { data } = await api.patch<CharacterWithUser>(
+        `/characters/${id}`,
+        payload,
+    );
+    return data;
 };
 
 export const useUpdateCharacter = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: updateCharacter,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-      ]);
-    },
-  });
+    return useMutation({
+        mutationFn: updateCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+            ]);
+        },
+    });
 };
 
 export const useSetRosterCharacter = (userId: string | null | undefined) => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: setRosterCharacter,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['characters'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', userId] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-      ]);
-    },
-    onError: (error) => {
-      console.error('❌ Erreur setting roster character:', error);
-    },
-  });
+    return useMutation({
+        mutationFn: setRosterCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", userId],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+            ]);
+        },
+        onError: (error) => {
+            console.error("❌ Erreur setting roster character:", error);
+        },
+    });
 };
 
 export const useGetRoster = () => {
-  return useQuery({
-    queryKey: ['characters', 'roster'],
-    queryFn: async () => {
-      const { data } = await api.get<CharacterWithUser[]>('/characters/roster');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["characters", "roster"],
+        queryFn: async () => {
+            const { data } =
+                await api.get<CharacterWithUser[]>("/characters/roster");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useGetRaiderIoProfile = (characterId?: string) => {
-  return useQuery({
-    queryKey: ['raiderio', characterId],
-    queryFn: async () => {
-      const { data } = await api.get<RaiderIoProfile | null>(
-        `/characters/${characterId}/raiderio`,
-      );
-      return data;
-    },
-    enabled: !!characterId,
-    staleTime: 5 * 60 * 1000,
-  });
+    return useQuery({
+        queryKey: ["raiderio", characterId],
+        queryFn: async () => {
+            const { data } = await api.get<RaiderIoProfile | null>(
+                `/characters/${characterId}/raiderio`,
+            );
+            return data;
+        },
+        enabled: !!characterId,
+        staleTime: 5 * 60 * 1000,
+    });
 };
 
 export const useGetVaultProgress = (characterId?: string) => {
-  return useQuery({
-    queryKey: ['vault-progress', characterId],
-    queryFn: async () => {
-      const { data } = await api.get<VaultProgressResponse>(
-        `/characters/${characterId}/vault-progress`,
-      );
-      return data;
-    },
-    enabled: !!characterId,
-    staleTime: 2 * 60 * 1000,
-  });
+    return useQuery({
+        queryKey: ["vault-progress", characterId],
+        queryFn: async () => {
+            const { data } = await api.get<VaultProgressResponse>(
+                `/characters/${characterId}/vault-progress`,
+            );
+            return data;
+        },
+        enabled: !!characterId,
+        staleTime: 2 * 60 * 1000,
+    });
 };
 
 export const useGetGuildProfile = (realm: string, name: string) => {
-  return useQuery({
-    queryKey: ['raiderio', 'guild', 'profile', realm, name],
-    queryFn: async () => {
-      const { data } = await api.get<RaiderIoGuildProfile | null>(
-        '/raiderio/guild/profile',
-        {
-          params: { realm, name },
+    return useQuery({
+        queryKey: ["raiderio", "guild", "profile", realm, name],
+        queryFn: async () => {
+            const { data } = await api.get<RaiderIoGuildProfile | null>(
+                "/raiderio/guild/profile",
+                {
+                    params: { realm, name },
+                },
+            );
+            return data;
         },
-      );
-      return data;
-    },
-    enabled: !!realm && !!name,
-    staleTime: 5 * 60 * 1000,
-  });
+        enabled: !!realm && !!name,
+        staleTime: 5 * 60 * 1000,
+    });
 };
 
 export const useGetGuildLeaderboard = (realm: string, name: string) => {
-  return useQuery({
-    queryKey: ['raiderio', 'guild', 'leaderboard', realm, name],
-    queryFn: async () => {
-      const { data } = await api.get<RaiderIoGuildLeaderboardEntry[]>(
-        '/raiderio/guild/leaderboard',
-        {
-          params: { realm, name },
+    return useQuery({
+        queryKey: ["raiderio", "guild", "leaderboard", realm, name],
+        queryFn: async () => {
+            const { data } = await api.get<RaiderIoGuildLeaderboardEntry[]>(
+                "/raiderio/guild/leaderboard",
+                {
+                    params: { realm, name },
+                },
+            );
+            return data;
         },
-      );
-      return data;
-    },
-    enabled: !!realm && !!name,
-    staleTime: 2 * 60 * 1000,
-  });
+        enabled: !!realm && !!name,
+        staleTime: 2 * 60 * 1000,
+    });
 };
 
 export const useGetGuildUnlinkedMembers = (realm: string, name: string) => {
-  return useQuery({
-    queryKey: ['blizzard', 'guild', 'unlinked-members', realm, name],
-    queryFn: async () => {
-      const { data } = await api.get<RaiderIoGuildUnlinkedMember[]>(
-        '/blizzard/guild/unlinked-members',
-        {
-          params: { realm, name },
+    return useQuery({
+        queryKey: ["blizzard", "guild", "unlinked-members", realm, name],
+        queryFn: async () => {
+            const { data } = await api.get<RaiderIoGuildUnlinkedMember[]>(
+                "/blizzard/guild/unlinked-members",
+                {
+                    params: { realm, name },
+                },
+            );
+            return data;
         },
-      );
-      return data;
-    },
-    enabled: !!realm && !!name,
-    retry: 1,
-    staleTime: 60 * 1000,
-  });
+        enabled: !!realm && !!name,
+        retry: 1,
+        staleTime: 60 * 1000,
+    });
 };
 
 export const useGetAllCharacters = (enabled = true) => {
-  return useQuery({
-    queryKey: ['characters', 'all'],
-    queryFn: async () => {
-      const { data } = await api.get<CharacterWithUser[]>('/characters/all');
-      return data;
-    },
-    enabled,
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["characters", "all"],
+        queryFn: async () => {
+            const { data } =
+                await api.get<CharacterWithUser[]>("/characters/all");
+            return data;
+        },
+        enabled,
+        retry: 1,
+    });
 };
 
 const deleteCharacter = async (id: string) => {
-  const { data } = await api.delete(`/characters/${id}`);
-  return data;
+    const { data } = await api.delete(`/characters/${id}`);
+    return data;
 };
 
 export const useDeleteCharacter = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: deleteCharacter,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['characters', 'all'] });
-    },
-  });
+    return useMutation({
+        mutationFn: deleteCharacter,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["characters", "all"],
+            });
+        },
+    });
 };
 
 export const useGetAllEvents = () => {
-  return useQuery({
-    queryKey: ['events'],
-    queryFn: async () => {
-      const { data } = await api.get<EventWithMeta[]>('/events');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["events"],
+        queryFn: async () => {
+            const { data } = await api.get<EventWithMeta[]>("/events");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useGetUpcomingEvents = () => {
-  return useQuery({
-    queryKey: ['events', 'upcoming'],
-    queryFn: async () => {
-      const { data } = await api.get<EventWithMeta[]>('/events/upcoming');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["events", "upcoming"],
+        queryFn: async () => {
+            const { data } = await api.get<EventWithMeta[]>("/events/upcoming");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useGetEvent = (id: string) => {
-  return useQuery({
-    queryKey: ['event', id],
-    queryFn: async () => {
-      const { data } = await api.get<EventDetail>(`/events/${id}`);
-      return data;
-    },
-    enabled: !!id,
-    refetchInterval: 15000,
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["event", id],
+        queryFn: async () => {
+            const { data } = await api.get<EventDetail>(`/events/${id}`);
+            return data;
+        },
+        enabled: !!id,
+        refetchInterval: 15000,
+        retry: 1,
+    });
 };
 
 export interface UpsertAttendancePayload {
-  eventId: string;
-  userId?: string;
-  status: AttendanceStatus;
-  characterId?: string;
-  sharedProfile?: SharedProfile;
+    eventId: string;
+    userId?: string;
+    status: AttendanceStatus;
+    characterId?: string;
+    sharedProfile?: SharedProfile;
 }
 
 const upsertAttendance = async (payload: UpsertAttendancePayload) => {
-  const { data } = await api.put<EventAttendance>('/attendances', payload);
-  return data;
+    const { data } = await api.put<EventAttendance>("/attendances", payload);
+    return data;
 };
 
 export const useUpsertAttendance = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: upsertAttendance,
-    onSuccess: async (_, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['event', variables.eventId] });
-    },
-  });
+    return useMutation({
+        mutationFn: upsertAttendance,
+        onSuccess: async (_, variables) => {
+            await queryClient.invalidateQueries({
+                queryKey: ["event", variables.eventId],
+            });
+        },
+    });
 };
 
 const createEvent = async (payload: CreateEventPayload) => {
-  const { data } = await api.post<EventWithMeta>('/events', payload);
-  return data;
+    const { data } = await api.post<EventWithMeta>("/events", payload);
+    return data;
 };
 
 export const useCreateEvent = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: createEvent,
-    onSuccess: async () => {
-      // Invalider tous les caches d'événements
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-    },
-  });
+    return useMutation({
+        mutationFn: createEvent,
+        onSuccess: async () => {
+            // Invalider tous les caches d'événements
+            await queryClient.invalidateQueries({ queryKey: ["events"] });
+        },
+    });
 };
 
 const updateEvent = async ({
-  id,
-  payload,
+    id,
+    payload,
 }: {
-  id: string;
-  payload: UpdateEventPayload;
+    id: string;
+    payload: UpdateEventPayload;
 }) => {
-  const { data } = await api.patch<EventWithMeta>(`/events/${id}`, payload);
-  return data;
+    const { data } = await api.patch<EventWithMeta>(`/events/${id}`, payload);
+    return data;
 };
 
 export const useUpdateEvent = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: updateEvent,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-    },
-  });
+    return useMutation({
+        mutationFn: updateEvent,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["events"] });
+        },
+    });
 };
 
 const deleteEvent = async (id: string) => {
-  const { data } = await api.delete(`/events/${id}`);
-  return data;
+    const { data } = await api.delete(`/events/${id}`);
+    return data;
 };
 
 export const useDeleteEvent = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: deleteEvent,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-    },
-  });
+    return useMutation({
+        mutationFn: deleteEvent,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["events"] });
+        },
+    });
 };
 
-const toggleRosterStatus = async ({ id, inRoster }: { id: string; inRoster: boolean }) => {
-  const { data } = await api.patch<CharacterWithUser>(`/characters/${id}/guild-roster`, { inRoster });
-  return data;
+const toggleRosterStatus = async ({
+    id,
+    inRoster,
+}: {
+    id: string;
+    inRoster: boolean;
+}) => {
+    const { data } = await api.patch<CharacterWithUser>(
+        `/characters/${id}/guild-roster`,
+        { inRoster },
+    );
+    return data;
 };
 
 export const useToggleRoster = (userId?: string | null) => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: toggleRosterStatus,
-    onSuccess: async () => {
-      const invalidations = [
-        queryClient.invalidateQueries({ queryKey: ['characters', 'roster'] }),
-        queryClient.invalidateQueries({ queryKey: ['characters', 'all'] }),
-      ];
+    return useMutation({
+        mutationFn: toggleRosterStatus,
+        onSuccess: async () => {
+            const invalidations = [
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+            ];
 
-      if (userId) {
-        invalidations.push(
-          queryClient.invalidateQueries({ queryKey: ['characters', userId] }),
-        );
-      }
+            if (userId) {
+                invalidations.push(
+                    queryClient.invalidateQueries({
+                        queryKey: ["characters", userId],
+                    }),
+                );
+            }
 
-      await Promise.all(invalidations);
-    },
-  });
+            await Promise.all(invalidations);
+        },
+    });
 };
 
 // ==================== STRATEGIES ====================
 
 export interface Strategy {
-  id: string;
-  bossName: string;
-  raidName: string;
-  positioningImageUrl: string | null;
-  generalMechanics: string;
-  tankNotes: string | null;
-  healerNotes: string | null;
-  dpsNotes: string | null;
-  createdById: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: {
     id: string;
-    battletag: string;
-  };
+    bossName: string;
+    raidName: string;
+    positioningImageUrl: string | null;
+    generalMechanics: string;
+    tankNotes: string | null;
+    healerNotes: string | null;
+    dpsNotes: string | null;
+    createdById: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: {
+        id: string;
+        battletag: string;
+    };
 }
 
 export interface CreateStrategyPayload {
-  bossName: string;
-  raidName: string;
-  positioningImageUrl?: string;
-  generalMechanics: string;
-  tankNotes?: string;
-  healerNotes?: string;
-  dpsNotes?: string;
-  imageFile?: File;
+    bossName: string;
+    raidName: string;
+    positioningImageUrl?: string;
+    generalMechanics: string;
+    tankNotes?: string;
+    healerNotes?: string;
+    dpsNotes?: string;
+    imageFile?: File;
 }
 
 export interface UpdateStrategyPayload extends Partial<CreateStrategyPayload> {}
 
 export const useGetStrategies = () => {
-  return useQuery({
-    queryKey: ['strategies'],
-    queryFn: async () => {
-      const { data } = await api.get<Strategy[]>('/strategies');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["strategies"],
+        queryFn: async () => {
+            const { data } = await api.get<Strategy[]>("/strategies");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useCreateStrategy = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: CreateStrategyPayload & { imageFile?: File }) => {
-      const { imageFile, ...strategyData } = payload;
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (
+            payload: CreateStrategyPayload & { imageFile?: File },
+        ) => {
+            const { imageFile, ...strategyData } = payload;
 
-      if (imageFile) {
-        // Si fichier présent, envoyer FormData
-        const formData = new FormData();
-        formData.append('bossName', strategyData.bossName);
-        formData.append('raidName', strategyData.raidName);
-        formData.append('generalMechanics', strategyData.generalMechanics);
-        if (strategyData.positioningImageUrl) {
-          formData.append('positioningImageUrl', strategyData.positioningImageUrl);
-        }
-        if (strategyData.tankNotes) formData.append('tankNotes', strategyData.tankNotes);
-        if (strategyData.healerNotes) formData.append('healerNotes', strategyData.healerNotes);
-        if (strategyData.dpsNotes) formData.append('dpsNotes', strategyData.dpsNotes);
-        formData.append('imageFile', imageFile);
+            if (imageFile) {
+                // Si fichier présent, envoyer FormData
+                const formData = new FormData();
+                formData.append("bossName", strategyData.bossName);
+                formData.append("raidName", strategyData.raidName);
+                formData.append(
+                    "generalMechanics",
+                    strategyData.generalMechanics,
+                );
+                if (strategyData.positioningImageUrl) {
+                    formData.append(
+                        "positioningImageUrl",
+                        strategyData.positioningImageUrl,
+                    );
+                }
+                if (strategyData.tankNotes)
+                    formData.append("tankNotes", strategyData.tankNotes);
+                if (strategyData.healerNotes)
+                    formData.append("healerNotes", strategyData.healerNotes);
+                if (strategyData.dpsNotes)
+                    formData.append("dpsNotes", strategyData.dpsNotes);
+                formData.append("imageFile", imageFile);
 
-        const { data } = await api.post<Strategy>('/strategies', formData);
-        return data;
-      } else {
-        // Sinon, envoyer JSON normal
-        const { data } = await api.post<Strategy>('/strategies', strategyData);
-        return data;
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
-    },
-  });
+                const { data } = await api.post<Strategy>(
+                    "/strategies",
+                    formData,
+                );
+                return data;
+            } else {
+                // Sinon, envoyer JSON normal
+                const { data } = await api.post<Strategy>(
+                    "/strategies",
+                    strategyData,
+                );
+                return data;
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["strategies"] });
+        },
+    });
 };
 
 export const useUpdateStrategy = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...payload }: (UpdateStrategyPayload & { id: string; imageFile?: File }) | (UpdateStrategyPayload & { id: string })) => {
-      const p = payload as any;
-      const { imageFile, ...strategyData } = p;
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({
+            id,
+            ...payload
+        }:
+            | (UpdateStrategyPayload & { id: string; imageFile?: File })
+            | (UpdateStrategyPayload & { id: string })) => {
+            const p = payload as any;
+            const { imageFile, ...strategyData } = p;
 
-      if (imageFile) {
-        // Si fichier présent, envoyer FormData
-        const formData = new FormData();
-        if (strategyData.bossName) formData.append('bossName', strategyData.bossName);
-        if (strategyData.raidName) formData.append('raidName', strategyData.raidName);
-        if (strategyData.generalMechanics) formData.append('generalMechanics', strategyData.generalMechanics);
-        if (strategyData.positioningImageUrl) {
-          formData.append('positioningImageUrl', strategyData.positioningImageUrl);
-        }
-        if (strategyData.tankNotes) formData.append('tankNotes', strategyData.tankNotes);
-        if (strategyData.healerNotes) formData.append('healerNotes', strategyData.healerNotes);
-        if (strategyData.dpsNotes) formData.append('dpsNotes', strategyData.dpsNotes);
-        formData.append('imageFile', imageFile);
+            if (imageFile) {
+                // Si fichier présent, envoyer FormData
+                const formData = new FormData();
+                if (strategyData.bossName)
+                    formData.append("bossName", strategyData.bossName);
+                if (strategyData.raidName)
+                    formData.append("raidName", strategyData.raidName);
+                if (strategyData.generalMechanics)
+                    formData.append(
+                        "generalMechanics",
+                        strategyData.generalMechanics,
+                    );
+                if (strategyData.positioningImageUrl) {
+                    formData.append(
+                        "positioningImageUrl",
+                        strategyData.positioningImageUrl,
+                    );
+                }
+                if (strategyData.tankNotes)
+                    formData.append("tankNotes", strategyData.tankNotes);
+                if (strategyData.healerNotes)
+                    formData.append("healerNotes", strategyData.healerNotes);
+                if (strategyData.dpsNotes)
+                    formData.append("dpsNotes", strategyData.dpsNotes);
+                formData.append("imageFile", imageFile);
 
-        const { data } = await api.patch<Strategy>(`/strategies/${id}`, formData);
-        return data;
-      } else {
-        // Sinon, envoyer JSON normal
-        const { data } = await api.patch<Strategy>(`/strategies/${id}`, strategyData);
-        return data;
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
-    },
-  });
+                const { data } = await api.patch<Strategy>(
+                    `/strategies/${id}`,
+                    formData,
+                );
+                return data;
+            } else {
+                // Sinon, envoyer JSON normal
+                const { data } = await api.patch<Strategy>(
+                    `/strategies/${id}`,
+                    strategyData,
+                );
+                return data;
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["strategies"] });
+        },
+    });
 };
 
 export const useDeleteStrategy = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.delete(`/strategies/${id}`);
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['strategies'] });
-    },
-  });
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { data } = await api.delete(`/strategies/${id}`);
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["strategies"] });
+        },
+    });
 };
 
 // ==================== POLLS ====================
 
 export interface PollVote {
-  id: string;
-  pollId: string;
-  optionId: string;
-  userId: string;
-  createdAt: string;
-  updatedAt?: string;
-  user: {
     id: string;
-    battletag: string;
-  };
-  option: {
-    id: string;
-    text: string;
-  };
+    pollId: string;
+    optionId: string;
+    userId: string;
+    createdAt: string;
+    updatedAt?: string;
+    user: {
+        id: string;
+        battletag: string;
+    };
+    option: {
+        id: string;
+        text: string;
+    };
 }
 
 export interface PollOption {
-  id: string;
-  pollId: string;
-  text: string;
-  votes?: PollVote[];
+    id: string;
+    pollId: string;
+    text: string;
+    votes?: PollVote[];
 }
 
 export interface Poll {
-  id: string;
-  question: string;
-  description: string | null;
-  createdAt: string;
-  isActive: boolean;
-  allowMultipleSelections: boolean;
-  createdById: string;
-  createdBy: {
     id: string;
-    battletag: string;
-  };
-  options: PollOption[];
-  votes: PollVote[];
+    question: string;
+    description: string | null;
+    createdAt: string;
+    isActive: boolean;
+    allowMultipleSelections: boolean;
+    createdById: string;
+    createdBy: {
+        id: string;
+        battletag: string;
+    };
+    options: PollOption[];
+    votes: PollVote[];
 }
 
 export interface CreatePollPayload {
-  question: string;
-  description?: string;
-  options: string[];
-  allowMultipleSelections?: boolean;
+    question: string;
+    description?: string;
+    options: string[];
+    allowMultipleSelections?: boolean;
 }
 
 export interface UpdatePollPayload {
-  question?: string;
-  description?: string;
-  options?: string[];
-  allowMultipleSelections?: boolean;
+    question?: string;
+    description?: string;
+    options?: string[];
+    allowMultipleSelections?: boolean;
 }
 
 export interface VotePollPayload {
-  pollId: string;
-  optionIds: string[];
+    pollId: string;
+    optionIds: string[];
 }
 
 export interface WowTokenPricePoint {
-  id: string;
-  price: number;
-  createdAt: string;
+    id: string;
+    price: number;
+    createdAt: string;
 }
 
 export interface WowTokenResponse {
-  currentPrice: number | null;
-  history: WowTokenPricePoint[];
+    currentPrice: number | null;
+    history: WowTokenPricePoint[];
 }
 
 export const useGetWowToken = () => {
-  return useQuery({
-    queryKey: ['wow-token'],
-    queryFn: async () => {
-      const { data } = await api.get<WowTokenResponse>('/blizzard/token');
-      return data;
-    },
-    retry: 1,
-    refetchInterval: 5 * 60 * 1000,
-  });
+    return useQuery({
+        queryKey: ["wow-token"],
+        queryFn: async () => {
+            const { data } = await api.get<WowTokenResponse>("/blizzard/token");
+            return data;
+        },
+        retry: 1,
+        refetchInterval: 5 * 60 * 1000,
+    });
 };
 
 export const useGetPolls = () => {
-  return useQuery({
-    queryKey: ['polls'],
-    queryFn: async () => {
-      const { data } = await api.get<Poll[]>('/polls');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["polls"],
+        queryFn: async () => {
+            const { data } = await api.get<Poll[]>("/polls");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useCreatePoll = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (payload: CreatePollPayload) => {
-      const { data } = await api.post<Poll>('/polls', payload);
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['polls'] });
-    },
-  });
+    return useMutation({
+        mutationFn: async (payload: CreatePollPayload) => {
+            const { data } = await api.post<Poll>("/polls", payload);
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
+        },
+    });
 };
 
 export const useVotePoll = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async ({ pollId, optionIds }: VotePollPayload) => {
-      const { data } = await api.post(`/polls/${pollId}/vote`, { optionIds });
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['polls'] });
-    },
-  });
+    return useMutation({
+        mutationFn: async ({ pollId, optionIds }: VotePollPayload) => {
+            const { data } = await api.post(`/polls/${pollId}/vote`, {
+                optionIds,
+            });
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
+        },
+    });
 };
 
 export const useTogglePoll = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (pollId: string) => {
-      const { data } = await api.patch(`/polls/${pollId}/toggle`);
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['polls'] });
-    },
-  });
+    return useMutation({
+        mutationFn: async (pollId: string) => {
+            const { data } = await api.patch(`/polls/${pollId}/toggle`);
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
+        },
+    });
 };
 
 export const useUpdatePoll = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async ({ pollId, payload }: { pollId: string; payload: UpdatePollPayload }) => {
-      const { data } = await api.patch(`/polls/${pollId}`, payload);
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['polls'] });
-    },
-  });
+    return useMutation({
+        mutationFn: async ({
+            pollId,
+            payload,
+        }: {
+            pollId: string;
+            payload: UpdatePollPayload;
+        }) => {
+            const { data } = await api.patch(`/polls/${pollId}`, payload);
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
+        },
+    });
 };
 
 export const useDeletePoll = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (pollId: string) => {
-      const { data } = await api.delete(`/polls/${pollId}`);
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['polls'] });
-    },
-  });
+    return useMutation({
+        mutationFn: async (pollId: string) => {
+            const { data } = await api.delete(`/polls/${pollId}`);
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
+        },
+    });
 };
 
 // ==================== PROFESSIONS ====================
 
 export interface ProfessionSearchResult {
-  name: string;
-  realm: string;
-  class: string;
-  profession: string;
-  skillLevel: number;
+    name: string;
+    realm: string;
+    class: string;
+    profession: string;
+    skillLevel: number;
 }
 
 export interface ProfessionSummary {
-  totalCrafters: number;
-  totalRecipes: number;
-  topProfessions: Array<{
-    profession: string;
-    crafterCount: number;
-  }>;
+    totalCrafters: number;
+    totalRecipes: number;
+    topProfessions: Array<{
+        profession: string;
+        crafterCount: number;
+    }>;
 }
 
 export interface ProfessionDirectoryCharacter {
-  name: string;
-  realm: string;
-  class: string;
-  skillLevel: number;
+    name: string;
+    realm: string;
+    class: string;
+    skillLevel: number;
 }
 
 export interface ProfessionDirectoryEntry {
-  profession: string;
-  crafterCount: number;
-  characters: ProfessionDirectoryCharacter[];
+    profession: string;
+    crafterCount: number;
+    characters: ProfessionDirectoryCharacter[];
 }
 
 export const useSearchProfessions = (recipe: string) => {
-  const normalizedRecipe = recipe.trim();
+    const normalizedRecipe = recipe.trim();
 
-  return useQuery({
-    queryKey: ['professions', 'search', normalizedRecipe],
-    queryFn: async () => {
-      const { data } = await api.get<ProfessionSearchResult[]>('/professions/search', {
-        params: { recipe: normalizedRecipe },
-      });
-      return data;
-    },
-    enabled: normalizedRecipe.length > 0,
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["professions", "search", normalizedRecipe],
+        queryFn: async () => {
+            const { data } = await api.get<ProfessionSearchResult[]>(
+                "/professions/search",
+                {
+                    params: { recipe: normalizedRecipe },
+                },
+            );
+            return data;
+        },
+        enabled: normalizedRecipe.length > 0,
+        retry: 1,
+    });
 };
 
 export const useGuildProfessionsSummary = () => {
-  return useQuery({
-    queryKey: ['professions', 'summary'],
-    queryFn: async () => {
-      const { data } = await api.get<ProfessionSummary>('/professions/summary');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["professions", "summary"],
+        queryFn: async () => {
+            const { data } = await api.get<ProfessionSummary>(
+                "/professions/summary",
+            );
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useGuildProfessionsDirectory = () => {
-  return useQuery({
-    queryKey: ['professions', 'directory'],
-    queryFn: async () => {
-      const { data } = await api.get<ProfessionDirectoryEntry[]>('/professions/directory');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["professions", "directory"],
+        queryFn: async () => {
+            const { data } = await api.get<ProfessionDirectoryEntry[]>(
+                "/professions/directory",
+            );
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 // ==================== USERS ====================
 
 export const useGetAllUsers = () => {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: async () => {
-      const { data } = await api.get<AdminUser[]>('/users');
-      return data;
-    },
-    retry: 1,
-  });
+    return useQuery({
+        queryKey: ["users"],
+        queryFn: async () => {
+            const { data } = await api.get<AdminUser[]>("/users");
+            return data;
+        },
+        retry: 1,
+    });
 };
 
 export const useGetFailedLoginAttempts = (page = 1, limit = 50) => {
-  return useQuery({
-    queryKey: ['auth', 'failed-login-attempts', page, limit],
-    queryFn: async () => {
-      const { data } = await api.get<FailedLoginAttemptsResponse>(
-        '/auth/failed-login-attempts',
-        {
-          params: { page, limit },
+    return useQuery({
+        queryKey: ["auth", "failed-login-attempts", page, limit],
+        queryFn: async () => {
+            const { data } = await api.get<FailedLoginAttemptsResponse>(
+                "/auth/failed-login-attempts",
+                {
+                    params: { page, limit },
+                },
+            );
+            return data;
         },
-      );
-      return data;
-    },
-    retry: 1,
-  });
+        retry: 1,
+    });
 };
 
 const updateUserRole = async ({ id, role }: { id: string; role: AppRole }) => {
-  const { data } = await api.patch<AdminUser>(`/users/${id}/role`, { role });
-  return data;
+    const { data } = await api.patch<AdminUser>(`/users/${id}/role`, { role });
+    return data;
 };
 
 export const useUpdateUserRole = () => {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: updateUserRole,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
+    return useMutation({
+        mutationFn: updateUserRole,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["users"] });
+        },
+    });
+};
+
+// ==================== WCL ATTENDANCE ====================
+
+export interface WclAttendanceStat {
+    characterId: string;
+    name: string;
+    class: string;
+    gameRole: string;
+    avatarUrl: string | null;
+    totalReports: number;
+    attendedReports: number;
+    attendancePercentage: number;
+}
+
+export interface AnalyzedReport {
+    code: string;
+    title: string;
+    startTime: number;
+}
+
+export interface WclAttendanceResponse {
+    stats: WclAttendanceStat[];
+    analyzedReports: AnalyzedReport[];
+}
+
+export const useGetWclAttendanceStats = () => {
+    return useQuery({
+        queryKey: ["admin", "attendance-stats"],
+        queryFn: async () => {
+            const { data } = await api.get<WclAttendanceResponse>(
+                "/admin/attendance-stats",
+            );
+            return data;
+        },
+    });
 };
