@@ -17,14 +17,14 @@ export class AttendancesService {
     sharedProfileHeader?: string,
   ) {
     const { eventId, status, characterId } = dto;
-    const { profile, isSharedAccount } = await this.resolveSharedProfileForAttendance(
-      userId,
-      dto.sharedProfile,
-      sharedProfileHeader,
-    );
+    const { profile, isSharedAccount } =
+      await this.resolveSharedProfileForAttendance(
+        userId,
+        dto.sharedProfile,
+        sharedProfileHeader,
+      );
 
-    const normalizedCharacterId =
-      status === AttendanceStatus.DECLINED ? null : (characterId ?? null);
+    const normalizedCharacterId = characterId ?? null;
 
     if (normalizedCharacterId) {
       const character = await this.prisma.character.findUnique({
