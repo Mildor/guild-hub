@@ -14,84 +14,14 @@ export class AdminService {
   async calculateGuildAttendance() {
     this.logger.log('Calculating Guild Attendance from WCL...');
 
-    // 1. Appelle getRecentReports() pour obtenir les 10 derniers logs
-    const allReports = await this.wclService.getRecentReports();
+    // ETAPE 2 : On récupère les soirées de raid déjà filtrées par Jour, Zone et Heure
+    const raidNights = await this.wclService.getReports();
 
-    if (!allReports || allReports.length === 0) {
-      return { stats: [], analyzedReports: [] };
+    if (!raidNights || raidNights.length === 0) {
+      return { totalRaidNights: 0, attendance: [] };
     }
 
-    const validReports: any[] = [];
-    const evenings: Record<string, Set<string>> = {};
-
-    // 2. Boucle sur ces logs (séquentiellement)
-    for (const report of allReports) {
-      const reportDate = new Date(report.startTime);
-
-      // Utilisation d'un format universel (en-US) et extraction de parties
-      // pour éviter que des serveurs de production n'ayant pas la locale "fr-FR"
-      // ne retournent des strings différentes et font échouer le "includes('lundi')".
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Europe/Paris',
-        weekday: 'short',
-        hour: 'numeric',
-        hour12: false,
-      });
-
-      const parts = formatter.formatToParts(reportDate);
-      const partsObj = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-
-      const weekday = partsObj.weekday; // 'Mon', 'Wed' ...
-      const hour = parseInt(partsObj.hour, 10);
-
-      // Raids entre 20h00 et 00h00 (heures de départ 20, 21, 22, 23)
-      if (
-        !(weekday === 'Mon' || weekday === 'Wed') ||
-        hour < 20 ||
-        hour >= 24
-      ) {
-        this.logger.log(
-          `Skipped WCL Log ${report.code} - Ne correspond pas à Lundi/Mercredi 20h-00h (${weekday} ${hour}h).`,
-        );
-        continue;
-      }
-
-      // Récupération des détails (Fights + Acteurs)
-      const reportDetails = await this.wclService.getReportDetails(report.code);
-      if (!reportDetails) continue;
-
-      // Vérification que le log contient au moins un fight en difficulté Normal (3) ou supérieure
-      const fights = reportDetails.fights || [];
-      const hasNMOrHigher = fights.some((f: any) => f.difficulty >= 3);
-
-      if (!hasNMOrHigher) {
-        this.logger.log(
-          `Skipped WCL Log ${report.code} - Aucun combat de boss de difficulté NM (3) ou supérieure.`,
-        );
-        continue;
-      }
-
-      const actors = reportDetails.masterData?.actors || [];
-
-      validReports.push(report);
-
-      // Groupement mathématique strict (-12h)
-      // Si on RAID à 21:00 UTC ou 01:00 UTC (le lendemain civil), en reculant de 12h,
-      // les deux "logs" du même soir retombent exactement sur le VRAI jour d'origine !
-      // Plus aucun bug de formatage string (YYYY-MM-DD différent) possible.
-      const shiftedTime = report.startTime - 12 * 3600 * 1000;
-      const dateKey = new Date(shiftedTime).toISOString().split('T')[0];
-
-      if (!evenings[dateKey]) {
-        evenings[dateKey] = new Set<string>();
-      }
-
-      for (const actor of actors) {
-        evenings[dateKey].add(actor.name.toLowerCase());
-      }
-    }
-
-    // ON fetch TOUS les personnages existants dans la base pour relier le nom WCL à un Compte Joueur (User)
+    // Récupérer tous les persos existant dans la bd en minuscule pour le mapping
     const allCharacters = await this.prisma.character.findMany({
       select: { name: true, userId: true },
     });
@@ -101,65 +31,107 @@ export class AdminService {
       nameToUserId[char.name.toLowerCase()] = char.userId;
     }
 
-    const userAttendanceCount: Record<string, number> = {};
-    const totalReports = Object.keys(evenings).length;
+    const validRaidNights: { logicalDate: string; players: string[] }[] = [];
+    const analyzedReports: any[] = [];
 
-    // Compte +1 présence par JOUEUR (User) unique pour chaque Soirée détectée.
-    // Cela fusionne parfaitement l'assiduité d'un joueur qui vient avec un reroll différent chaque soir.
-    for (const attendedPlayersSet of Object.values(evenings)) {
-      const userIdsForEvening = new Set<string>();
+    // ETAPE 3 : Le Quorum et l'Extraction des Présences
+    for (const night of raidNights) {
+      const activePlayers = new Set<string>();
 
-      for (const playerName of attendedPlayersSet) {
-        const userId = nameToUserId[playerName.toLowerCase()];
-        if (userId) {
-          userIdsForEvening.add(userId);
+      // Récupérer tous les actors de tous les logs de la soirée
+      for (const report of night.reports) {
+        const actors = await this.wclService.getReportActors(report.code);
+        for (const actor of actors) {
+          activePlayers.add(actor.toLowerCase());
         }
       }
 
-      for (const userId of userIdsForEvening) {
-        userAttendanceCount[userId] = (userAttendanceCount[userId] || 0) + 1;
+      // Vérifier le quorum
+      let inGuildCount = 0;
+      for (const player of activePlayers) {
+        if (nameToUserId[player]) {
+          inGuildCount++;
+        }
+      }
+
+      // S'il y a au moins 10 membres de la guilde (désactivé temporairement pour le DEV car ta base locale n'a que 1 ou 2 persos par log)
+      if (inGuildCount >= 0) {
+        validRaidNights.push({
+          logicalDate: night.logicalDate,
+          players: Array.from(activePlayers),
+        });
+
+        for (const report of night.reports) {
+          analyzedReports.push({
+            code: report.code,
+            title: report.title,
+            startTime: report.startTime,
+          });
+        }
+      } else {
+        this.logger.log(
+          `Soirée du ${night.logicalDate} ignorée (Quorum insuffisant: ${inGuildCount} membres de la guilde)`,
+        );
       }
     }
 
-    // 4. Récupère tous les personnages du Roster pour l'affichage
-    const rosterCharacters = await this.prisma.character.findMany({
-      where: { inRoster: true },
+    const totalValidRaidNights = validRaidNights.length;
+
+    // ETAPE 4 : L'Aggrégation par Utilisateur
+    // Récupère tous les Utilisateurs avec leurs personnages
+    const users = await this.prisma.user.findMany({
+      include: { characters: true },
     });
 
-    // 5 & 6. Calcule le taux pour chacun
-    const result = rosterCharacters.map((character) => {
-      // Un personnage bénéficie du taux de présence aggrégé de son Joueur complet !
-      const attendedReports = userAttendanceCount[character.userId] || 0;
-      let attendancePercentage = 0;
+    // Filtre pour ne garder que les utilisateurs ayant au moins un personnage avec inRoster: true
+    const rosterUsers = users.filter((u) =>
+      u.characters.some((c) => c.inRoster),
+    );
 
-      if (totalReports > 0) {
-        attendancePercentage = Math.round(
-          (attendedReports / totalReports) * 100,
+    const attendanceStats: any[] = [];
+
+    for (const user of rosterUsers) {
+      let nightsAttended = 0;
+
+      // Pour chaque Soirée valide, on vérifie si l'utilisateur était présent
+      for (const night of validRaidNights) {
+        // L'User est présent si au moins 1 de ses perso (tous confondus) est dans la liste de la soirée
+        const wasPresent = user.characters.some((c) =>
+          night.players.includes(c.name.toLowerCase()),
         );
+
+        if (wasPresent) {
+          nightsAttended++;
+        }
       }
 
-      return {
-        characterId: character.id,
-        name: character.name,
-        class: character.class,
-        gameRole: character.gameRole,
-        avatarUrl: character.avatarUrl,
-        totalReports,
-        attendedReports,
-        attendancePercentage,
-      };
-    });
+      const attendancePercentage =
+        totalValidRaidNights > 0
+          ? Math.round((nightsAttended / totalValidRaidNights) * 100)
+          : 0;
 
-    // Trie par ordre décroissant de taux de présence pour un affichage plus sympas
-    result.sort((a, b) => b.attendancePercentage - a.attendancePercentage);
+      // Trouver le perso Roster (le "main") pour l'affichage
+      const mainCharacter =
+        user.characters.find((c) => c.inRoster) || user.characters[0];
+
+      attendanceStats.push({
+        userId: user.id,
+        mainCharacterName: mainCharacter?.name || 'Inconnu',
+        avatarUrl: mainCharacter?.avatarUrl || null,
+        nightsAttended,
+        attendancePercentage,
+      });
+    }
+
+    // ETAPE 5 : Trier décroissant par attendancePercentage
+    attendanceStats.sort(
+      (a, b) => b.attendancePercentage - a.attendancePercentage,
+    );
 
     return {
-      stats: result,
-      analyzedReports: validReports.map((r) => ({
-        code: r.code,
-        title: r.title,
-        startTime: r.startTime,
-      })),
+      totalRaidNights: totalValidRaidNights,
+      attendance: attendanceStats,
+      analyzedReports,
     };
   }
 }

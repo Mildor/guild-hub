@@ -1432,35 +1432,32 @@ export const useUpdateUserRole = () => {
 // ==================== WCL ATTENDANCE ====================
 
 export interface WclAttendanceStat {
-    characterId: string;
-    name: string;
-    class: string;
-    gameRole: string;
-    avatarUrl: string | null;
-    totalReports: number;
-    attendedReports: number;
+    userId: string;
+    mainCharacterName: string;
+    avatarUrl?: string | null;
+    class?: string;
+    nightsAttended: number;
     attendancePercentage: number;
 }
 
-export interface AnalyzedReport {
-    code: string;
-    title: string;
-    startTime: number;
-}
-
 export interface WclAttendanceResponse {
-    stats: WclAttendanceStat[];
-    analyzedReports: AnalyzedReport[];
+    totalRaidNights: number;
+    attendance: WclAttendanceStat[];
+    analyzedReports: {
+        code: string;
+        title: string;
+        startTime: number;
+    }[];
 }
 
-export const useGetWclAttendanceStats = () => {
+export const useGetWclAttendance = () => {
     return useQuery({
         queryKey: ["admin", "attendance-stats"],
         queryFn: async () => {
-            const { data } = await api.get<WclAttendanceResponse>(
-                "/admin/attendance-stats",
-            );
+            const { data } =
+                await api.get<WclAttendanceResponse>("/admin/attendance");
             return data;
         },
+        staleTime: import.meta.env.DEV ? 0 : 30 * 60 * 1000,
     });
 };
