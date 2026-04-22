@@ -15,10 +15,12 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { AppRole } from '@prisma/client';
+import { AppRole, SharedProfile } from '@prisma/client';
 import { UsersService } from './users.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateSharedAccountDto } from './dto/update-shared-account.dto';
+import { CreateSharedProfileDto } from './dto/create-shared-profile.dto';
+import { RenameSharedProfileDto } from './dto/rename-shared-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -56,6 +58,27 @@ export class UsersController {
       req.user.userId,
       dto.isSharedAccount,
     );
+  }
+
+  @Patch('me/shared-account/profiles')
+  @ApiOperation({ summary: 'Cree un nouveau profil partage (max 5)' })
+  @ApiResponse({ status: 200, description: 'Profil partage cree avec succes.' })
+  createMySharedProfile(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: CreateSharedProfileDto,
+  ) {
+    return this.usersService.createMySharedProfile(req.user.userId, dto.name ?? '');
+  }
+
+  @Patch('me/shared-account/profiles/:code')
+  @ApiOperation({ summary: 'Renomme un profil partage existant' })
+  @ApiResponse({ status: 200, description: 'Profil partage renomme avec succes.' })
+  renameMySharedProfile(
+    @Req() req: Request & { user: { userId: string } },
+    @Param('code') code: SharedProfile,
+    @Body() dto: RenameSharedProfileDto,
+  ) {
+    return this.usersService.renameMySharedProfile(req.user.userId, code, dto.name);
   }
 
   @Get(':id')

@@ -12,4 +12,9 @@ export interface User {
   isSharedAccount?: boolean;
 }
 
-export type SharedProfile = 'A' | 'B' | 'C';
+export type SharedProfile = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export interface SharedAccountProfile {
+  code: SharedProfile;
+  name: string;
+}

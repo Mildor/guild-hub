@@ -285,7 +285,7 @@ export class CharactersController {
 
   @Patch('shared-profiles')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Affecte les personnages aux profils partages A/B/C' })
+  @ApiOperation({ summary: 'Affecte les personnages aux profils partages du compte' })
   @ApiResponse({ status: 200, description: 'Affectations mises a jour.' })
   assignSharedProfiles(
     @Req() req: { user: { userId: string } },

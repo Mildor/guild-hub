@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceStatus, SharedProfile } from '@prisma/client';
 
 export class UpsertAttendanceDto {
   @ApiProperty()
@@ -23,4 +23,13 @@ export class UpsertAttendanceDto {
   @IsOptional()
   @IsUUID()
   characterId?: string;
+
+  @ApiPropertyOptional({
+    enum: SharedProfile,
+    description:
+      'Profil cible. Utilise surtout par ADMIN/OFFICER pour un compte partage.',
+  })
+  @IsOptional()
+  @IsEnum(SharedProfile)
+  sharedProfile?: SharedProfile;
 }

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceStatus, SharedProfile } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscordService } from '../discord/discord.service';
@@ -94,10 +94,16 @@ export class EventsService {
     if (data.autoInviteRoster) {
       const roster = await this.prisma.character.findMany({ where: { inRoster: true } });
 
-      const uniqueByUser = new Map(roster.map((char) => [char.userId, char]));
-      const attendancesToCreate = Array.from(uniqueByUser.values()).map((char) => ({
+      const uniqueByUserAndProfile = new Map(
+        roster.map((char) => [
+          `${char.userId}:${char.sharedProfile ?? SharedProfile.A}`,
+          char,
+        ]),
+      );
+      const attendancesToCreate = Array.from(uniqueByUserAndProfile.values()).map((char) => ({
         eventId: event.id,
         userId: char.userId,
+        sharedProfile: char.sharedProfile ?? SharedProfile.A,
         characterId: char.id,
         status: AttendanceStatus.ACCEPTED,
       }));

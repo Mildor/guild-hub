@@ -226,10 +226,16 @@ export class CharactersService {
     userId: string,
     sharedProfileHeader?: string,
   ): Promise<SharedProfile | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { isSharedAccount: true },
-    });
+    const [user, sharedProfiles] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { isSharedAccount: true },
+      }),
+      this.prisma.userSharedProfile.findMany({
+        where: { userId },
+        select: { code: true },
+      }),
+    ]);
 
     const profile = this.parseSharedProfile(sharedProfileHeader);
 
@@ -239,7 +245,15 @@ export class CharactersService {
 
     if (!profile) {
       throw new BadRequestException(
-        'Profil partage invalide ou manquant. Selectionnez un profil A/B/C.',
+        'Profil partage invalide ou manquant. Selectionnez un profil configure.',
+      );
+    }
+
+    const allowedProfiles = new Set(sharedProfiles.map((entry) => entry.code));
+
+    if (!allowedProfiles.has(profile)) {
+      throw new BadRequestException(
+        'Le profil partage selectionne nest pas configure pour ce compte.',
       );
     }
 
@@ -261,6 +275,14 @@ export class CharactersService {
 
     if (normalized === SharedProfile.C) {
       return SharedProfile.C;
+    }
+
+    if (normalized === SharedProfile.D) {
+      return SharedProfile.D;
+    }
+
+    if (normalized === SharedProfile.E) {
+      return SharedProfile.E;
     }
 
     return null;

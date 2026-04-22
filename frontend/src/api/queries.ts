@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AppRole, type SharedProfile, type User } from '@/types/auth';
+import {
+  AppRole,
+  type SharedAccountProfile,
+  type SharedProfile,
+  type User,
+} from '@/types/auth';
 import type { Character } from '@/types/character';
 
 export interface CharacterWithUser extends Character {
@@ -127,6 +132,7 @@ export type AttendanceStatus = 'ACCEPTED' | 'TENTATIVE' | 'LATE' | 'DECLINED';
 export interface EventAttendance {
   eventId: string;
   userId: string;
+  sharedProfile: SharedProfile;
   characterId: string | null;
   status: AttendanceStatus;
   user: {
@@ -183,6 +189,7 @@ export interface UpdateCharacterPayload {
 export interface SharedAccountConfig {
   userId: string;
   isSharedAccount: boolean;
+  profiles: SharedAccountProfile[];
 }
 
 export interface SharedProfileAssignment {
@@ -275,6 +282,28 @@ const updateMySharedAccountConfig = async (isSharedAccount: boolean) => {
   return data;
 };
 
+const createMySharedProfile = async (name?: string) => {
+  const { data } = await api.patch<SharedAccountProfile>(
+    '/users/me/shared-account/profiles',
+    name ? { name } : {},
+  );
+  return data;
+};
+
+const renameMySharedProfile = async ({
+  code,
+  name,
+}: {
+  code: SharedProfile;
+  name: string;
+}) => {
+  const { data } = await api.patch<SharedAccountProfile>(
+    `/users/me/shared-account/profiles/${code}`,
+    { name },
+  );
+  return data;
+};
+
 export const useUpdateMySharedAccountConfig = () => {
   const queryClient = useQueryClient();
 
@@ -286,6 +315,28 @@ export const useUpdateMySharedAccountConfig = () => {
         queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] }),
         queryClient.invalidateQueries({ queryKey: ['characters'] }),
       ]);
+    },
+  });
+};
+
+export const useCreateMySharedProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createMySharedProfile,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] });
+    },
+  });
+};
+
+export const useRenameMySharedProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: renameMySharedProfile,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users', 'me', 'shared-account'] });
     },
   });
 };
@@ -749,6 +800,7 @@ export interface UpsertAttendancePayload {
   userId?: string;
   status: AttendanceStatus;
   characterId?: string;
+  sharedProfile?: SharedProfile;
 }
 
 const upsertAttendance = async (payload: UpsertAttendancePayload) => {

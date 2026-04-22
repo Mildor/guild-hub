@@ -72,7 +72,7 @@ function RosterGroup({
 
               return (
                 <li
-                  key={`${attendance.eventId}-${attendance.userId}`}
+                  key={`${attendance.eventId}-${attendance.userId}-${attendance.sharedProfile}`}
                   className="rounded-lg border border-border/60 bg-background/60 px-3 py-2"
                 >
                   {character ? (
@@ -136,8 +136,13 @@ export function EventDetailPage() {
   const upsertAttendance = useUpsertAttendance();
 
   const myAttendance = useMemo(
-    () => event?.attendances.find((attendance) => attendance.userId === authUser?.userId),
-    [event?.attendances, authUser?.userId],
+    () =>
+      event?.attendances.find(
+        (attendance) =>
+          attendance.userId === authUser?.userId &&
+          (!authUser?.isSharedAccount || attendance.sharedProfile === activeSharedProfile),
+      ),
+    [event?.attendances, authUser?.isSharedAccount, authUser?.userId, activeSharedProfile],
   );
 
   const [status, setStatus] = useState<AttendanceStatus>('TENTATIVE');
@@ -194,6 +199,7 @@ export function EventDetailPage() {
       await upsertAttendance.mutateAsync({
         eventId: id,
         userId: attendance.userId,
+        sharedProfile: attendance.sharedProfile,
         status: nextStatus,
         characterId:
           nextStatus === 'DECLINED'
@@ -319,7 +325,7 @@ export function EventDetailPage() {
                   <ul className="space-y-2">
                     {uncertain.map((attendance) => (
                       <li
-                        key={`uncertain-${attendance.eventId}-${attendance.userId}`}
+                        key={`uncertain-${attendance.eventId}-${attendance.userId}-${attendance.sharedProfile}`}
                         className="flex items-center justify-between rounded-lg border border-border/60 bg-background/60 px-3 py-2"
                       >
                         <div className="min-w-0 flex-1">

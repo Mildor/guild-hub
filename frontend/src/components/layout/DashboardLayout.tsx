@@ -15,10 +15,12 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import {
   useAssignMySharedProfiles,
+  useCreateMySharedProfile,
   useDeleteMyAccount,
   useGetAllMyCharactersForSharedConfig,
   useGetGuildProfile,
   useGetMySharedAccountConfig,
+  useRenameMySharedProfile,
   useGetStrategies,
   useUpdateMySharedAccountConfig,
 } from '@/api/queries';
@@ -38,6 +40,7 @@ import { Footer } from '@/components/layout/Footer';
 import { useGetWowToken } from '@/api/queries';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 const GUILD_REALM = 'archimonde';
 const GUILD_NAME = 'The Good Place';
@@ -74,11 +77,16 @@ export function DashboardLayout() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sharedDialogOpen, setSharedDialogOpen] = useState(false);
   const [profileAssignments, setProfileAssignments] = useState<Record<string, SharedProfile | null>>({});
+  const [profileNames, setProfileNames] = useState<Partial<Record<SharedProfile, string>>>({});
+  const [newProfileName, setNewProfileName] = useState('');
   const { data: wowToken } = useGetWowToken();
   const { data: guildProfile } = useGetGuildProfile(GUILD_REALM, GUILD_NAME);
   const { data: sharedAccountConfig } = useGetMySharedAccountConfig();
+  const sharedProfiles = sharedAccountConfig?.profiles ?? [];
   const updateSharedAccountConfig = useUpdateMySharedAccountConfig();
   const assignSharedProfilesMutation = useAssignMySharedProfiles();
+  const createSharedProfileMutation = useCreateMySharedProfile();
+  const renameSharedProfileMutation = useRenameMySharedProfile();
   const { data: sharedConfigCharacters } = useGetAllMyCharactersForSharedConfig(user?.userId);
 
   const { data: strategies } = useGetStrategies();
@@ -116,10 +124,44 @@ export function DashboardLayout() {
       return;
     }
 
-    if (user?.isSharedAccount && activeSharedProfile === null) {
-      setActiveSharedProfile('A');
+    if (!user?.isSharedAccount) {
+      return;
     }
-  }, [activeSharedProfile, setActiveSharedProfile, user?.isSharedAccount]);
+
+    if (sharedProfiles.length === 0) {
+      setActiveSharedProfile(null);
+      return;
+    }
+
+    const activeProfileStillExists =
+      !!activeSharedProfile &&
+      sharedProfiles.some((profile) => profile.code === activeSharedProfile);
+
+    if (!activeProfileStillExists) {
+      setActiveSharedProfile(sharedProfiles[0].code);
+    }
+  }, [
+    activeSharedProfile,
+    setActiveSharedProfile,
+    sharedProfiles,
+    user?.isSharedAccount,
+  ]);
+
+  useEffect(() => {
+    if (!sharedDialogOpen) {
+      return;
+    }
+
+    const nextNames = sharedProfiles.reduce<Partial<Record<SharedProfile, string>>>(
+      (acc, profile) => {
+        acc[profile.code] = profile.name;
+        return acc;
+      },
+      {},
+    );
+
+    setProfileNames(nextNames);
+  }, [sharedDialogOpen, sharedProfiles]);
 
   const groupedByRaid = useMemo(() => {
     if (!strategies) return {};
@@ -147,17 +189,39 @@ export function DashboardLayout() {
   };
 
   const handleSharedToggle = async (checked: boolean) => {
-    await updateSharedAccountConfig.mutateAsync(checked);
+    const updatedConfig = await updateSharedAccountConfig.mutateAsync(checked);
 
     if (!checked) {
       setActiveSharedProfile(null);
       return;
     }
 
-    setActiveSharedProfile(activeSharedProfile ?? 'A');
+    const firstProfile = updatedConfig.profiles[0]?.code;
+    if (firstProfile) {
+      setActiveSharedProfile(firstProfile);
+    }
   };
 
   const handleSaveProfileAssignments = async () => {
+    const renameOperations = sharedProfiles
+      .map((profile) => {
+        const nextName = (profileNames[profile.code] ?? '').trim();
+
+        if (!nextName || nextName === profile.name) {
+          return null;
+        }
+
+        return renameSharedProfileMutation.mutateAsync({
+          code: profile.code,
+          name: nextName,
+        });
+      })
+      .filter(Boolean) as Array<Promise<unknown>>;
+
+    if (renameOperations.length > 0) {
+      await Promise.all(renameOperations);
+    }
+
     const assignments = Object.entries(profileAssignments).map(
       ([characterId, sharedProfile]) => ({
         characterId,
@@ -167,6 +231,15 @@ export function DashboardLayout() {
 
     await assignSharedProfilesMutation.mutateAsync(assignments);
     setSharedDialogOpen(false);
+  };
+
+  const handleCreateProfile = async () => {
+    if (sharedProfiles.length >= 5) {
+      return;
+    }
+
+    await createSharedProfileMutation.mutateAsync(newProfileName.trim() || undefined);
+    setNewProfileName('');
   };
 
   const navItems = [
@@ -462,14 +535,16 @@ export function DashboardLayout() {
                       Profil actif
                     </p>
                     <Select
-                      value={activeSharedProfile ?? 'A'}
+                      value={activeSharedProfile ?? sharedProfiles[0]?.code ?? ''}
                       onChange={(event) =>
                         setActiveSharedProfile(event.target.value as SharedProfile)
                       }
                     >
-                      <option value="A">Profil A</option>
-                      <option value="B">Profil B</option>
-                      <option value="C">Profil C</option>
+                      {sharedProfiles.map((profile) => (
+                        <option key={profile.code} value={profile.code}>
+                          {profile.name}
+                        </option>
+                      ))}
                     </Select>
                   </div>
                 ) : null}
@@ -528,7 +603,7 @@ export function DashboardLayout() {
                   <DialogTitle>Compte partage</DialogTitle>
                   <DialogDescription>
                     Activez cette option uniquement si plusieurs personnes utilisent le meme compte Battle.net,
-                    puis affectez chaque personnage a un profil A/B/C.
+                    puis affectez chaque personnage a un profil dedie.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -551,6 +626,52 @@ export function DashboardLayout() {
 
                   {(sharedAccountConfig?.isSharedAccount ?? !!user?.isSharedAccount) ? (
                     <div className="space-y-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Profils (max 5)
+                      </p>
+                      <div className="space-y-2">
+                        {sharedProfiles.map((profile) => (
+                          <div
+                            key={profile.code}
+                            className="grid grid-cols-[68px_1fr] items-center gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-2"
+                          >
+                            <p className="text-xs font-semibold text-muted-foreground">{profile.code}</p>
+                            <Input
+                              value={profileNames[profile.code] ?? ''}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setProfileNames((previous) => ({
+                                  ...previous,
+                                  [profile.code]: value,
+                                }));
+                              }}
+                              maxLength={32}
+                              placeholder={`Profil ${profile.code}`}
+                            />
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <Input
+                            value={newProfileName}
+                            onChange={(event) => setNewProfileName(event.target.value)}
+                            maxLength={32}
+                            placeholder="Nom du nouveau profil"
+                            disabled={sharedProfiles.length >= 5 || createSharedProfileMutation.isPending}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              void handleCreateProfile();
+                            }}
+                            disabled={sharedProfiles.length >= 5 || createSharedProfileMutation.isPending}
+                          >
+                            Ajouter
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{sharedProfiles.length}/5 profils</p>
+                      </div>
+
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">
                         Affectation des personnages
                       </p>
@@ -578,9 +699,11 @@ export function DashboardLayout() {
                               }}
                             >
                               <option value="NONE">Non assigne</option>
-                              <option value="A">Profil A</option>
-                              <option value="B">Profil B</option>
-                              <option value="C">Profil C</option>
+                              {sharedProfiles.map((profile) => (
+                                <option key={profile.code} value={profile.code}>
+                                  {profile.name}
+                                </option>
+                              ))}
                             </Select>
                           </div>
                         ))}
@@ -603,11 +726,15 @@ export function DashboardLayout() {
                     }}
                     disabled={
                       assignSharedProfilesMutation.isPending ||
+                      createSharedProfileMutation.isPending ||
+                      renameSharedProfileMutation.isPending ||
                       !(sharedAccountConfig?.isSharedAccount ?? !!user?.isSharedAccount)
                     }
                     className="w-full md:w-auto"
                   >
-                    {assignSharedProfilesMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                    {assignSharedProfilesMutation.isPending || renameSharedProfileMutation.isPending
+                      ? 'Enregistrement...'
+                      : 'Enregistrer'}
                   </Button>
                 </DialogFooter>
               </DialogContent>

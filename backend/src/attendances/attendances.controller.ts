@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Headers,
   Put,
   Req,
   UnauthorizedException,
@@ -46,6 +47,7 @@ export class AttendancesController {
     @Req()
     req: { user: { userId?: string; id?: string; role?: AppRole; appRole?: AppRole } },
     @Body() dto: UpsertAttendanceDto,
+    @Headers('x-shared-profile') sharedProfileHeader: string | undefined,
   ) {
     const authUserId = req.user.userId ?? req.user.id;
     const authUserRole = req.user.appRole ?? req.user.role;
@@ -64,6 +66,6 @@ export class AttendancesController {
       );
     }
 
-    return this.attendancesService.upsert(targetUserId, dto);
+    return this.attendancesService.upsert(targetUserId, dto, sharedProfileHeader);
   }
 }

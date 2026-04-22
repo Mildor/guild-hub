@@ -4,6 +4,7 @@ import api from '@/lib/api';
 import type { SharedProfile } from '@/types/auth';
 
 const ACTIVE_SHARED_PROFILE_KEY = 'gh_active_shared_profile';
+const SHARED_PROFILE_CODES: SharedProfile[] = ['A', 'B', 'C', 'D', 'E'];
 
 interface AuthState {
   user: User | null;
@@ -15,8 +16,8 @@ interface AuthState {
 }
 
 const parseSharedProfile = (value: string | null): SharedProfile | null => {
-  if (value === 'A' || value === 'B' || value === 'C') {
-    return value;
+  if (value && SHARED_PROFILE_CODES.includes(value as SharedProfile)) {
+    return value as SharedProfile;
   }
 
   return null;

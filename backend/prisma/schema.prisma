@@ -33,6 +33,8 @@ enum SharedProfile {
   A
   B
   C
+  D
+  E
 }
 
 model User {
@@ -52,6 +54,21 @@ model User {
   strategies Strategy[]
   polls      Poll[]
   pollVotes  PollVote[]
+  sharedProfiles UserSharedProfile[]
+}
+
+model UserSharedProfile {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid
+  code      SharedProfile
+  name      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model Character {
@@ -122,6 +139,7 @@ model Event {
 model Attendance {
   eventId     String   @db.Uuid
   userId      String   @db.Uuid
+  sharedProfile SharedProfile @default(A)
   characterId String?  @db.Uuid
   status      AttendanceStatus
 
@@ -129,7 +147,8 @@ model Attendance {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
 
-  @@id([eventId, userId])
+  @@id([eventId, userId, sharedProfile])
+  @@index([eventId])
 }
 
 model Strategy {
