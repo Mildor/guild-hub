@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useGetWclAttendanceStats } from "@/api/queries";
+import { WowIcon } from "@/components/ui/WowIcon";
+import { classIcons, roleIcons } from "@/lib/wowData";
 
 export function WclAttendanceSection() {
     const [showLogs, setShowLogs] = useState(false);
@@ -129,13 +131,37 @@ export function WclAttendanceSection() {
                                                 )}
                                                 <div className="flex flex-col">
                                                     <span>{stat.name}</span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {stat.class}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                                        <WowIcon
+                                                            name={
+                                                                classIcons[
+                                                                    stat.class
+                                                                ] ||
+                                                                "inv_misc_questionmark"
+                                                            }
+                                                            size={14}
+                                                            className="rounded-sm"
+                                                        />
+                                                        <span>
+                                                            {stat.class}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{stat.gameRole}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <WowIcon
+                                                    name={
+                                                        roleIcons[
+                                                            stat.gameRole
+                                                        ] ||
+                                                        "inv_misc_questionmark"
+                                                    }
+                                                    size={18}
+                                                />
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-center">
                                             {stat.totalReports}
                                         </TableCell>

@@ -28,23 +28,30 @@ export class AdminService {
     for (const report of allReports) {
       const reportDate = new Date(report.startTime);
 
-      // Vérification temporelle : Lundi ou Mercredi soir (19h00 -> 23h59)
-      const optionsStr = new Intl.DateTimeFormat('fr-FR', {
+      // Utilisation d'un format universel (en-US) et extraction de parties
+      // pour éviter que des serveurs de production n'ayant pas la locale "fr-FR"
+      // ne retournent des strings différentes et font échouer le "includes('lundi')".
+      const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Europe/Paris',
-        weekday: 'long',
+        weekday: 'short',
         hour: 'numeric',
-      }).format(reportDate); // ex: "mercredi 20 h"
+        hour12: false,
+      });
 
-      const isLundi = optionsStr.includes('lundi');
-      const isMercredi = optionsStr.includes('mercredi');
+      const parts = formatter.formatToParts(reportDate);
+      const partsObj = Object.fromEntries(parts.map((p) => [p.type, p.value]));
 
-      const hourStr = optionsStr.match(/\d+/);
-      const hour = hourStr ? parseInt(hourStr[0], 10) : 0;
+      const weekday = partsObj.weekday; // 'Mon', 'Wed' ...
+      const hour = parseInt(partsObj.hour, 10);
 
-      // Raids entre 200h00 et 00h00 (heures de départ 20, 21, 22, 23)
-      if (!(isLundi || isMercredi) || hour < 20 || hour >= 24) {
+      // Raids entre 20h00 et 00h00 (heures de départ 20, 21, 22, 23)
+      if (
+        !(weekday === 'Mon' || weekday === 'Wed') ||
+        hour < 20 ||
+        hour >= 24
+      ) {
         this.logger.log(
-          `Skipped WCL Log ${report.code} - Ne correspond pas à une soirée de raid Lundi/Mercredi 20h-00h (${optionsStr}).`,
+          `Skipped WCL Log ${report.code} - Ne correspond pas à Lundi/Mercredi 20h-00h (${weekday} ${hour}h).`,
         );
         continue;
       }
@@ -66,18 +73,14 @@ export class AdminService {
 
       const actors = reportDetails.masterData?.actors || [];
 
-      // Si le log survit au filtre horaire, difficulté et qu'il était issu du raid correct (id: 46),
-      // il est considéré légitime pour affichage
       validReports.push(report);
 
-      // Grouper les présences par Soirée Unique
-      // Permet de contourner le problème des doublons (2 logs uploadés le même soir pour le même raid)
-      const dateKey = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Europe/Paris',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(reportDate);
+      // Groupement mathématique strict (-12h)
+      // Si on RAID à 21:00 UTC ou 01:00 UTC (le lendemain civil), en reculant de 12h,
+      // les deux "logs" du même soir retombent exactement sur le VRAI jour d'origine !
+      // Plus aucun bug de formatage string (YYYY-MM-DD différent) possible.
+      const shiftedTime = report.startTime - 12 * 3600 * 1000;
+      const dateKey = new Date(shiftedTime).toISOString().split('T')[0];
 
       if (!evenings[dateKey]) {
         evenings[dateKey] = new Set<string>();
@@ -88,26 +91,45 @@ export class AdminService {
       }
     }
 
-    const playerAttendanceCount: Record<string, number> = {};
+    // ON fetch TOUS les personnages existants dans la base pour relier le nom WCL à un Compte Joueur (User)
+    const allCharacters = await this.prisma.character.findMany({
+      select: { name: true, userId: true },
+    });
+
+    const nameToUserId: Record<string, string> = {};
+    for (const char of allCharacters) {
+      nameToUserId[char.name.toLowerCase()] = char.userId;
+    }
+
+    const userAttendanceCount: Record<string, number> = {};
     const totalReports = Object.keys(evenings).length;
 
-    // Compte +1 présence par joueur unique pour chaque Soirée détectée
+    // Compte +1 présence par JOUEUR (User) unique pour chaque Soirée détectée.
+    // Cela fusionne parfaitement l'assiduité d'un joueur qui vient avec un reroll différent chaque soir.
     for (const attendedPlayersSet of Object.values(evenings)) {
+      const userIdsForEvening = new Set<string>();
+
       for (const playerName of attendedPlayersSet) {
-        playerAttendanceCount[playerName] =
-          (playerAttendanceCount[playerName] || 0) + 1;
+        const userId = nameToUserId[playerName.toLowerCase()];
+        if (userId) {
+          userIdsForEvening.add(userId);
+        }
+      }
+
+      for (const userId of userIdsForEvening) {
+        userAttendanceCount[userId] = (userAttendanceCount[userId] || 0) + 1;
       }
     }
 
-    // 4. Récupère tous les personnages du Roster
+    // 4. Récupère tous les personnages du Roster pour l'affichage
     const rosterCharacters = await this.prisma.character.findMany({
       where: { inRoster: true },
     });
 
     // 5 & 6. Calcule le taux pour chacun
     const result = rosterCharacters.map((character) => {
-      const nameKey = character.name.toLowerCase();
-      const attendedReports = playerAttendanceCount[nameKey] || 0;
+      // Un personnage bénéficie du taux de présence aggrégé de son Joueur complet !
+      const attendedReports = userAttendanceCount[character.userId] || 0;
       let attendancePercentage = 0;
 
       if (totalReports > 0) {
