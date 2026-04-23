@@ -49,6 +49,28 @@ export function CalendarPage() {
       ),
     [events],
   );
+  const nextUpcomingEvent = useMemo(() => {
+    const now = Date.now();
+
+    return sortedEvents.reduce<(typeof sortedEvents)[number] | null>((closest, event) => {
+      const eventTime = new Date(event.eventDate).getTime();
+
+      if (eventTime < now) {
+        return closest;
+      }
+
+      if (!closest) {
+        return event;
+      }
+
+      const closestTime = new Date(closest.eventDate).getTime();
+      return eventTime < closestTime ? event : closest;
+    }, null);
+  }, [sortedEvents]);
+  const regularEvents = useMemo(
+    () => sortedEvents.filter((event) => event.id !== nextUpcomingEvent?.id),
+    [sortedEvents, nextUpcomingEvent],
+  );
 
   return (
     <div className="min-h-full bg-background">
@@ -88,37 +110,76 @@ export function CalendarPage() {
         ) : null}
 
         {!isLoading && sortedEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedEvents.map((event) => (
-              <Card key={event.id} className="bg-card/40 border-border/60">
+          <div className="space-y-4">
+            {nextUpcomingEvent ? (
+              <Card className="border-primary/60 bg-gradient-to-br from-primary/15 via-card/90 to-card/70 shadow-lg shadow-primary/10">
                 <CardHeader>
-                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                    <CardTitle className="text-xl leading-6">{event.title}</CardTitle>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <Badge className="bg-primary text-primary-foreground">Prochain evenement</Badge>
                     <Badge variant="secondary" className="whitespace-nowrap">
-                      {formatEventDate(event.eventDate)}
+                      {formatEventDate(nextUpcomingEvent.eventDate)}
                     </Badge>
                   </div>
+                  <CardTitle className="text-2xl leading-7">{nextUpcomingEvent.title}</CardTitle>
+                  <CardDescription>
+                    L'evenement le plus proche a venir est mis en avant pour une inscription rapide.
+                  </CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-3">
-                  <p className="min-h-12 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                    {truncateDescription(event.description)}
+                  <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                    {truncateDescription(nextUpcomingEvent.description, 180)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Cree par: {event.createdBy?.battletag || 'Inconnu'}
+                    Cree par: {nextUpcomingEvent.createdBy?.battletag || 'Inconnu'}
                   </p>
                 </CardContent>
 
-                <CardFooter className="flex flex-col gap-3 border-t border-border/60 pt-4 lg:flex-row lg:items-center lg:justify-between">
+                <CardFooter className="flex flex-col gap-3 border-t border-primary/30 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
-                    {event._count?.attendances ?? 0} participant(s) inscrit(s)
+                    {nextUpcomingEvent._count?.attendances ?? 0} participant(s) inscrit(s)
                   </p>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/events/${event.id}`}>Voir &amp; S'inscrire</Link>
+                  <Button asChild size="sm">
+                    <Link to={`/events/${nextUpcomingEvent.id}`}>Voir &amp; S'inscrire</Link>
                   </Button>
                 </CardFooter>
               </Card>
-            ))}
+            ) : null}
+
+            {regularEvents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {regularEvents.map((event) => (
+                  <Card key={event.id} className="bg-card/40 border-border/60">
+                    <CardHeader>
+                      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                        <CardTitle className="text-xl leading-6">{event.title}</CardTitle>
+                        <Badge variant="secondary" className="whitespace-nowrap">
+                          {formatEventDate(event.eventDate)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3">
+                      <p className="min-h-12 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                        {truncateDescription(event.description)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Cree par: {event.createdBy?.battletag || 'Inconnu'}
+                      </p>
+                    </CardContent>
+
+                    <CardFooter className="flex flex-col gap-3 border-t border-border/60 pt-4 lg:flex-row lg:items-center lg:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {event._count?.attendances ?? 0} participant(s) inscrit(s)
+                      </p>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/events/${event.id}`}>Voir &amp; S'inscrire</Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
