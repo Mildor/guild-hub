@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SharedProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
@@ -260,9 +264,7 @@ export class CharactersService {
     return profile;
   }
 
-  private parseSharedProfile(
-    value?: string,
-  ): SharedProfile | null {
+  private parseSharedProfile(value?: string): SharedProfile | null {
     const normalized = value?.trim().toUpperCase();
 
     if (normalized === SharedProfile.A) {

@@ -255,65 +255,76 @@ export function GuildLinkPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {sortedLeaderboard.map((entry, index) => (
-                                            <TableRow key={entry.characterId}>
-                                                <TableCell className="font-semibold text-slate-200">
-                                                    #{index + 1}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-8 w-8 border border-border/60">
-                                                            <AvatarImage
-                                                                src={
-                                                                    entry.avatarUrl ||
-                                                                    undefined
-                                                                }
-                                                                alt={entry.name}
-                                                            />
-                                                            <AvatarFallback className="bg-primary/20 text-xs font-semibold text-primary">
-                                                                {getCharacterInitials(
-                                                                    entry.name,
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-semibold text-foreground">
-                                                                {entry.name}
-                                                            </p>
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                {entry.realm}
-                                                            </p>
+                                        {sortedLeaderboard.map(
+                                            (entry, index) => (
+                                                <TableRow
+                                                    key={entry.characterId}
+                                                >
+                                                    <TableCell className="font-semibold text-slate-200">
+                                                        #{index + 1}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Avatar className="h-8 w-8 border border-border/60">
+                                                                <AvatarImage
+                                                                    src={
+                                                                        entry.avatarUrl ||
+                                                                        undefined
+                                                                    }
+                                                                    alt={
+                                                                        entry.name
+                                                                    }
+                                                                />
+                                                                <AvatarFallback className="bg-primary/20 text-xs font-semibold text-primary">
+                                                                    {getCharacterInitials(
+                                                                        entry.name,
+                                                                    )}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-semibold text-foreground">
+                                                                    {entry.name}
+                                                                </p>
+                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                    {
+                                                                        entry.realm
+                                                                    }
+                                                                </p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-xs text-muted-foreground">
-                                                        <WowIcon
-                                                            name={
-                                                                classIcons[
-                                                                    entry.class
-                                                                ] ||
-                                                                "inv_misc_questionmark"
-                                                            }
-                                                            size={16}
-                                                        />
-                                                        {entry.class}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span
-                                                        className={`text-sm font-bold ${getRioScoreClassName(entry.rioScore)}`}
-                                                    >
-                                                        {Math.round(entry.rioScore)}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-sm font-semibold text-amber-300">
-                                                    {entry.bestKeyLevel
-                                                        ? `+${entry.bestKeyLevel}`
-                                                        : "-"}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-xs text-muted-foreground">
+                                                            <WowIcon
+                                                                name={
+                                                                    classIcons[
+                                                                        entry
+                                                                            .class
+                                                                    ] ||
+                                                                    "inv_misc_questionmark"
+                                                                }
+                                                                size={16}
+                                                            />
+                                                            {entry.class}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span
+                                                            className={`text-sm font-bold ${getRioScoreClassName(entry.rioScore)}`}
+                                                        >
+                                                            {Math.round(
+                                                                entry.rioScore,
+                                                            )}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm font-semibold text-amber-300">
+                                                        {entry.bestKeyLevel
+                                                            ? `+${entry.bestKeyLevel}`
+                                                            : "-"}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ),
+                                        )}
 
                                         {sortedLeaderboard.length === 0 ? (
                                             <TableRow>
@@ -321,8 +332,8 @@ export function GuildLinkPage() {
                                                     colSpan={5}
                                                     className="text-center text-sm text-muted-foreground"
                                                 >
-                                                    Aucun joueur principal trouve
-                                                    pour le classement.
+                                                    Aucun joueur principal
+                                                    trouve pour le classement.
                                                 </TableCell>
                                             </TableRow>
                                         ) : null}

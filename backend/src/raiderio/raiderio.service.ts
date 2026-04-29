@@ -355,7 +355,8 @@ export class RaiderioService {
               region: 'eu',
               realm: realmSlug,
               name: characterName,
-              fields: 'mythic_plus_scores_by_season:current,mythic_plus_best_runs',
+              fields:
+                'mythic_plus_scores_by_season:current,mythic_plus_best_runs',
             },
           },
         ),
@@ -363,7 +364,9 @@ export class RaiderioService {
 
       const score =
         response.data.mythic_plus_scores_by_season?.[0]?.scores?.all ?? 0;
-      const bestKeyLevel = this.getBestKeyLevel(response.data.mythic_plus_best_runs);
+      const bestKeyLevel = this.getBestKeyLevel(
+        response.data.mythic_plus_best_runs,
+      );
       const value: CachedMplusValue = { score, bestKeyLevel };
 
       this.characterMplusCache.set(key, {

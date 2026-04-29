@@ -38,29 +38,37 @@ export function Podium({ entries }: PodiumProps) {
                     glow: "glow-gold-lg",
                     height: "h-40 md:h-48",
                     stepBg: "bg-primary/10",
-                    icon: <Crown className="h-8 w-8 text-primary fill-primary/40" />,
+                    icon: (
+                        <Crown className="h-8 w-8 text-primary fill-primary/40" />
+                    ),
                     label: "1er",
                 };
             case 2:
                 return {
                     color: "text-slate-100",
-                    bgColor: "from-slate-400/40 via-slate-400/20 to-transparent",
+                    bgColor:
+                        "from-slate-400/40 via-slate-400/20 to-transparent",
                     borderColor: "border-slate-400/60",
                     glow: "glow-epic",
                     height: "h-28 md:h-32",
                     stepBg: "bg-slate-400/5",
-                    icon: <Medal className="h-6 w-6 text-slate-300 fill-slate-300/30" />,
+                    icon: (
+                        <Medal className="h-6 w-6 text-slate-300 fill-slate-300/30" />
+                    ),
                     label: "2ème",
                 };
             case 3:
                 return {
                     color: "text-amber-400",
-                    bgColor: "from-amber-700/40 via-amber-700/20 to-transparent",
+                    bgColor:
+                        "from-amber-700/40 via-amber-700/20 to-transparent",
                     borderColor: "border-amber-700/60",
                     glow: "",
                     height: "h-20 md:h-24",
                     stepBg: "bg-amber-700/5",
-                    icon: <Trophy className="h-6 w-6 text-amber-600 fill-amber-600/30" />,
+                    icon: (
+                        <Trophy className="h-6 w-6 text-amber-600 fill-amber-600/30" />
+                    ),
                     label: "3ème",
                 };
             default:
@@ -95,21 +103,33 @@ export function Podium({ entries }: PodiumProps) {
                                     {rankInfo.icon}
                                 </div>
                             )}
-                            
-                            <div className={`relative rounded-full p-1.5 transition-transform duration-300 group-hover:scale-110 ${isFirst ? rankInfo.glow : ""}`}>
+
+                            <div
+                                className={`relative rounded-full p-1.5 transition-transform duration-300 group-hover:scale-110 ${isFirst ? rankInfo.glow : ""}`}
+                            >
                                 {/* More opaque background for the avatar glow */}
-                                <div className={`absolute inset-0 rounded-full bg-gradient-to-b ${rankInfo.bgColor} blur-xl opacity-90`} />
-                                <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-3 ${rankInfo.borderColor} relative z-10 shadow-2xl bg-card`}>
-                                    <AvatarImage src={entry.avatarUrl || undefined} alt={entry.name} />
+                                <div
+                                    className={`absolute inset-0 rounded-full bg-gradient-to-b ${rankInfo.bgColor} blur-xl opacity-90`}
+                                />
+                                <Avatar
+                                    className={`h-20 w-20 md:h-24 md:w-24 border-3 ${rankInfo.borderColor} relative z-10 shadow-2xl bg-card`}
+                                >
+                                    <AvatarImage
+                                        src={entry.avatarUrl || undefined}
+                                        alt={entry.name}
+                                    />
                                     <AvatarFallback className="bg-muted text-sm font-bold text-foreground">
                                         {entry.name.slice(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
-                                
+
                                 <div className="absolute -bottom-1 -right-1 z-20 shadow-lg scale-110">
-                                    <WowIcon 
-                                        name={classIcons[entry.class] || "inv_misc_questionmark"} 
-                                        size={28} 
+                                    <WowIcon
+                                        name={
+                                            classIcons[entry.class] ||
+                                            "inv_misc_questionmark"
+                                        }
+                                        size={28}
                                         className="rounded-full border-2 border-background"
                                     />
                                 </div>
@@ -118,28 +138,38 @@ export function Podium({ entries }: PodiumProps) {
 
                         {/* Text Info */}
                         <div className="text-center mb-6 min-w-0 w-full px-1">
-                            <h3 className={`font-black text-sm md:text-lg truncate drop-shadow-md ${isFirst ? "text-primary" : "text-slate-100"}`}>
+                            <h3
+                                className={`font-black text-sm md:text-lg truncate drop-shadow-md ${isFirst ? "text-primary" : "text-slate-100"}`}
+                            >
                                 {entry.name}
                             </h3>
-                            <p className={`text-xs md:text-sm font-black tracking-wider ${isFirst ? "text-fuchsia-400" : "text-fuchsia-300"}`}>
+                            <p
+                                className={`text-xs md:text-sm font-black tracking-wider ${isFirst ? "text-fuchsia-400" : "text-fuchsia-300"}`}
+                            >
                                 {Math.round(entry.rioScore)} RIO
                             </p>
                         </div>
 
                         {/* The Pedestal Step - SIGNIFICANTLY MORE OPAQUE */}
-                        <div 
+                        <div
                             className={`w-full ${rankInfo.height} relative rounded-t-2xl flex flex-col items-center pt-6 overflow-hidden border border-b-0 ${rankInfo.borderColor} bg-card shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.6)]`}
                         >
                             {/* Gradient overlay to give some depth but less transparency */}
-                            <div className={`absolute inset-0 ${rankInfo.stepBg} opacity-50`} />
+                            <div
+                                className={`absolute inset-0 ${rankInfo.stepBg} opacity-50`}
+                            />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                            
-                            <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-transparent via-current to-transparent opacity-80 ${rankInfo.color}`} />
-                            
-                            <span className={`text-xl md:text-3xl font-black tracking-tighter ${rankInfo.color} opacity-90 select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}>
+
+                            <div
+                                className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-transparent via-current to-transparent opacity-80 ${rankInfo.color}`}
+                            />
+
+                            <span
+                                className={`text-xl md:text-3xl font-black tracking-tighter ${rankInfo.color} opacity-90 select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}
+                            >
                                 {rankInfo.label}
                             </span>
-                            
+
                             {!isFirst && (
                                 <div className="mt-4 opacity-70 scale-110 drop-shadow-md">
                                     {rankInfo.icon}

@@ -309,8 +309,10 @@ export class BlizzardService {
   private readonly logger = new Logger(BlizzardService.name);
   private readonly itemIconCache: Map<number, string> = new Map();
   private readonly recipeNameCache: Map<string, string> = new Map();
-  private realmCache: { data: BlizzardRealmOption[]; expiresAt: number } | null =
-    null;
+  private realmCache: {
+    data: BlizzardRealmOption[];
+    expiresAt: number;
+  } | null = null;
 
   constructor(
     private readonly httpService: HttpService,
@@ -485,15 +487,19 @@ export class BlizzardService {
         };
       })
       .filter((realm): realm is BlizzardRealmOption => realm !== null)
-      .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+      );
 
     const deduped = Array.from(
-      realms.reduce((map, realm) => {
-        if (!map.has(realm.slug)) {
-          map.set(realm.slug, realm);
-        }
-        return map;
-      }, new Map<string, BlizzardRealmOption>()).values(),
+      realms
+        .reduce((map, realm) => {
+          if (!map.has(realm.slug)) {
+            map.set(realm.slug, realm);
+          }
+          return map;
+        }, new Map<string, BlizzardRealmOption>())
+        .values(),
     );
 
     this.realmCache = {
@@ -726,7 +732,10 @@ export class BlizzardService {
     const allBosses = new Set<number | string>();
 
     for (const mode of seasonInstance.modes ?? []) {
-      const difficulty = this.getDifficultyKey(mode.difficulty?.name, mode.difficulty?.type);
+      const difficulty = this.getDifficultyKey(
+        mode.difficulty?.name,
+        mode.difficulty?.type,
+      );
       if (!difficulty) {
         continue;
       }
@@ -758,8 +767,11 @@ export class BlizzardService {
     };
   }
 
-  async getCharactersFromApi(userId: string): Promise<BlizzardAccountCharacter[]> {
-    const { accessToken, allCharacters } = await this.fetchUserCharactersFromApi(userId);
+  async getCharactersFromApi(
+    userId: string,
+  ): Promise<BlizzardAccountCharacter[]> {
+    const { accessToken, allCharacters } =
+      await this.fetchUserCharactersFromApi(userId);
 
     const characters = await Promise.all(
       allCharacters.map(async (character) => {
@@ -839,9 +851,13 @@ export class BlizzardService {
         accessToken,
       );
 
-      const characterGuild = details?.guild?.name ?? selectedCharacter.guild?.name;
+      const characterGuild =
+        details?.guild?.name ?? selectedCharacter.guild?.name;
 
-      if (!characterGuild || !this.isSameNormalizedName(characterGuild, targetGuild)) {
+      if (
+        !characterGuild ||
+        !this.isSameNormalizedName(characterGuild, targetGuild)
+      ) {
         throw new UnauthorizedException(
           `Le personnage ${selectedCharacter.name}-${selectedCharacter.realm.slug} n'est pas dans la guilde ${targetGuild}.`,
         );
@@ -997,7 +1013,10 @@ export class BlizzardService {
     return syncedCharacters;
   }
 
-  async syncSingleCharacter(userId: string, characterId: string): Promise<Character> {
+  async syncSingleCharacter(
+    userId: string,
+    characterId: string,
+  ): Promise<Character> {
     const existingCharacter = await this.prisma.character.findFirst({
       where: {
         id: characterId,
@@ -1196,7 +1215,10 @@ export class BlizzardService {
           continue;
         }
 
-        if (error instanceof AxiosError && (error.response?.status === 401 || error.response?.status === 403)) {
+        if (
+          error instanceof AxiosError &&
+          (error.response?.status === 401 || error.response?.status === 403)
+        ) {
           throw new UnauthorizedException(
             'Token Battle.net expiré ou invalide. Veuillez vous reconnecter via /auth/bnet.',
           );
@@ -1221,8 +1243,8 @@ export class BlizzardService {
       return null;
     }
 
-    const allInstances = raidData.expansions.flatMap((expansion) =>
-      expansion.instances ?? [],
+    const allInstances = raidData.expansions.flatMap(
+      (expansion) => expansion.instances ?? [],
     );
 
     if (!allInstances.length) {
@@ -1248,11 +1270,13 @@ export class BlizzardService {
       return byName;
     }
 
-    return [...allInstances].sort(
-      (left, right) =>
-        this.getLatestEncounterTimestamp(right) -
-        this.getLatestEncounterTimestamp(left),
-    )[0] ?? null;
+    return (
+      [...allInstances].sort(
+        (left, right) =>
+          this.getLatestEncounterTimestamp(right) -
+          this.getLatestEncounterTimestamp(left),
+      )[0] ?? null
+    );
   }
 
   private getLatestEncounterTimestamp(instance: BlizzardRaidInstance): number {
@@ -1696,7 +1720,10 @@ export class BlizzardService {
             continue;
           }
 
-          const key = recipeId !== null ? `id:${recipeId}` : `name:${recipeName?.toLowerCase()}`;
+          const key =
+            recipeId !== null
+              ? `id:${recipeId}`
+              : `name:${recipeName?.toLowerCase()}`;
           if (!recipes.has(key)) {
             recipes.set(key, {
               id: recipeId,
@@ -1714,7 +1741,9 @@ export class BlizzardService {
             }
 
             const key =
-              recipeId !== null ? `id:${recipeId}` : `name:${recipeName?.toLowerCase()}`;
+              recipeId !== null
+                ? `id:${recipeId}`
+                : `name:${recipeName?.toLowerCase()}`;
             if (!recipes.has(key)) {
               recipes.set(key, {
                 id: recipeId,
@@ -1745,18 +1774,29 @@ export class BlizzardService {
   ): NormalizedProfession[] {
     const merged = new Map<string, NormalizedProfession>();
 
-    const getProfessionKey = (profession: LocalizedProfessionSnapshot): string => {
+    const getProfessionKey = (
+      profession: LocalizedProfessionSnapshot,
+    ): string => {
       if (profession.professionId !== null) {
         return `id:${profession.professionId}`;
       }
       return `name:${profession.profession.toLowerCase()}`;
     };
 
-    const getRecipeKey = (recipe: { id: number | null; name?: string; nameFr?: string; nameEn?: string }): string => {
+    const getRecipeKey = (recipe: {
+      id: number | null;
+      name?: string;
+      nameFr?: string;
+      nameEn?: string;
+    }): string => {
       if (recipe.id !== null) {
         return `id:${recipe.id}`;
       }
-      const nameValue = (recipe as any).name || (recipe as any).nameFr || (recipe as any).nameEn || '';
+      const nameValue =
+        (recipe as any).name ||
+        (recipe as any).nameFr ||
+        (recipe as any).nameEn ||
+        '';
       return `name:${nameValue.toLowerCase()}`;
     };
 
@@ -1791,8 +1831,13 @@ export class BlizzardService {
         continue;
       }
 
-      existing.skillLevel = Math.max(existing.skillLevel, professionEn.skillLevel);
-      const recipeMap = new Map(existing.recipes.map((recipe) => [getRecipeKey(recipe), recipe]));
+      existing.skillLevel = Math.max(
+        existing.skillLevel,
+        professionEn.skillLevel,
+      );
+      const recipeMap = new Map(
+        existing.recipes.map((recipe) => [getRecipeKey(recipe), recipe]),
+      );
 
       for (const recipeEn of professionEn.recipes) {
         const recipeKey = getRecipeKey(recipeEn);
@@ -1948,7 +1993,9 @@ export class BlizzardService {
     professions: NormalizedProfession[],
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const professionNames = professions.map((profession) => profession.profession);
+      const professionNames = professions.map(
+        (profession) => profession.profession,
+      );
 
       if (professionNames.length === 0) {
         await tx.characterProfession.deleteMany({ where: { characterId } });
