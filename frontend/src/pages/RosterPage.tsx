@@ -6,7 +6,6 @@ import {
     useGetRoster,
     useGetAllCharacters,
     useGetMyCharacters,
-    useSetRosterCharacter,
     useToggleRoster,
     type CharacterWithUser,
 } from "@/api/queries";
@@ -544,7 +543,6 @@ function PersonalRosterSelector() {
         user?.userId,
         activeSharedProfile,
     );
-    const setRosterMutation = useSetRosterCharacter(user?.userId);
 
     const charactersSorted = useMemo(() => {
         return [...(myCharacters ?? [])].sort((a, b) => {
@@ -593,52 +591,6 @@ function PersonalRosterSelector() {
                     <p className="text-sm text-muted-foreground">
                         Aucun personnage roster defini pour le moment.
                     </p>
-                )}
-
-                {charactersSorted.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        Aucun personnage synchronise sur votre compte.
-                    </p>
-                ) : (
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-                        {charactersSorted.map((character) => {
-                            const isCurrentRoster = character.inRoster;
-                            const isPending =
-                                setRosterMutation.isPending &&
-                                setRosterMutation.variables === character.id;
-
-                            return (
-                                <button
-                                    key={character.id}
-                                    type="button"
-                                    onClick={() =>
-                                        setRosterMutation.mutate(character.id)
-                                    }
-                                    disabled={isCurrentRoster || isPending}
-                                    className={isCurrentRoster
-                                        ? "rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-left"
-                                        : "rounded-md border border-border/70 bg-background/60 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-background"}
-                                >
-                                    <p className="text-sm font-semibold">
-                                        {character.name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {character.class} - iLvl {Math.round(character.ilvl)}
-                                    </p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        {character.isMain && (
-                                            <Badge variant="outline">Main</Badge>
-                                        )}
-                                        {isCurrentRoster && (
-                                            <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-300">
-                                                Roster
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
                 )}
             </CardContent>
         </Card>

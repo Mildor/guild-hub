@@ -6,12 +6,10 @@ import {
   useGetMyCharacters,
   useSyncCharacter,
   useSetMainCharacter,
-  useSetRosterCharacter,
   useGetRaiderIoProfile,
   useGetAllEvents as useGetEvents,
   useGetEvent,
   useGetPolls,
-  useGetRoster,
   useVotePoll,
   useUpsertAttendance,
   type AttendanceStatus,
@@ -139,18 +137,15 @@ export function DashboardPage() {
   );
   const { data: events } = useGetEvents();
   const { data: polls } = useGetPolls();
-  const { data: roster } = useGetRoster();
   const votePollMutation = useVotePoll();
   const upsertAttendance = useUpsertAttendance();
   const syncCharacterMutation = useSyncCharacter(user?.userId);
   const setMainMutation = useSetMainCharacter(user?.userId);
-  const setRosterMutation = useSetRosterCharacter(user?.userId);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'roster' | 'sync'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'sync'>('events');
   const [quickAttendanceStatus, setQuickAttendanceStatus] = useState<AttendanceStatus>('TENTATIVE');
   const [quickAttendanceCharacterId, setQuickAttendanceCharacterId] = useState('');
   const [selectedPollOptionIds, setSelectedPollOptionIds] = useState<string[]>([]);
-  const [showAllRosterQuickSwitch, setShowAllRosterQuickSwitch] = useState(false);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
 
@@ -248,70 +243,6 @@ export function DashboardPage() {
     setSelectedPollOptionIds(myPollVotes.map((vote) => vote.optionId));
   }, [activePoll?.id, myPollVotes]);
 
-  const rosterCounts = useMemo(() => {
-    const base = { TANK: 0, HEALER: 0, DPS: 0 };
-
-    for (const character of roster ?? []) {
-      if (!character.inRoster) {
-        continue;
-      }
-      base[character.gameRole] += 1;
-    }
-
-    return base;
-  }, [roster]);
-
-  const hasRosterCharacter = useMemo(() => {
-    return Boolean(characters?.some((character) => character.inRoster || character.isMain));
-  }, [characters]);
-
-  const myRosterCharacter = useMemo(() => {
-    return charactersSorted.find((character) => character.inRoster) ?? null;
-  }, [charactersSorted]);
-
-  const totalRosterCount = rosterCounts.TANK + rosterCounts.HEALER + rosterCounts.DPS;
-
-  const rosterDistribution = useMemo(() => {
-    if (totalRosterCount === 0) {
-      return [
-        { key: 'TANK', label: 'Tanks', count: 0, percent: 0, barClass: 'bg-sky-500/70' },
-        { key: 'HEALER', label: 'Healers', count: 0, percent: 0, barClass: 'bg-emerald-500/70' },
-        { key: 'DPS', label: 'DPS', count: 0, percent: 0, barClass: 'bg-amber-500/70' },
-      ] as const;
-    }
-
-    return [
-      {
-        key: 'TANK',
-        label: 'Tanks',
-        count: rosterCounts.TANK,
-        percent: Math.round((rosterCounts.TANK / totalRosterCount) * 100),
-        barClass: 'bg-sky-500/70',
-      },
-      {
-        key: 'HEALER',
-        label: 'Healers',
-        count: rosterCounts.HEALER,
-        percent: Math.round((rosterCounts.HEALER / totalRosterCount) * 100),
-        barClass: 'bg-emerald-500/70',
-      },
-      {
-        key: 'DPS',
-        label: 'DPS',
-        count: rosterCounts.DPS,
-        percent: Math.round((rosterCounts.DPS / totalRosterCount) * 100),
-        barClass: 'bg-amber-500/70',
-      },
-    ] as const;
-  }, [rosterCounts.HEALER, rosterCounts.DPS, rosterCounts.TANK, totalRosterCount]);
-
-  const rosterQuickSwitchCharacters = useMemo(() => {
-    if (showAllRosterQuickSwitch) {
-      return charactersSorted;
-    }
-
-    return charactersSorted.slice(0, 1);
-  }, [charactersSorted, showAllRosterQuickSwitch]);
 
   const myNextEventAttendance = useMemo((): EventAttendance | undefined => {
     if (!nextEventDetail || !user?.userId) {
@@ -421,16 +352,6 @@ export function DashboardPage() {
                       <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
                     ) : null}
                   </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('roster')}
-                  className={activeTab === 'roster'
-                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
-                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
-                >
-                  Roster
                 </button>
 
                 <button
@@ -625,108 +546,6 @@ export function DashboardPage() {
                 )
               ) : null}
 
-              {activeTab === 'roster' ? (
-                !hasRosterCharacter ? (
-                  <div className="space-y-3 rounded-md border border-orange-500/40 bg-orange-600/10 p-3 text-sm text-orange-300">
-                    <p>
-                      ⚠️ Vous n&apos;avez pas defini de personnage pour le roster. Selectionnez-en un rapidement ci-dessous.
-                    </p>
-
-                    {charactersSorted.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2">
-                        {charactersSorted.slice(0, 3).map((character) => (
-                          <button
-                            key={character.id}
-                            type="button"
-                            onClick={() => setRosterMutation.mutate(character.id)}
-                            disabled={setRosterMutation.isPending}
-                            className="w-full rounded-md border border-orange-400/30 bg-orange-500/10 px-3 py-2 text-left text-xs font-medium text-orange-200 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Definir {character.name} ({character.class})
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="space-y-4 text-sm text-slate-300">
-                    <div className="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">Mon perso roster</p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-base font-semibold text-slate-100">
-                            {myRosterCharacter?.name || 'Aucun personnage'}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {myRosterCharacter ? `${myRosterCharacter.class} - ${Math.round(myRosterCharacter.ilvl)} iLvl` : 'Selectionnez votre personnage principal de roster'}
-                          </p>
-                        </div>
-                        {myRosterCharacter ? (
-                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">
-                            Actif
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-slate-700/80 bg-slate-800/30 p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="font-semibold text-slate-100">Composition actuelle</p>
-                        <span className="text-xs text-slate-400">{totalRosterCount} joueurs</span>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        {rosterDistribution.map((item) => (
-                          <div key={item.key}>
-                            <div className="mb-1 flex items-center justify-between text-xs">
-                              <span className="text-slate-300">{item.label}</span>
-                              <span className="text-slate-400">{item.count} ({item.percent}%)</span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
-                              <div className={`h-full rounded-full ${item.barClass}`} style={{ width: `${item.percent}%` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Changer rapidement</p>
-                      <div className="grid grid-cols-1 gap-2">
-                        {rosterQuickSwitchCharacters.map((character) => {
-                          const isCurrentRoster = character.inRoster;
-
-                          return (
-                            <button
-                              key={character.id}
-                              type="button"
-                              onClick={() => setRosterMutation.mutate(character.id)}
-                              disabled={setRosterMutation.isPending || isCurrentRoster}
-                              className={isCurrentRoster
-                                ? 'w-full rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-left text-xs font-semibold text-emerald-300'
-                                : 'w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60'}
-                            >
-                              <span className="block text-sm">{character.name}</span>
-                              <span className="text-[11px] text-slate-400">{character.class} - {Math.round(character.ilvl)} iLvl</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {charactersSorted.length > 1 ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowAllRosterQuickSwitch((value) => !value)}
-                          className="mt-2 inline-flex items-center rounded-md border border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800"
-                        >
-                          {showAllRosterQuickSwitch ? 'Voir moins' : `Voir plus (${charactersSorted.length - 1})`}
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              ) : null}
-
               {activeTab === 'sync' ? (
                 <div className="space-y-4 rounded-lg border border-slate-700/80 bg-slate-800/30 p-4 text-sm text-slate-300">
                   <div>
@@ -789,21 +608,6 @@ export function DashboardPage() {
                               className="rounded-md border border-border/70 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Définir Main
-                            </button>
-                          )}
-
-                          {selectedCharacter.inRoster ? (
-                            <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-300">
-                              Roster
-                            </Badge>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setRosterMutation.mutate(selectedCharacter.id)}
-                              disabled={setRosterMutation.isPending}
-                              className="rounded-md border border-border/70 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Définir Roster
                             </button>
                           )}
 
@@ -922,11 +726,6 @@ export function DashboardPage() {
                         {character.isMain ? (
                           <Badge className="border border-yellow-500/30 bg-yellow-500/15 text-[11px] text-yellow-300">
                             Main
-                          </Badge>
-                        ) : null}
-                        {character.inRoster ? (
-                          <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-[11px] text-emerald-300">
-                            Roster
                           </Badge>
                         ) : null}
                       </div>

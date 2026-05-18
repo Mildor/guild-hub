@@ -332,8 +332,8 @@ export function GuildLinkPage() {
                                                     colSpan={5}
                                                     className="text-center text-sm text-muted-foreground"
                                                 >
-                                                    Aucun joueur principal
-                                                    trouve pour le classement.
+                                                    Aucun personnage trouve
+                                                    pour le classement.
                                                 </TableCell>
                                             </TableRow>
                                         ) : null}

@@ -40,7 +40,7 @@ export class RaiderioGuildController {
 
   @Get('guild/leaderboard')
   @ApiOperation({
-    summary: 'Retourne le classement Mythique+ des mains de la guilde',
+    summary: 'Retourne le classement Mythique+ des personnages de la guilde',
   })
   @ApiQuery({ name: 'realm', required: false, example: 'archimonde' })
   @ApiQuery({ name: 'name', required: false, example: 'The Good Place' })

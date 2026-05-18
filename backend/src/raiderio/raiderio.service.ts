@@ -187,8 +187,7 @@ export class RaiderioService {
     realm: string,
     name: string,
   ): Promise<RaiderIoGuildLeaderboardEntry[]> {
-    const mains = await this.prisma.character.findMany({
-      where: { isMain: true },
+    const characters = await this.prisma.character.findMany({
       select: {
         id: true,
         name: true,
@@ -205,8 +204,8 @@ export class RaiderioService {
 
     const leaderboard: RaiderIoGuildLeaderboardEntry[] = [];
 
-    for (let i = 0; i < mains.length; i += 5) {
-      const chunk = mains.slice(i, i + 5);
+    for (let i = 0; i < characters.length; i += 5) {
+      const chunk = characters.slice(i, i + 5);
 
       const chunkEntries = await Promise.all(
         chunk.map(async (character) => {

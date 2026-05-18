@@ -50,8 +50,14 @@ export class CharactersController {
 
   @Get(':id/vault-progress')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Retourne la progression Great Vault (Raid Blizzard + M+ Raider.IO)' })
-  @ApiResponse({ status: 200, description: 'Progression Great Vault recuperee.' })
+  @ApiOperation({
+    summary:
+      'Retourne la progression Great Vault (Raid Blizzard + M+ Raider.IO)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Progression Great Vault recuperee.',
+  })
   @ApiResponse({ status: 403, description: 'Acces non autorise.' })
   @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
   async getVaultProgress(
@@ -85,7 +91,8 @@ export class CharactersController {
         totalKilledBosses: raidProgress.totalKilledBosses,
         raidName: raidProgress.raidName,
       },
-      mythicPlusWeeklyRuns: rioProfile?.mythic_plus_weekly_highest_level_runs ?? [],
+      mythicPlusWeeklyRuns:
+        rioProfile?.mythic_plus_weekly_highest_level_runs ?? [],
       world: {
         delvesTier8Completed: 0,
       },
@@ -145,7 +152,9 @@ export class CharactersController {
     description: 'Liste des personnages detectes et non encore synchronises.',
   })
   @ApiResponse({ status: 401, description: 'Non authentifie.' })
-  async detectNewCharacters(@Req() req: { user: { userId?: string; id?: string } }) {
+  async detectNewCharacters(
+    @Req() req: { user: { userId?: string; id?: string } },
+  ) {
     const userId = req.user.userId ?? req.user.id;
 
     if (!userId) {
@@ -226,7 +235,8 @@ export class CharactersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AppRole.ADMIN)
   @ApiOperation({
-    summary: 'Synchronise les métiers de tous les personnages de tous les comptes',
+    summary:
+      'Synchronise les métiers de tous les personnages de tous les comptes',
   })
   @ApiResponse({
     status: 200,
@@ -267,8 +277,13 @@ export class CharactersController {
 
   @Get('user/:userId/all-for-shared-config')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Retourne tous les personnages du joueur pour config partagee' })
-  @ApiResponse({ status: 200, description: 'Liste complete des personnages du joueur.' })
+  @ApiOperation({
+    summary: 'Retourne tous les personnages du joueur pour config partagee',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste complete des personnages du joueur.',
+  })
   @ApiResponse({ status: 403, description: 'Acces non autorise.' })
   getAllByUserIdForSharedConfig(
     @Param('userId') userId: string,
@@ -285,7 +300,9 @@ export class CharactersController {
 
   @Patch('shared-profiles')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Affecte les personnages aux profils partages du compte' })
+  @ApiOperation({
+    summary: 'Affecte les personnages aux profils partages du compte',
+  })
   @ApiResponse({ status: 200, description: 'Affectations mises a jour.' })
   assignSharedProfiles(
     @Req() req: { user: { userId: string } },
@@ -320,9 +337,13 @@ export class CharactersController {
   }
 
   @Patch(':id/roster')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Definit ce personnage comme personnage roster personnel' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN, AppRole.OFFICER)
+  @ApiOperation({
+    summary: 'Definit ce personnage comme personnage roster personnel',
+  })
   @ApiResponse({ status: 200, description: 'Personnage roster mis a jour.' })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
   @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
   setRosterCharacter(
     @Param('id') id: string,
@@ -374,7 +395,11 @@ export class CharactersController {
     @Req() req: { user: { userId: string } },
     @Headers('x-shared-profile') sharedProfile: string | undefined,
   ) {
-    return this.charactersService.setMainCharacter(req.user.userId, id, sharedProfile);
+    return this.charactersService.setMainCharacter(
+      req.user.userId,
+      id,
+      sharedProfile,
+    );
   }
 
   @Delete(':id')
@@ -409,5 +434,4 @@ export class CharactersController {
       .replace(/\s+/g, ' ')
       .trim();
   }
-}
 }
