@@ -4,9 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import {
   useGetMyCharacters,
-  useSyncCharacter,
-  useSetMainCharacter,
-  useGetRaiderIoProfile,
   useGetAllEvents as useGetEvents,
   useGetEvent,
   useGetPolls,
@@ -14,7 +11,6 @@ import {
   useUpsertAttendance,
   type AttendanceStatus,
   type EventAttendance,
-  type RaiderIoProfile,
 } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,8 +20,9 @@ import { WowIcon } from '@/components/ui/WowIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { classIcons, roleIcons } from '@/lib/wowData';
 import type { GameRole } from '@/types/character';
-import { CharacterDetailPanel } from '@/components/characters/CharacterDetailPanel';
+import { GuildCharacterSheet } from '@/components/characters/GuildCharacterSheet';
 import { SyncMissingCharactersModal } from '@/components/characters/SyncMissingCharactersModal';
+import { getClassColorStyle } from '@/lib/wowColors';
 
 // Mapping des badges pour les rôles
 const roleConfig: Record<GameRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -91,25 +88,7 @@ const formatUpcomingEventDate = (value: string): string => {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 };
 
-const TWW_RAID_PRIORITY_SLUGS = [
-  'liberation-of-undermine',
-  'nerubar-palace',
-];
-
-const getRaidProgressSummary = (rioData: RaiderIoProfile): string => {
-  for (const slug of TWW_RAID_PRIORITY_SLUGS) {
-    const summary = rioData.raid_progression?.[slug]?.summary;
-    if (summary) {
-      return summary;
-    }
-  }
-
-  const firstAvailableSummary = Object.values(rioData.raid_progression ?? {}).find(
-    (value) => value?.summary,
-  )?.summary;
-
-  return firstAvailableSummary || '0/8 N';
-};
+// Deleted TWW_RAID_PRIORITY_SLUGS
 
 // Skeleton Loader
 function CharactersTableSkeleton() {
@@ -139,12 +118,9 @@ export function DashboardPage() {
   const { data: polls } = useGetPolls();
   const votePollMutation = useVotePoll();
   const upsertAttendance = useUpsertAttendance();
-  const syncCharacterMutation = useSyncCharacter(user?.userId);
-  const setMainMutation = useSetMainCharacter(user?.userId);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'events' | 'polls' | 'sync'>('events');
   const [quickAttendanceStatus, setQuickAttendanceStatus] = useState<AttendanceStatus>('TENTATIVE');
-  const [quickAttendanceCharacterId, setQuickAttendanceCharacterId] = useState('');
   const [selectedPollOptionIds, setSelectedPollOptionIds] = useState<string[]>([]);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
@@ -152,6 +128,10 @@ export function DashboardPage() {
   if (error) {
     console.error('❌ Erreur API:', error);
   }
+
+  const rosterCharacter = useMemo(() => {
+    return characters?.find((char) => char.inRoster) ?? null;
+  }, [characters]);
 
   const charactersSorted = useMemo(() => {
     return characters?.sort((a, b) => {
@@ -177,10 +157,15 @@ export function DashboardPage() {
     );
   }, [characters]);
 
-  const raiderIoCharacterId = selectedCharacterId ?? mainCharacter?.id;
-  const { data: rioData, isLoading: rioLoading } = useGetRaiderIoProfile(
-    raiderIoCharacterId,
-  );
+  const mains = useMemo(() => {
+    return charactersSorted.filter((char) => char.isMain);
+  }, [charactersSorted]);
+
+  const alts = useMemo(() => {
+    return charactersSorted.filter((char) => !char.isMain);
+  }, [charactersSorted]);
+
+  // Deleted RaiderIo query
 
   const nextEvent = useMemo(() => {
     if (!events || events.length === 0) {
@@ -255,9 +240,7 @@ export function DashboardPage() {
   const isRegisteredToNextEvent =
     !!myNextEventAttendance && myNextEventAttendance.status !== 'DECLINED';
 
-  const quickRequiresCharacter = quickAttendanceStatus !== 'DECLINED';
-  const canQuickRegister =
-    !!nextEvent?.id && (!quickRequiresCharacter || !!quickAttendanceCharacterId);
+  const canQuickRegister = !!nextEvent?.id;
 
   const selectedCharacter = useMemo(() => {
     if (selectedCharacterId) {
@@ -267,30 +250,15 @@ export function DashboardPage() {
     return mainCharacter;
   }, [charactersSorted, selectedCharacterId, mainCharacter]);
 
-  useEffect(() => {
-    if (!selectedCharacterId && mainCharacter?.id) {
-      setSelectedCharacterId(mainCharacter.id);
-      return;
-    }
 
-    if (
-      selectedCharacterId &&
-      charactersSorted.length > 0 &&
-      !charactersSorted.some((character) => character.id === selectedCharacterId)
-    ) {
-      setSelectedCharacterId(mainCharacter?.id ?? null);
-    }
-  }, [charactersSorted, mainCharacter?.id, selectedCharacterId]);
 
   useEffect(() => {
     if (myNextEventAttendance) {
       setQuickAttendanceStatus(myNextEventAttendance.status);
-      setQuickAttendanceCharacterId(myNextEventAttendance.characterId ?? '');
       return;
     }
 
     setQuickAttendanceStatus('TENTATIVE');
-    setQuickAttendanceCharacterId(mainCharacter?.id ?? '');
   }, [myNextEventAttendance, mainCharacter?.id]);
 
   useEffect(() => {
@@ -323,18 +291,18 @@ export function DashboardPage() {
       <div className="container mx-auto p-4 md:p-8 space-y-6">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
           <div className="space-y-6">
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 md:p-6">
-              <p className="mb-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <div className="rounded-xl border border-border bg-card p-4 md:p-6 text-card-foreground">
+              <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Centre d&apos;Action
               </p>
 
-              <div className="mb-4 flex gap-2 border-b border-slate-800 pb-2">
+              <div className="mb-4 flex gap-2 border-b border-border pb-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('events')}
                   className={activeTab === 'events'
-                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
-                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                    ? 'rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary'
+                    : 'px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'}
                 >
                   Evenements
                 </button>
@@ -343,13 +311,13 @@ export function DashboardPage() {
                   type="button"
                   onClick={() => setActiveTab('polls')}
                   className={activeTab === 'polls'
-                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
-                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                    ? 'rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary'
+                    : 'px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'}
                 >
                   <span className="inline-flex items-center gap-2">
                     Sondages
                     {activePoll && !hasVotedActivePoll ? (
-                      <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                      <span className="h-2 w-2 rounded-full bg-destructive" aria-hidden="true" />
                     ) : null}
                   </span>
                 </button>
@@ -358,8 +326,8 @@ export function DashboardPage() {
                   type="button"
                   onClick={() => setActiveTab('sync')}
                   className={activeTab === 'sync'
-                    ? 'rounded-md bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-500'
-                    : 'px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200'}
+                    ? 'rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary'
+                    : 'px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'}
                 >
                   Synchronisation
                 </button>
@@ -367,15 +335,15 @@ export function DashboardPage() {
 
               {activeTab === 'events' ? (
                 !nextEvent ? (
-                  <p className="text-slate-400">
+                  <p className="text-muted-foreground">
                     Aucun evenement de guilde prevu prochainement. Quartier libre !
                   </p>
                 ) : (
                   <>
-                    <h2 className="text-lg font-bold text-slate-100">
+                    <h2 className="text-lg font-bold text-foreground">
                       {nextEvent.title}
                     </h2>
-                    <p className="mb-4 mt-1 text-sm text-slate-300">
+                    <p className="mb-4 mt-1 text-sm text-muted-foreground">
                       {formatUpcomingEventDate(nextEvent.eventDate)}
                     </p>
 
@@ -391,83 +359,85 @@ export function DashboardPage() {
                       </div>
                     )}
 
-                    <form
-                      className="space-y-3"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        if (!nextEvent?.id || !canQuickRegister) {
-                          return;
-                        }
+                    {rosterCharacter ? (
+                      <form
+                        className="space-y-3"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (!nextEvent?.id || !canQuickRegister) {
+                            return;
+                          }
 
-                        upsertAttendance.mutate({
-                          eventId: nextEvent.id,
-                          status: quickAttendanceStatus,
-                          characterId: quickAttendanceStatus === 'DECLINED' ? undefined : (quickAttendanceCharacterId || undefined),
-                        });
-                      }}
-                    >
-                      <div className="grid grid-cols-2 gap-2">
-                        {QUICK_STATUS_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setQuickAttendanceStatus(option.value)}
-                            className={quickAttendanceStatus === option.value
-                              ? 'rounded-md border border-amber-500/40 bg-amber-500/15 px-2.5 py-2 text-xs font-semibold text-amber-300'
-                              : 'rounded-md border border-slate-700 bg-slate-800 px-2.5 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700'}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
+                          upsertAttendance.mutate({
+                            eventId: nextEvent.id,
+                            status: quickAttendanceStatus,
+                          });
+                        }}
+                      >
+                        <div className="mb-2 flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2">
+                          <WowIcon name={classIcons[rosterCharacter.class] || 'inv_misc_questionmark'} size={18} />
+                          <span className="text-sm font-medium text-foreground">
+                            {rosterCharacter.name}
+                          </span>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {Math.round(rosterCharacter.ilvl)} iLvl
+                          </span>
+                        </div>
 
-                      {quickRequiresCharacter ? (
-                        <select
-                          value={quickAttendanceCharacterId}
-                          onChange={(event) => setQuickAttendanceCharacterId(event.target.value)}
-                          className="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none transition-colors focus:border-amber-500"
-                        >
-                          <option value="">Choisir un personnage</option>
-                          {charactersSorted.map((character) => (
-                            <option key={character.id} value={character.id}>
-                              {character.name} - {character.class} ({Math.round(character.ilvl)} iLvl)
-                            </option>
+                        <div className="grid grid-cols-2 gap-2">
+                          {QUICK_STATUS_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setQuickAttendanceStatus(option.value)}
+                              className={quickAttendanceStatus === option.value
+                                ? 'rounded-md border border-primary/40 bg-primary/10 px-2.5 py-2 text-xs font-semibold text-primary'
+                                : 'rounded-md border border-border bg-muted px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground'}
+                            >
+                              {option.label}
+                            </button>
                           ))}
-                        </select>
-                      ) : null}
+                        </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="submit"
-                          disabled={!canQuickRegister || upsertAttendance.isPending}
-                          className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {upsertAttendance.isPending ? 'Inscription...' : 'S\'inscrire'}
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="submit"
+                            disabled={!canQuickRegister || upsertAttendance.isPending}
+                            className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {upsertAttendance.isPending ? 'Inscription...' : 'S\'inscrire'}
+                          </button>
 
-                        <Link
-                          to={`/events/${nextEvent.id}`}
-                          className="inline-flex items-center rounded-md border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
-                        >
-                          Ouvrir le detail
-                        </Link>
-                      </div>
+                          <Link
+                            to={`/events/${nextEvent.id}`}
+                            className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                          >
+                            Ouvrir le detail
+                          </Link>
+                        </div>
 
-                      {upsertAttendance.isSuccess ? (
-                        <p className="text-xs text-emerald-300">Inscription mise a jour.</p>
-                      ) : null}
-                    </form>
+                        {upsertAttendance.isSuccess ? (
+                          <p className="text-xs text-emerald-300">Inscription mise a jour.</p>
+                        ) : null}
+                      </form>
+                    ) : (
+                      !isLoading ? (
+                        <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                          Vous devez faire partie du roster pour vous inscrire à un évènement.
+                        </div>
+                      ) : null
+                    )}
                   </>
                 )
               ) : null}
 
               {activeTab === 'polls' ? (
                 !activePoll ? (
-                  <p className="text-slate-400">Aucun sondage en cours.</p>
+                  <p className="text-muted-foreground">Aucun sondage en cours.</p>
                 ) : (
                   <div>
-                    <h2 className="text-lg font-bold text-slate-100">{activePoll.question}</h2>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <h2 className="text-lg font-bold text-foreground">{activePoll.question}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {activePoll.allowMultipleSelections ? 'Réponses multiples autorisées' : 'Réponse unique'}
                     </p>
 
@@ -508,8 +478,8 @@ export function DashboardPage() {
                             }}
                             disabled={votePollMutation.isPending}
                             className={isSelected
-                              ? 'mb-2 w-full rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-300'
-                              : 'mb-2 w-full rounded bg-slate-800 px-3 py-2 text-left text-sm hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60'}
+                              ? 'mb-2 w-full rounded border border-primary/40 bg-primary/10 px-3 py-2 text-left text-sm text-primary font-medium'
+                              : 'mb-2 w-full rounded bg-muted px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60'}
                           >
                             {option.text}
                           </button>
@@ -519,23 +489,23 @@ export function DashboardPage() {
                       <button
                         type="submit"
                         disabled={!canSubmitPollVote}
-                        className="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {votePollMutation.isPending ? 'Vote en cours...' : 'Voter'}
                       </button>
                     </form>
 
                     {hasVotedActivePoll ? (
-                      <div className="mt-4 space-y-2 text-sm text-slate-300">
+                      <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                         <p>
                           Vous avez vote pour :{' '}
-                          <span className="font-semibold text-slate-100">
+                          <span className="font-semibold text-foreground">
                             {myPollVotes.map((vote) => vote.option.text).join(', ') || 'Option inconnue'}
                           </span>
                         </p>
                         <p>
                           Option en tete :{' '}
-                          <span className="font-semibold text-amber-400">
+                          <span className="font-semibold text-primary">
                             {pollLeader?.option.text || 'Aucune'}
                           </span>
                           {pollLeader ? ` (${pollLeader.count} vote${pollLeader.count > 1 ? 's' : ''})` : ''}
@@ -547,11 +517,11 @@ export function DashboardPage() {
               ) : null}
 
               {activeTab === 'sync' ? (
-                <div className="space-y-4 rounded-lg border border-slate-700/80 bg-slate-800/30 p-4 text-sm text-slate-300">
+                <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Gestion du roster</p>
-                    <h2 className="mt-1 text-lg font-semibold text-slate-100">Synchronisation manuelle</h2>
-                    <p className="mt-1 text-slate-400">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Gestion du roster</p>
+                    <h2 className="mt-1 text-lg font-semibold text-foreground">Synchronisation manuelle</h2>
+                    <p className="mt-1 text-muted-foreground">
                       Recherchez les personnages de votre compte Battle.net presents dans la guilde
                       The Good Place qui ne sont pas encore importes sur le site.
                     </p>
@@ -560,7 +530,7 @@ export function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setSyncModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+                    className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     <Search className="h-4 w-4" />
                     Chercher de nouveaux personnages
@@ -593,57 +563,9 @@ export function DashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {selectedCharacter ? (
-                    <>
-                      <div className="rounded-xl border border-border/60 bg-card/20 p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {selectedCharacter.isMain ? (
-                            <Badge className="border border-yellow-500/30 bg-yellow-500/15 text-yellow-300">
-                              Main
-                            </Badge>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setMainMutation.mutate(selectedCharacter.id)}
-                              disabled={setMainMutation.isPending}
-                              className="rounded-md border border-border/70 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Définir Main
-                            </button>
-                          )}
-
-                          <div className="ml-auto flex flex-wrap items-center gap-2">
-                            <span className="inline-flex bg-amber-600/20 text-amber-500 px-2 py-1 rounded text-sm font-semibold">
-                              iLvl {Math.round(selectedCharacter.ilvl)}
-                            </span>
-
-                            {rioLoading ? (
-                              <Skeleton className="h-7 w-24 rounded bg-slate-800/50" />
-                            ) : rioData ? (
-                              <>
-                                <span
-                                  className="inline-flex bg-slate-800/80 border border-slate-700 text-slate-200 px-2 py-1 rounded text-sm font-semibold items-center gap-1.5"
-                                  title="Score Mythique+"
-                                >
-                                  ⚔️ {rioData.mythic_plus_scores_by_season?.[0]?.scores?.all || 0}
-                                </span>
-                                <span
-                                  className="inline-flex bg-slate-800/80 border border-slate-700 text-slate-200 px-2 py-1 rounded text-sm font-semibold items-center gap-1.5"
-                                  title="Progression Raid"
-                                >
-                                  👑 {getRaidProgressSummary(rioData)}
-                                </span>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      <CharacterDetailPanel
-                        data={selectedCharacter}
-                        onSyncCharacter={() => syncCharacterMutation.mutate(selectedCharacter.id)}
-                        isSyncing={syncCharacterMutation.isPending}
-                      />
-                    </>
+                    <div className="glass rounded-2xl border border-white/10 overflow-hidden shadow-2xl animate-fade-in-up">
+                      <GuildCharacterSheet data={selectedCharacter} />
+                    </div>
                   ) : (
                     <Alert className="border-dashed border-border/50 bg-card/50">
                       <AlertCircle className="h-4 w-4" />
@@ -658,12 +580,12 @@ export function DashboardPage() {
 
           </div>
 
-          <aside className="rounded-xl border border-border/60 bg-card/30 p-3 md:p-4 xl:sticky xl:top-0 xl:self-start xl:flex xl:h-[calc(100vh-2rem)] xl:flex-col">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <aside className="rounded-xl border border-white/10 bg-black/40 p-3 md:p-4 xl:sticky xl:top-4 xl:self-start xl:flex xl:h-[calc(100vh-3rem)] xl:flex-col backdrop-blur-md shadow-xl w-full">
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/5 pb-2">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
                 Mes personnages
               </h3>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-white font-bold">
                 {charactersSorted.length}
               </Badge>
             </div>
@@ -677,61 +599,170 @@ export function DashboardPage() {
             ) : charactersSorted.length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucun personnage synchronisé.</p>
             ) : (
-              <div className="scrollbar-guild mt-1 space-y-2 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1">
-                {charactersSorted.map((character) => {
-                  const isActive = selectedCharacter?.id === character.id;
+              <div className="scrollbar-guild mt-1 space-y-4 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1">
+                {mains.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] uppercase font-black text-amber-500/70 tracking-widest pl-1">
+                      Personnage Principal
+                    </div>
+                    {mains.map((character) => {
+                      const isActive = selectedCharacter?.id === character.id;
+                      const classColor = getClassColorStyle(character.class).color || 'var(--color-primary)';
 
-                  return (
-                    <button
-                      key={character.id}
-                      type="button"
-                      onClick={() => setSelectedCharacterId(character.id)}
-                      className={`w-full rounded-lg border p-3 text-left transition-all ${
-                        isActive
-                          ? 'border-primary/50 bg-primary/10 shadow-sm'
-                          : 'border-border/70 bg-background/50 hover:border-primary/30 hover:bg-background/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 ring-1 ring-border/80">
-                          <AvatarImage src={character.avatarUrl || undefined} alt={`Avatar de ${character.name}`} />
-                          <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                            {getCharacterInitials(character.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                      return (
+                        <button
+                          key={character.id}
+                          type="button"
+                          onClick={() => setSelectedCharacterId(character.id)}
+                          className={`relative w-full rounded-xl border p-3 text-left transition-all duration-300 overflow-hidden ${isActive
+                              ? 'border-primary/40 shadow-lg shadow-black/50 glow-gold'
+                              : 'border-white/5 hover:border-white/20 hover:bg-white/5'
+                            }`}
+                          style={{
+                            background: isActive
+                              ? `linear-gradient(90deg, ${classColor}15 0%, rgba(20, 20, 30, 0.9) 100%)`
+                              : 'rgba(0, 0, 0, 0.25)'
+                          }}
+                        >
+                          {isActive && (
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-1 rounded-r-md"
+                              style={{ backgroundColor: classColor }}
+                            />
+                          )}
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">
-                            {character.name}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {character.realm || 'Royaume inconnu'}
-                          </p>
-                        </div>
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              className="h-10 w-10 ring-1 transition-all duration-300"
+                              style={{
+                                borderColor: isActive ? classColor : 'rgba(255,255,255,0.1)',
+                                boxShadow: isActive ? `0 0 10px ${classColor}50` : 'none'
+                              }}
+                            >
+                              <AvatarImage src={character.avatarUrl || undefined} alt={`Avatar de ${character.name}`} />
+                              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                {getCharacterInitials(character.name)}
+                              </AvatarFallback>
+                            </Avatar>
 
-                        <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
-                          {Math.round(character.ilvl)}
-                        </span>
-                      </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-extrabold tracking-wide uppercase transition-colors" style={{ color: classColor }}>
+                                {character.name}
+                              </p>
+                              <p className="truncate text-[10px] uppercase font-bold text-slate-400">
+                                {character.realm || 'Royaume inconnu'}
+                              </p>
+                            </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[11px] text-muted-foreground">
-                          <WowIcon name={classIcons[character.class] || 'inv_misc_questionmark'} size={14} />
-                          {character.class}
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[11px] text-muted-foreground">
-                          <WowIcon name={roleIcons[character.gameRole] || 'inv_misc_questionmark'} size={14} />
-                          {roleConfig[character.gameRole]?.label || character.gameRole}
-                        </span>
-                        {character.isMain ? (
-                          <Badge className="border border-yellow-500/30 bg-yellow-500/15 text-[11px] text-yellow-300">
-                            Main
-                          </Badge>
-                        ) : null}
-                      </div>
-                    </button>
-                  );
-                })}
+                            <span
+                              className="rounded-lg border px-2 py-0.5 text-xs font-black shadow-inner"
+                              style={{
+                                borderColor: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
+                                color: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                                backgroundColor: isActive ? 'rgba(212, 164, 74, 0.1)' : 'rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              {Math.round(character.ilvl)}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                              <WowIcon name={classIcons[character.class] || 'inv_misc_questionmark'} size={12} />
+                              {character.class}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                              <WowIcon name={roleIcons[character.gameRole] || 'inv_misc_questionmark'} size={12} />
+                              {roleConfig[character.gameRole]?.label || character.gameRole}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {alts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] uppercase font-black text-slate-400/80 tracking-widest pl-1">
+                      Personnages Secondaires
+                    </div>
+                    {alts.map((character) => {
+                      const isActive = selectedCharacter?.id === character.id;
+                      const classColor = getClassColorStyle(character.class).color || 'var(--color-primary)';
+
+                      return (
+                        <button
+                          key={character.id}
+                          type="button"
+                          onClick={() => setSelectedCharacterId(character.id)}
+                          className={`relative w-full rounded-xl border p-3 text-left transition-all duration-300 overflow-hidden ${isActive
+                              ? 'border-primary/40 shadow-lg shadow-black/50 glow-gold'
+                              : 'border-white/5 hover:border-white/20 hover:bg-white/5'
+                            }`}
+                          style={{
+                            background: isActive
+                              ? `linear-gradient(90deg, ${classColor}15 0%, rgba(20, 20, 30, 0.9) 100%)`
+                              : 'rgba(0, 0, 0, 0.25)'
+                          }}
+                        >
+                          {isActive && (
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-1 rounded-r-md"
+                              style={{ backgroundColor: classColor }}
+                            />
+                          )}
+
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              className="h-10 w-10 ring-1 transition-all duration-300"
+                              style={{
+                                borderColor: isActive ? classColor : 'rgba(255,255,255,0.1)',
+                                boxShadow: isActive ? `0 0 10px ${classColor}50` : 'none'
+                              }}
+                            >
+                              <AvatarImage src={character.avatarUrl || undefined} alt={`Avatar de ${character.name}`} />
+                              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                {getCharacterInitials(character.name)}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-extrabold tracking-wide uppercase transition-colors" style={{ color: classColor }}>
+                                {character.name}
+                              </p>
+                              <p className="truncate text-[10px] uppercase font-bold text-slate-400">
+                                {character.realm || 'Royaume inconnu'}
+                              </p>
+                            </div>
+
+                            <span
+                              className="rounded-lg border px-2 py-0.5 text-xs font-black shadow-inner"
+                              style={{
+                                borderColor: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
+                                color: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                                backgroundColor: isActive ? 'rgba(212, 164, 74, 0.1)' : 'rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              {Math.round(character.ilvl)}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                              <WowIcon name={classIcons[character.class] || 'inv_misc_questionmark'} size={12} />
+                              {character.class}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-md border border-white/5 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                              <WowIcon name={roleIcons[character.gameRole] || 'inv_misc_questionmark'} size={12} />
+                              {roleConfig[character.gameRole]?.label || character.gameRole}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </aside>

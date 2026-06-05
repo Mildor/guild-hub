@@ -12,15 +12,23 @@ export class PollsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private formatOptions(options: string[]) {
-    const cleaned = options.map((option) => option.trim()).filter((option) => option.length > 0);
-    const deduplicated = Array.from(new Set(cleaned.map((option) => option.toLowerCase())));
+    const cleaned = options
+      .map((option) => option.trim())
+      .filter((option) => option.length > 0);
+    const deduplicated = Array.from(
+      new Set(cleaned.map((option) => option.toLowerCase())),
+    );
 
     if (cleaned.length < 2) {
-      throw new BadRequestException('Un sondage doit contenir au moins 2 options.');
+      throw new BadRequestException(
+        'Un sondage doit contenir au moins 2 options.',
+      );
     }
 
     if (cleaned.length > 5) {
-      throw new BadRequestException('Un sondage ne peut pas contenir plus de 5 options.');
+      throw new BadRequestException(
+        'Un sondage ne peut pas contenir plus de 5 options.',
+      );
     }
 
     if (deduplicated.length !== cleaned.length) {
@@ -112,14 +120,20 @@ export class PollsService {
   }
 
   private normalizeVoteOptions(optionIds: string[]) {
-    const cleaned = optionIds.map((optionId) => optionId.trim()).filter((optionId) => optionId.length > 0);
+    const cleaned = optionIds
+      .map((optionId) => optionId.trim())
+      .filter((optionId) => optionId.length > 0);
 
     if (cleaned.length < 1) {
-      throw new BadRequestException('Au moins une option doit etre selectionnee.');
+      throw new BadRequestException(
+        'Au moins une option doit etre selectionnee.',
+      );
     }
 
     if (new Set(cleaned).size !== cleaned.length) {
-      throw new BadRequestException('Les options selectionnees doivent etre uniques.');
+      throw new BadRequestException(
+        'Les options selectionnees doivent etre uniques.',
+      );
     }
 
     return cleaned;
@@ -152,11 +166,15 @@ export class PollsService {
     }
 
     if (!poll.allowMultipleSelections && selectedOptionIds.length !== 1) {
-      throw new BadRequestException('Ce sondage n autorise qu une seule reponse.');
+      throw new BadRequestException(
+        'Ce sondage n autorise qu une seule reponse.',
+      );
     }
 
     const pollOptionIds = new Set(poll.options.map((option) => option.id));
-    const invalidOptionIds = selectedOptionIds.filter((optionId) => !pollOptionIds.has(optionId));
+    const invalidOptionIds = selectedOptionIds.filter(
+      (optionId) => !pollOptionIds.has(optionId),
+    );
 
     if (invalidOptionIds.length > 0) {
       throw new BadRequestException('Option invalide pour ce sondage.');
@@ -184,8 +202,12 @@ export class PollsService {
           },
         });
 
-        const existingOptionIds = new Set(existingVotes.map((vote: { optionId: string }) => vote.optionId));
-        const optionIdsToCreate = selectedOptionIds.filter((selectedOptionId) => !existingOptionIds.has(selectedOptionId));
+        const existingOptionIds = new Set(
+          existingVotes.map((vote: { optionId: string }) => vote.optionId),
+        );
+        const optionIdsToCreate = selectedOptionIds.filter(
+          (selectedOptionId) => !existingOptionIds.has(selectedOptionId),
+        );
 
         if (optionIdsToCreate.length > 0) {
           await tx.pollVote.createMany({
@@ -288,10 +310,14 @@ export class PollsService {
     }
 
     const hasOptionsUpdate = Array.isArray(dto.options);
-    const options = hasOptionsUpdate ? this.formatOptions(dto.options ?? []) : null;
+    const options = hasOptionsUpdate
+      ? this.formatOptions(dto.options ?? [])
+      : null;
     const shouldResetVotes =
       hasOptionsUpdate ||
-      (dto.allowMultipleSelections !== undefined && dto.allowMultipleSelections === false && existing.allowMultipleSelections);
+      (dto.allowMultipleSelections !== undefined &&
+        dto.allowMultipleSelections === false &&
+        existing.allowMultipleSelections);
 
     const result = await db.$transaction(async (tx: any) => {
       if (shouldResetVotes) {
@@ -305,7 +331,9 @@ export class PollsService {
       return tx.poll.update({
         where: { id: pollId },
         data: {
-          ...(dto.question !== undefined ? { question: dto.question.trim() } : {}),
+          ...(dto.question !== undefined
+            ? { question: dto.question.trim() }
+            : {}),
           ...(dto.description !== undefined
             ? { description: dto.description?.trim() || null }
             : {}),

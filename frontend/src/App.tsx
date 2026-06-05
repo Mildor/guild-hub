@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { ThemeProvider } from "@/context/ThemeProvider";
 import { useAuthStore } from "@/store/authStore";
 import { useGetMe } from "@/api/queries";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -12,6 +13,8 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { EventDetailPage } from "@/pages/EventDetailPage";
 import { RosterPage } from "@/pages/RosterPage";
+import { GuildMembersPage } from "@/pages/GuildMembersPage";
+import { WclPerformancesPage } from "@/pages/WclPerformancesPage";
 import { GuildLinkPage } from "@/pages/GuildLinkPage";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { OverviewSection } from "@/pages/admin/sections/OverviewSection";
@@ -23,6 +26,8 @@ import { EventsSection } from "@/pages/admin/sections/EventsSection";
 import { PollsSection } from "@/pages/admin/sections/PollsSection";
 import { StrategiesSection } from "@/pages/admin/sections/StrategiesSection";
 import { WclAttendanceSection } from "@/pages/admin/sections/WclAttendanceSection";
+import { ModulesSection } from "@/pages/admin/sections/ModulesSection";
+import { ModuleGuard } from "@/components/ModuleGuard";
 
 import { StrategiesPage } from "@/pages/StrategiesPage";
 import { PollsPage } from "@/pages/PollsPage";
@@ -127,50 +132,130 @@ function AppContent() {
 
                     <Route element={<DashboardLayout />}>
                         <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/calendar" element={<CalendarPage />} />
+                        <Route
+                            path="/calendar"
+                            element={
+                                <ModuleGuard moduleCode="calendar">
+                                    <CalendarPage />
+                                </ModuleGuard>
+                            }
+                        />
                         <Route
                             path="/events/:id"
-                            element={<EventDetailPage />}
+                            element={
+                                <ModuleGuard moduleCode="calendar">
+                                    <EventDetailPage />
+                                </ModuleGuard>
+                            }
                         />
-                        <Route path="/roster" element={<RosterPage />} />
-                        <Route path="/guild-link" element={<GuildLinkPage />} />
-                        <Route path="/vault" element={<VaultPage />} />
+                        <Route
+                            path="/roster"
+                            element={
+                                <ModuleGuard moduleCode="roster">
+                                    <RosterPage />
+                                </ModuleGuard>
+                            }
+                        />
+                        <Route
+                            path="/members"
+                            element={
+                                <ModuleGuard moduleCode="members">
+                                    <GuildMembersPage />
+                                </ModuleGuard>
+                            }
+                        />
+                        <Route
+                            path="/guild-link"
+                            element={
+                                <ModuleGuard moduleCode="guild-link">
+                                    <GuildLinkPage />
+                                </ModuleGuard>
+                            }
+                        />
+                        <Route
+                            path="/performances"
+                            element={
+                                <ModuleGuard moduleCode="performances">
+                                    <WclPerformancesPage />
+                                </ModuleGuard>
+                            }
+                        />
+                        <Route
+                            path="/vault"
+                            element={
+                                <ModuleGuard moduleCode="vault">
+                                    <VaultPage />
+                                </ModuleGuard>
+                            }
+                        />
                         <Route path="/token" element={<TokenPage />} />
                         <Route
                             path="/crafter-hub"
-                            element={<CrafterHubPage />}
+                            element={
+                                <ModuleGuard moduleCode="crafter-hub">
+                                    <CrafterHubPage />
+                                </ModuleGuard>
+                            }
                         />
                         <Route
                             path="/polls"
                             element={
-                                <RoleGuard
-                                    allowedRoles={[
-                                        AppRole.MEMBER,
-                                        AppRole.OFFICER,
-                                        AppRole.ADMIN,
-                                    ]}
-                                    fallback={
-                                        <Navigate to="/dashboard" replace />
-                                    }
-                                >
-                                    <PollsPage />
-                                </RoleGuard>
+                                <ModuleGuard moduleCode="polls">
+                                    <RoleGuard
+                                        allowedRoles={[
+                                            AppRole.MEMBER,
+                                            AppRole.OFFICER,
+                                            AppRole.ADMIN,
+                                        ]}
+                                        fallback={
+                                            <Navigate to="/dashboard" replace />
+                                        }
+                                    >
+                                        <PollsPage />
+                                    </RoleGuard>
+                                </ModuleGuard>
                             }
                         />
                         <Route
                             path="/strategies"
-                            element={<StrategiesPage />}
+                            element={
+                                <ModuleGuard moduleCode="strategies">
+                                    <StrategiesPage />
+                                </ModuleGuard>
+                            }
                         />
                         <Route
                             path="/strategies/:id"
-                            element={<StrategiesPage />}
+                            element={
+                                <ModuleGuard moduleCode="strategies">
+                                    <StrategiesPage />
+                                </ModuleGuard>
+                            }
                         />
                         <Route path="/admin" element={<AdminLayout />}>
-                            <Route index element={<OverviewSection />} />
-                            <Route path="users" element={<UsersSection />} />
+                            <Route
+                                index
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <OverviewSection />
+                                    </RoleGuard>
+                                }
+                            />
+                            <Route
+                                path="users"
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <UsersSection />
+                                    </RoleGuard>
+                                }
+                            />
                             <Route
                                 path="failed-logins"
-                                element={<FailedLoginsSection />}
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <FailedLoginsSection />
+                                    </RoleGuard>
+                                }
                             />
                             <Route
                                 path="unlinked-members"
@@ -178,17 +263,51 @@ function AppContent() {
                             />
                             <Route
                                 path="characters"
-                                element={<CharactersSection />}
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <CharactersSection />
+                                    </RoleGuard>
+                                }
                             />
-                            <Route path="events" element={<EventsSection />} />
-                            <Route path="polls" element={<PollsSection />} />
+                            <Route
+                                path="events"
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <EventsSection />
+                                    </RoleGuard>
+                                }
+                            />
+                            <Route
+                                path="polls"
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <PollsSection />
+                                    </RoleGuard>
+                                }
+                            />
                             <Route
                                 path="strategies"
-                                element={<StrategiesSection />}
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <StrategiesSection />
+                                    </RoleGuard>
+                                }
                             />
                             <Route
                                 path="wcl-attendance"
-                                element={<WclAttendanceSection />}
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <WclAttendanceSection />
+                                    </RoleGuard>
+                                }
+                            />
+                            <Route
+                                path="modules"
+                                element={
+                                    <RoleGuard allowedRoles={[AppRole.ADMIN]} fallback={<Navigate to="/admin/unlinked-members" replace />}>
+                                        <ModulesSection />
+                                    </RoleGuard>
+                                }
                             />
                         </Route>
                     </Route>
@@ -201,7 +320,9 @@ function AppContent() {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <AppContent />
+            <ThemeProvider>
+                <AppContent />
+            </ThemeProvider>
         </QueryClientProvider>
     );
 }

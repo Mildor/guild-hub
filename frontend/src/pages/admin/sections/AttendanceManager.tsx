@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useGetEvent, useGetRoster, useUpsertAttendance } from "@/api/queries";
+import { useGetEvent, useGetRoster, useUpsertAttendance, useToggleBench } from "@/api/queries";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +11,7 @@ import {
     Search,
     UserCheck,
     UserPlus,
+    Ban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getClassColorClass } from "@/lib/wowColors";
@@ -28,6 +29,7 @@ export function AttendanceManager({
     const { data: event, isLoading: isEventLoading } = useGetEvent(eventId);
     const { data: roster = [], isLoading: isRosterLoading } = useGetRoster();
     const upsertMutation = useUpsertAttendance();
+    const toggleBenchMutation = useToggleBench();
     const [search, setSearch] = useState("");
 
     const isLoading = isEventLoading || isRosterLoading;
@@ -162,6 +164,16 @@ export function AttendanceManager({
                                         Non répondu
                                     </Badge>
                                 )}
+                                {member.inRoster && (!member.attendanceStatus || member.attendanceStatus === 'TENTATIVE') && (
+                                    <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-[10px]">
+                                        Non Inscrit
+                                    </Badge>
+                                )}
+                                {member.inBench && (
+                                    <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-[10px]">
+                                        Sur le Banc
+                                    </Badge>
+                                )}
                             </div>
                         </div>
 
@@ -204,6 +216,25 @@ export function AttendanceManager({
                                 );
                             })}
                         </div>
+
+                        {(!member.inBench && (!member.attendanceStatus || member.attendanceStatus === 'DECLINED' || member.attendanceStatus === 'TENTATIVE')) && (
+                            <div className="mt-3 flex justify-end">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-[10px] text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border-amber-500/30 uppercase font-bold"
+                                    disabled={toggleBenchMutation.isPending}
+                                    onClick={() => {
+                                        if (window.confirm(`Voulez-vous vraiment sortir ${member.name} du roster pour le mettre sur le banc suite à cette absence/incertitude ?`)) {
+                                            toggleBenchMutation.mutate({ id: member.id, inBench: true });
+                                        }
+                                    }}
+                                >
+                                    <Ban className="w-3 h-3 mr-1" />
+                                    Mettre au banc
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

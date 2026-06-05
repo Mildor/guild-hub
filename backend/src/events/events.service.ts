@@ -79,7 +79,7 @@ export class EventsService {
     console.log('📅 createEvent - Parsed to:', parsedDate);
     console.log('📅 createEvent - Server NOW:', new Date());
     console.log('📅 createEvent - Is future?', parsedDate > new Date());
-    
+
     const event = await this.prisma.event.create({
       data: {
         title: data.title,
@@ -88,11 +88,13 @@ export class EventsService {
         createdById: userId,
       },
     });
-    
+
     console.log('✅ Event created:', event);
 
     if (data.autoInviteRoster) {
-      const roster = await this.prisma.character.findMany({ where: { inRoster: true } });
+      const roster = await this.prisma.character.findMany({
+        where: { inRoster: true },
+      });
 
       const uniqueByUserAndProfile = new Map(
         roster.map((char) => [
@@ -100,7 +102,9 @@ export class EventsService {
           char,
         ]),
       );
-      const attendancesToCreate = Array.from(uniqueByUserAndProfile.values()).map((char) => ({
+      const attendancesToCreate = Array.from(
+        uniqueByUserAndProfile.values(),
+      ).map((char) => ({
         eventId: event.id,
         userId: char.userId,
         sharedProfile: char.sharedProfile ?? SharedProfile.A,
@@ -133,8 +137,11 @@ export class EventsService {
   async findUpcoming() {
     const now = new Date();
     console.log('🔍 findUpcoming - Server time NOW:', now);
-    console.log('🔍 findUpcoming - Server timezone offset:', new Date().getTimezoneOffset());
-    
+    console.log(
+      '🔍 findUpcoming - Server timezone offset:',
+      new Date().getTimezoneOffset(),
+    );
+
     // TEMPORAIRE: Test avec findAll() au lieu de filter
     const events = await this.prisma.event.findMany({
       include: {
@@ -147,12 +154,14 @@ export class EventsService {
       },
       orderBy: { eventDate: 'asc' },
     });
-    
+
     console.log('🔍 findUpcoming - All events found:', events.length);
-    events.forEach(e => {
-      console.log(`  - ${e.title} at ${e.eventDate} (diff from now: ${e.eventDate.getTime() - now.getTime()}ms)`);
+    events.forEach((e) => {
+      console.log(
+        `  - ${e.title} at ${e.eventDate} (diff from now: ${e.eventDate.getTime() - now.getTime()}ms)`,
+      );
     });
-    
+
     return events;
   }
 

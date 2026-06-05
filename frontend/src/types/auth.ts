@@ -10,6 +10,7 @@ export interface User {
   battletag?: string;
   appRole: AppRole;
   isSharedAccount?: boolean;
+  theme?: string;
 }
 
 export type SharedProfile = 'A' | 'B' | 'C' | 'D' | 'E';

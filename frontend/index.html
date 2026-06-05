@@ -1,16 +1,35 @@
 <!doctype html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Good Place</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- Wowhead Tooltip Script - loaded after React to avoid event interference -->
-    <script>const whTooltips = {colorLinks: true, iconizeLinks: false, renameLinks: false, domain: 'fr'};</script>
-    <script src="https://wow.zamimg.com/widgets/power.js" async></script>
-  </body>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Good Place</title>
+  <script>
+    (function () {
+      try {
+        var savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme !== 'light') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <!-- Wowhead Tooltip Script - loaded after React to avoid event interference -->
+  <script>const whTooltips = { colorLinks: true, iconizeLinks: false, renameLinks: false, domain: 'fr' };</script>
+  <script src="https://wow.zamimg.com/widgets/power.js" async></script>
+</body>
+
 </html>

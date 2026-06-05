@@ -20,6 +20,24 @@ export enum GameRole {
     DPS = "DPS",
 }
 
+export interface WclPerformance {
+    id: string;
+    characterId: string;
+    encounterId: number;
+    keyLevel: number;
+    bestRank: number;
+    rankRegion?: number;
+    amount?: number;
+    parsePercent?: number;
+    ilvlParsePercent?: number;
+    reportCode?: string | null;
+    fightId?: number | null;
+    date?: string | null;
+    reportUrl: string;
+    metric?: string;
+    lastSyncedAt: string;
+}
+
 export interface EquipmentItem {
     slot: {
         type: string;
@@ -61,6 +79,8 @@ export interface Character {
     ilvl: number;
     isMain: boolean;
     inRoster: boolean;
+    inBench: boolean;
+    statusReason?: string | null;
     sharedProfile?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
     guildRank?: number | null;
     lastSyncAt: string;
@@ -76,4 +96,7 @@ export interface Character {
 
     // Équipement
     equipment?: EquipmentItem[] | null;
+    
+    // WCL Performances
+    wclPerformances?: WclPerformance[];
 }

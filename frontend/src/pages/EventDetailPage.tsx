@@ -19,7 +19,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { classIcons } from "@/lib/wowData";
 import {
@@ -29,6 +28,7 @@ import {
 } from "@/lib/wowColors";
 import { useAuthStore } from "@/store/authStore";
 import { GameRole } from "@/types/character";
+import { CharacterSheetModal } from "@/components/characters/CharacterSheetModal";
 
 const STATUS_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
     { value: "ACCEPTED", label: "Présent" },
@@ -88,41 +88,43 @@ function RosterGroup({
                                     className="rounded-lg border border-border/60 bg-background/60 px-3 py-2"
                                 >
                                     {character ? (
-                                        <div className="flex items-center gap-3">
-                                            <WowIcon
-                                                name={
-                                                    classIcons[
-                                                        character.class
-                                                    ] ?? "inv_misc_questionmark"
-                                                }
-                                                size={28}
-                                                className="shrink-0"
-                                            />
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold truncate">
-                                                    {character.name}
-                                                    <span className="text-muted-foreground">
-                                                        {" "}
+                                        <CharacterSheetModal character={character as any}>
+                                            <button type="button" className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity">
+                                                <WowIcon
+                                                    name={
+                                                        classIcons[
+                                                            character.class
+                                                        ] ?? "inv_misc_questionmark"
+                                                    }
+                                                    size={28}
+                                                    className="shrink-0"
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold truncate">
+                                                        {character.name}
+                                                        <span className="text-muted-foreground">
+                                                            {" "}
+                                                            -{" "}
+                                                            {
+                                                                attendance.user
+                                                                    .battletag
+                                                            }
+                                                        </span>
+                                                    </p>
+                                                    <p
+                                                        className={`text-xs truncate ${getClassColorClass(character.class)}`}
+                                                    >
+                                                        {character.class}{" "}
+                                                        {character.activeSpec
+                                                            ? `(${character.activeSpec})`
+                                                            : ""}{" "}
                                                         -{" "}
-                                                        {
-                                                            attendance.user
-                                                                .battletag
-                                                        }
-                                                    </span>
-                                                </p>
-                                                <p
-                                                    className={`text-xs truncate ${getClassColorClass(character.class)}`}
-                                                >
-                                                    {character.class}{" "}
-                                                    {character.activeSpec
-                                                        ? `(${character.activeSpec})`
-                                                        : ""}{" "}
-                                                    -{" "}
-                                                    {Math.round(character.ilvl)}{" "}
-                                                    iLvl
-                                                </p>
-                                            </div>
-                                        </div>
+                                                        {Math.round(character.ilvl)}{" "}
+                                                        iLvl
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        </CharacterSheetModal>
                                     ) : (
                                         <div>
                                             <p className="text-sm font-medium">
@@ -175,6 +177,11 @@ export function EventDetailPage() {
         useGetMyCharacters(authUser?.userId, activeSharedProfile);
     const upsertAttendance = useUpsertAttendance();
 
+    const rosterCharacter = useMemo(
+        () => myCharacters?.find((char) => char.inRoster) ?? null,
+        [myCharacters]
+    );
+
     const myAttendance = useMemo(
         () =>
             event?.attendances.find(
@@ -192,18 +199,15 @@ export function EventDetailPage() {
     );
 
     const [status, setStatus] = useState<AttendanceStatus>("TENTATIVE");
-    const [characterId, setCharacterId] = useState("");
     const [managedUserId, setManagedUserId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!myAttendance) {
             setStatus("TENTATIVE");
-            setCharacterId("");
             return;
         }
 
         setStatus(myAttendance.status);
-        setCharacterId(myAttendance.characterId ?? "");
     }, [myAttendance]);
 
     const accepted = useMemo(
@@ -242,7 +246,7 @@ export function EventDetailPage() {
         [event?.attendances],
     );
 
-    const canSubmit = !!id && !!characterId;
+    const canSubmit = !!id;
     const canManageOthers =
         authUser?.appRole === AppRole.ADMIN ||
         authUser?.appRole === AppRole.OFFICER;
@@ -423,45 +427,47 @@ export function EventDetailPage() {
                                             >
                                                 <div className="min-w-0 flex-1">
                                                     {attendance.character ? (
-                                                        <>
-                                                            <p className="text-sm truncate font-medium">
-                                                                {
-                                                                    attendance
-                                                                        .character
-                                                                        .name
-                                                                }
-                                                                <span className="text-muted-foreground">
-                                                                    {" "}
-                                                                    -{" "}
+                                                        <CharacterSheetModal character={attendance.character as any}>
+                                                            <button type="button" className="text-left hover:opacity-80 transition-opacity">
+                                                                <p className="text-sm truncate font-medium">
                                                                     {
                                                                         attendance
-                                                                            .user
-                                                                            .battletag
+                                                                            .character
+                                                                            .name
                                                                     }
-                                                                </span>
-                                                            </p>
-                                                            <p
-                                                                className={`text-xs truncate ${getClassColorClass(attendance.character.class)}`}
-                                                            >
-                                                                {
-                                                                    attendance
+                                                                    <span className="text-muted-foreground">
+                                                                        {" "}
+                                                                        -{" "}
+                                                                        {
+                                                                            attendance
+                                                                                .user
+                                                                                .battletag
+                                                                        }
+                                                                    </span>
+                                                                </p>
+                                                                <p
+                                                                    className={`text-xs truncate ${getClassColorClass(attendance.character.class)}`}
+                                                                >
+                                                                    {
+                                                                        attendance
+                                                                            .character
+                                                                            .class
+                                                                    }
+                                                                    {attendance
                                                                         .character
-                                                                        .class
-                                                                }
-                                                                {attendance
-                                                                    .character
-                                                                    .activeSpec
-                                                                    ? ` (${attendance.character.activeSpec})`
-                                                                    : ""}{" "}
-                                                                -{" "}
-                                                                {Math.round(
-                                                                    attendance
-                                                                        .character
-                                                                        .ilvl,
-                                                                )}{" "}
-                                                                iLvl
-                                                            </p>
-                                                        </>
+                                                                        .activeSpec
+                                                                        ? ` (${attendance.character.activeSpec})`
+                                                                        : ""}{" "}
+                                                                    -{" "}
+                                                                    {Math.round(
+                                                                        attendance
+                                                                            .character
+                                                                            .ilvl,
+                                                                    )}{" "}
+                                                                    iLvl
+                                                                </p>
+                                                            </button>
+                                                        </CharacterSheetModal>
                                                     ) : (
                                                         <>
                                                             <p className="text-sm truncate font-medium">
@@ -542,6 +548,11 @@ export function EventDetailPage() {
                             </CardHeader>
 
                             <CardContent>
+                                {!rosterCharacter && !isCharactersLoading ? (
+                                    <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive text-center font-medium">
+                                        Vous devez faire partie du roster pour vous inscrire à cet évènement.
+                                    </div>
+                                ) : (
                                 <form
                                     className="space-y-4"
                                     onSubmit={(e) => {
@@ -551,8 +562,6 @@ export function EventDetailPage() {
                                         upsertAttendance.mutate({
                                             eventId: id,
                                             status,
-                                            characterId:
-                                                characterId || undefined,
                                         });
                                     }}
                                 >
@@ -581,39 +590,32 @@ export function EventDetailPage() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-medium">
-                                            Personnage
-                                        </p>
-                                        <Select
-                                            value={characterId}
-                                            onChange={(eventChange) =>
-                                                setCharacterId(
-                                                    eventChange.target.value,
-                                                )
-                                            }
-                                            disabled={isCharactersLoading}
-                                        >
-                                            <option value="">
-                                                Choisir un personnage
-                                            </option>
-                                            {(myCharacters ?? []).map(
-                                                (character) => (
-                                                    <option
-                                                        key={character.id}
-                                                        value={character.id}
-                                                    >
-                                                        {character.name} -{" "}
-                                                        {character.class} (
-                                                        {Math.round(
-                                                            character.ilvl,
-                                                        )}{" "}
-                                                        iLvl)
-                                                    </option>
-                                                ),
-                                            )}
-                                        </Select>
-                                    </div>
+                                    {rosterCharacter && (
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium">
+                                                Personnage du Roster
+                                            </p>
+                                            <div className="flex items-center gap-3 rounded-md border border-border/60 bg-background/50 px-3 py-2">
+                                                <WowIcon
+                                                    name={
+                                                        classIcons[
+                                                            rosterCharacter.class
+                                                        ] ?? "inv_misc_questionmark"
+                                                    }
+                                                    size={24}
+                                                    className="shrink-0"
+                                                />
+                                                <div>
+                                                    <p className="text-sm font-medium">
+                                                        {rosterCharacter.name}
+                                                    </p>
+                                                    <p className={`text-xs ${getClassColorClass(rosterCharacter.class)}`}>
+                                                        {rosterCharacter.class} ({Math.round(rosterCharacter.ilvl)} iLvl)
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <Button
                                         type="submit"
@@ -641,6 +643,7 @@ export function EventDetailPage() {
                                         </p>
                                     ) : null}
                                 </form>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

@@ -24,28 +24,21 @@ export class AttendancesService {
         sharedProfileHeader,
       );
 
-    const normalizedCharacterId = characterId ?? null;
+    const hasRosterCharacter = await this.prisma.character.findFirst({
+      where: {
+        userId,
+        inRoster: true,
+        ...(isSharedAccount ? { sharedProfile: profile } : {}),
+      },
+    });
 
-    if (normalizedCharacterId) {
-      const character = await this.prisma.character.findUnique({
-        where: { id: normalizedCharacterId },
-        select: {
-          id: true,
-          userId: true,
-          sharedProfile: true,
-        },
-      });
-
-      if (!character || character.userId !== userId) {
-        throw new NotFoundException('Personnage introuvable pour ce compte.');
-      }
-
-      if (isSharedAccount && character.sharedProfile !== profile) {
-        throw new BadRequestException(
-          'Le personnage selectionne n appartient pas au profil actif.',
-        );
-      }
+    if (!hasRosterCharacter) {
+      throw new BadRequestException(
+        "Vous devez faire partie du roster pour vous inscrire à un évènement.",
+      );
     }
+
+    const normalizedCharacterId = hasRosterCharacter.id;
 
     return this.prisma.attendance.upsert({
       where: {

@@ -55,7 +55,9 @@ export class EncryptionService {
     const [ivHex, authTagHex, encryptedHex] = cipherText.split(':');
 
     if (!ivHex || !authTagHex || !encryptedHex) {
-      throw new InternalServerErrorException('Invalid encrypted payload format.');
+      throw new InternalServerErrorException(
+        'Invalid encrypted payload format.',
+      );
     }
 
     const decipher = createDecipheriv(

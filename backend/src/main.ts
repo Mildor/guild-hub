@@ -11,10 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Servir les fichiers statiques depuis public/uploads
-  app.use(
-    '/uploads',
-    express.static(join(process.cwd(), 'public', 'uploads')),
-  );
+  app.use('/uploads', express.static(join(process.cwd(), 'public', 'uploads')));
 
   app.use(cookieParser());
 

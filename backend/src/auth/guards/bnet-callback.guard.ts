@@ -154,7 +154,9 @@ export class BnetCallbackGuard extends AuthGuard('bnet') {
     return {
       path: request.originalUrl,
       info:
-        typeof info === 'string' || typeof info === 'number' || typeof info === 'boolean'
+        typeof info === 'string' ||
+        typeof info === 'number' ||
+        typeof info === 'boolean'
           ? info
           : undefined,
       query: request.query,

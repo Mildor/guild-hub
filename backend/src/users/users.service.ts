@@ -78,6 +78,18 @@ export class UsersService {
     return this.prisma.user.update({ where: { id }, data: dto });
   }
 
+  async updatePreferences(id: string, theme: string) {
+    await this.findOne(id);
+    return this.prisma.user.update({
+      where: { id },
+      data: { theme },
+      select: {
+        id: true,
+        theme: true,
+      },
+    });
+  }
+
   async getMySharedAccountConfig(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -293,7 +305,10 @@ export class UsersService {
     );
   }
 
-  private normalizeProfileName(name: string, fallbackCode: SharedProfile): string {
+  private normalizeProfileName(
+    name: string,
+    fallbackCode: SharedProfile,
+  ): string {
     const normalized = name.trim();
 
     if (!normalized) {
@@ -301,7 +316,9 @@ export class UsersService {
     }
 
     if (normalized.length > 32) {
-      throw new BadRequestException('Le nom du profil ne peut pas depasser 32 caracteres.');
+      throw new BadRequestException(
+        'Le nom du profil ne peut pas depasser 32 caracteres.',
+      );
     }
 
     return normalized;

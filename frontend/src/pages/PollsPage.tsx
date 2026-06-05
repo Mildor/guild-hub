@@ -122,12 +122,12 @@ export function PollsPage() {
   };
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-100">
+    <div className="min-h-full bg-background text-foreground">
       <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-8">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Sondages de Guilde</h1>
-            <p className="mt-2 text-slate-400">
+            <p className="mt-2 text-muted-foreground">
               Votez pour les decisions de guilde. Les officiers peuvent creer et fermer les sondages.
             </p>
           </div>
@@ -139,7 +139,7 @@ export function PollsPage() {
                 setShowCreateForm((value) => !value);
                 setFormError(null);
               }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/60 bg-amber-500/15 px-4 py-2.5 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/25 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 sm:w-auto"
             >
               <Plus className="h-4 w-4" />
               {showCreateForm ? 'Fermer le formulaire' : 'Nouveau sondage'}
@@ -150,13 +150,13 @@ export function PollsPage() {
         {isOfficerOrAdmin && showCreateForm && (
           <form
             onSubmit={handleCreatePoll}
-            className="mb-8 rounded-xl border border-slate-800 bg-slate-900 p-4 md:p-6"
+            className="mb-8 rounded-xl border border-border bg-card p-4 md:p-6"
           >
             <h2 className="mb-4 text-lg font-semibold">Creer un sondage</h2>
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="poll-question" className="mb-2 block text-sm font-medium text-slate-300">
+                <label htmlFor="poll-question" className="mb-2 block text-sm font-medium text-muted-foreground">
                   Question
                 </label>
                 <input
@@ -164,7 +164,7 @@ export function PollsPage() {
                   type="text"
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition-colors focus:border-amber-500"
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
                   placeholder="Ex: Quel soir pour le prochain raid HM ?"
                   maxLength={250}
                   required
@@ -172,21 +172,21 @@ export function PollsPage() {
               </div>
 
               <div>
-                <label htmlFor="poll-description" className="mb-2 block text-sm font-medium text-slate-300">
+                <label htmlFor="poll-description" className="mb-2 block text-sm font-medium text-muted-foreground">
                   Description (optionnelle)
                 </label>
                 <textarea
                   id="poll-description"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  className="h-24 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition-colors focus:border-amber-500"
+                  className="h-24 w-full resize-y rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
                   placeholder="Contexte du sondage"
                   maxLength={2000}
                 />
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-300">Options (2 a 5)</p>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">Options (2 a 5)</p>
                 <div className="space-y-2">
                   {options.map((option, index) => (
                     <input
@@ -198,7 +198,7 @@ export function PollsPage() {
                         next[index] = event.target.value;
                         setOptions(next);
                       }}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition-colors focus:border-amber-500"
+                      className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none transition-colors focus:border-primary"
                       placeholder={`Option ${index + 1}`}
                       maxLength={120}
                     />
@@ -210,7 +210,7 @@ export function PollsPage() {
                     type="button"
                     disabled={options.length >= MAX_OPTIONS}
                     onClick={() => setOptions((prev) => [...prev, ''])}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Ajouter une option
                   </button>
@@ -219,18 +219,18 @@ export function PollsPage() {
                     type="button"
                     disabled={options.length <= 2}
                     onClick={() => setOptions((prev) => prev.slice(0, -1))}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Retirer la derniere option
                   </button>
                 </div>
 
-                <label className="mt-4 flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-300">
+                <label className="mt-4 flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={allowMultipleSelections}
                     onChange={(event) => setAllowMultipleSelections(event.target.checked)}
-                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-amber-500 focus:ring-amber-500"
+                    className="h-4 w-4 rounded border-input bg-muted text-primary focus:ring-ring"
                   />
                   Autoriser plusieurs réponses
                 </label>
@@ -247,7 +247,7 @@ export function PollsPage() {
               <button
                 type="submit"
                 disabled={!canCreate}
-                className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
               >
                 {createPoll.isPending ? 'Creation...' : 'Creer le sondage'}
               </button>
@@ -257,7 +257,7 @@ export function PollsPage() {
                   setShowCreateForm(false);
                   resetForm();
                 }}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-slate-700 md:w-auto"
+                className="w-full rounded-lg border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent md:w-auto"
               >
                 Annuler
               </button>
@@ -266,10 +266,10 @@ export function PollsPage() {
         )}
 
         <div className="space-y-4">
-          {isLoading && <p className="text-slate-400">Chargement des sondages...</p>}
+          {isLoading && <p className="text-muted-foreground">Chargement des sondages...</p>}
 
           {!isLoading && (!polls || polls.length === 0) && (
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+            <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
               Aucun sondage pour le moment.
             </div>
           )}
@@ -286,29 +286,28 @@ export function PollsPage() {
             return (
               <article
                 key={poll.id}
-                className="rounded-xl border border-slate-800 bg-slate-900 p-4 md:p-6"
+                className="rounded-xl border border-border bg-card p-4 md:p-6"
               >
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-100 md:text-xl">{poll.question}</h2>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <h2 className="text-lg font-semibold text-foreground md:text-xl">{poll.question}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {poll.allowMultipleSelections ? 'Réponses multiples autorisées' : 'Réponse unique'}
                     </p>
                     {poll.description && (
-                      <p className="mt-2 whitespace-pre-wrap text-slate-400 break-words">{poll.description}</p>
+                      <p className="mt-2 whitespace-pre-wrap text-muted-foreground break-words">{poll.description}</p>
                     )}
-                    <p className="mt-3 text-xs text-slate-500">
+                    <p className="mt-3 text-xs text-muted-foreground">
                       Cree par {poll.createdBy?.battletag || 'Inconnu'} · {new Date(poll.createdAt).toLocaleString('fr-FR')}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        poll.isActive
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${poll.isActive
                           ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                          : 'border border-slate-600 bg-slate-800 text-slate-300'
-                      }`}
+                          : 'border border-border bg-muted text-muted-foreground'
+                        }`}
                     >
                       {poll.isActive ? 'Ouvert' : 'Ferme'}
                     </span>
@@ -317,7 +316,7 @@ export function PollsPage() {
                       <button
                         type="button"
                         onClick={() => handleToggle(poll.id)}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700"
+                        className="rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
                       >
                         {poll.isActive ? 'Fermer' : 'Ouvrir'}
                       </button>
@@ -329,7 +328,7 @@ export function PollsPage() {
                   <div className="space-y-3">
                     {poll.allowMultipleSelections ? (
                       <>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                           Sélectionnez une ou plusieurs réponses puis validez.
                         </p>
 
@@ -342,14 +341,13 @@ export function PollsPage() {
                               type="button"
                               disabled={votePoll.isPending}
                               onClick={() => handleToggleSelection(poll.id, option.id)}
-                              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                                isSelected
-                                  ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
-                                  : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
-                              }`}
+                              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${isSelected
+                                  ? 'border-primary/70 bg-primary/10 hover:bg-primary/20'
+                                  : 'border-border bg-muted hover:bg-accent hover:text-accent-foreground'
+                                }`}
                             >
                               <span>{option.text}</span>
-                              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 {isSelected ? <Check className="h-3.5 w-3.5" /> : <Vote className="h-3.5 w-3.5" />}
                                 {isSelected ? 'Sélectionnée' : 'Choisir'}
                               </span>
@@ -361,7 +359,7 @@ export function PollsPage() {
                           type="button"
                           disabled={selectedOptionIds.length === 0 || votePoll.isPending}
                           onClick={() => handleSubmitMultipleVote(poll.id, selectedOptionIds)}
-                          className="rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {votePoll.isPending ? 'Enregistrement...' : 'Valider mes réponses'}
                         </button>
@@ -376,14 +374,13 @@ export function PollsPage() {
                             type="button"
                             disabled={votePoll.isPending}
                             onClick={() => handleVote(poll.id, [option.id])}
-                            className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                              isUserChoice
-                                ? 'border-amber-500/70 bg-amber-500/10 hover:bg-amber-500/20'
-                                : 'border-slate-700 bg-slate-800 hover:bg-slate-700'
-                            }`}
+                            className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${isUserChoice
+                                ? 'border-primary/70 bg-primary/10 hover:bg-primary/20'
+                                : 'border-border bg-muted hover:bg-accent hover:text-accent-foreground'
+                              }`}
                           >
                             <span>{option.text}</span>
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Vote className="h-3.5 w-3.5" />
                               {isUserChoice ? 'Votre choix' : hasVoted ? 'Changer mon vote' : 'Voter'}
                             </span>
@@ -393,7 +390,7 @@ export function PollsPage() {
                     )}
 
                     {hasVoted && (
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         Vous pouvez changer votre vote tant que le sondage est ouvert.
                       </p>
                     )}
@@ -410,34 +407,33 @@ export function PollsPage() {
                       return (
                         <div
                           key={option.id}
-                          className={`rounded-lg border px-4 py-3 ${
-                            isUserChoice
-                              ? 'border-amber-500/70 bg-amber-500/10'
-                              : 'border-slate-700 bg-slate-800/60'
-                          }`}
+                          className={`rounded-lg border px-4 py-3 ${isUserChoice
+                              ? 'border-primary/70 bg-primary/10'
+                              : 'border-border bg-muted/60'
+                            }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-200">{option.text}</span>
-                            <span className="text-sm font-semibold text-slate-300">{percent}%</span>
+                            <span className="text-foreground">{option.text}</span>
+                            <span className="text-sm font-semibold text-foreground">{percent}%</span>
                           </div>
 
-                          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                            <div className="h-full bg-amber-500" style={{ width: `${percent}%` }} />
+                          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-background border border-border">
+                            <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
                           </div>
 
-                          <p className="mt-2 text-xs text-slate-500">{optionVotes} vote(s)</p>
+                          <p className="mt-2 text-xs text-muted-foreground">{optionVotes} vote(s)</p>
                         </div>
                       );
                     })}
 
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {poll.isActive ? <BarChart3 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                       <span>Total: {totalVotes} vote(s)</span>
                     </div>
 
                     {isOfficerOrAdmin && (
-                      <div className="mt-6 border-t border-slate-700 pt-4">
-                        <h3 className="mb-3 text-sm font-semibold text-slate-300">Détails des votes</h3>
+                      <div className="mt-6 border-t border-border pt-4">
+                        <h3 className="mb-3 text-sm font-semibold text-foreground">Détails des votes</h3>
                         <div className="space-y-3">
                           {poll.options.map((option) => {
                             const optionVoteDetails = poll.votes.filter(
@@ -446,16 +442,16 @@ export function PollsPage() {
 
                             return (
                               <div key={option.id}>
-                                <p className="mb-2 text-xs text-slate-400">{option.text}</p>
+                                <p className="mb-2 text-xs text-muted-foreground">{option.text}</p>
                                 {optionVoteDetails.length > 0 ? (
-                                  <ul className="space-y-1 rounded-lg bg-slate-950 p-2">
+                                  <ul className="space-y-1 rounded-lg bg-background border border-border p-2">
                                     {optionVoteDetails.map((vote) => (
                                       <li
                                         key={vote.id}
-                                        className="flex items-center justify-between text-xs text-slate-300"
+                                        className="flex items-center justify-between text-xs text-foreground"
                                       >
                                         <span>{vote.user.battletag}</span>
-                                        <span className="text-slate-500">{new Date(vote.updatedAt ?? vote.createdAt).toLocaleString('fr-FR', {
+                                        <span className="text-muted-foreground">{new Date(vote.updatedAt ?? vote.createdAt).toLocaleString('fr-FR', {
                                           month: '2-digit',
                                           day: '2-digit',
                                           hour: '2-digit',
@@ -465,7 +461,7 @@ export function PollsPage() {
                                     ))}
                                   </ul>
                                 ) : (
-                                  <p className="text-xs text-slate-500 italic">Aucun vote</p>
+                                  <p className="text-xs text-muted-foreground italic">Aucun vote</p>
                                 )}
                               </div>
                             );

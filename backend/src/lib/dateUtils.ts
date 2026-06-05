@@ -35,15 +35,14 @@ const getZonedParts = (date: Date, timeZone: string): ZonedParts => {
     hourCycle: 'h23',
   });
 
-  const parts = formatter.formatToParts(date).reduce<Record<string, string>>(
-    (acc, part) => {
+  const parts = formatter
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
       if (part.type !== 'literal') {
         acc[part.type] = part.value;
       }
       return acc;
-    },
-    {},
-  );
+    }, {});
 
   return {
     year: Number(parts.year),
@@ -79,7 +78,9 @@ const zonedLocalToUtcDate = (
   second: number,
   timeZone: string,
 ): Date => {
-  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const utcGuess = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second),
+  );
   const offset = getTimeZoneOffsetMs(utcGuess, timeZone);
   return new Date(utcGuess.getTime() - offset);
 };

@@ -23,6 +23,7 @@ import {
   useRenameMySharedProfile,
   useGetStrategies,
   useUpdateMySharedAccountConfig,
+  useGetModules,
 } from '@/api/queries';
 import { AppRole } from '@/types/auth';
 import type { SharedProfile } from '@/types/auth';
@@ -41,6 +42,7 @@ import { useGetWowToken } from '@/api/queries';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 
 const GUILD_REALM = 'archimonde';
 const GUILD_NAME = 'The Good Place';
@@ -90,6 +92,7 @@ export function DashboardLayout() {
   const { data: sharedConfigCharacters } = useGetAllMyCharactersForSharedConfig(user?.userId);
 
   const { data: strategies } = useGetStrategies();
+  const { data: modules } = useGetModules();
 
   const isOfficerOrAdmin =
     user?.appRole === AppRole.ADMIN || user?.appRole === AppRole.OFFICER;
@@ -138,7 +141,7 @@ export function DashboardLayout() {
       sharedProfiles.some((profile) => profile.code === activeSharedProfile);
 
     if (!activeProfileStillExists) {
-      setActiveSharedProfile(sharedProfiles[0].code);
+      setActiveSharedProfile(sharedProfiles[0]?.code ?? null);
     }
   }, [
     activeSharedProfile,
@@ -246,13 +249,15 @@ export function DashboardLayout() {
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Calendar, label: 'Calendrier', href: '/calendar' },
     { icon: Users, label: 'Roster', href: '/roster' },
+    { icon: Trophy, label: 'Classement & Progress', href: '/guild-link' },
+    { icon: Users, label: 'Membres', href: '/members' },
+    { icon: Trophy, label: 'Performances', href: '/performances' },
     { icon: Package, label: 'Great Vault', href: '/vault' },
     { icon: Search, label: 'Crafter Hub', href: '/crafter-hub' },
-    { icon: Trophy, label: 'Classement & Progress', href: '/guild-link' },
     ...(user?.appRole !== AppRole.GUEST
       ? [{ icon: BarChart3, label: 'Sondages', href: '/polls' }]
       : []),
-    ...(user?.appRole === 'ADMIN'
+    ...(isOfficerOrAdmin
       ? [{ icon: Shield, label: 'Administration', href: '/admin' }]
       : []),
   ];
@@ -272,93 +277,112 @@ export function DashboardLayout() {
 
   const guildProgressSummary = getGuildProgressSummary(guildProfile?.raid_progression);
 
+  const isModuleActive = (href: string) => {
+    if (!modules) return true;
+    const mapping: Record<string, string> = {
+      '/calendar': 'calendar',
+      '/roster': 'roster',
+      '/guild-link': 'guild-link',
+      '/members': 'members',
+      '/performances': 'performances',
+      '/vault': 'vault',
+      '/crafter-hub': 'crafter-hub',
+      '/polls': 'polls',
+    };
+    const code = mapping[href];
+    if (!code) return true;
+    const mod = modules.find((m) => m.code === code);
+    return mod ? mod.isActive : true;
+  };
+
+  const filteredNavItems = navItems.filter((item) => isModuleActive(item.href));
+  const isStrategiesActive = !modules || (modules.find((m) => m.code === 'strategies')?.isActive ?? true);
+
   const renderNavContent = (showLabels: boolean, onNavigate?: () => void) => (
     <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-      {navItems.map((item) => (
+      {filteredNavItems.map((item) => (
         <Link
           key={item.href}
           to={item.href}
           onClick={onNavigate}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
-            location.pathname === item.href
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${location.pathname === item.href
               ? 'bg-primary/15 text-primary'
               : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
-          }`}
+            }`}
         >
           <item.icon className="w-5 h-5 flex-shrink-0" />
           {showLabels && <span className="text-sm font-medium">{item.label}</span>}
         </Link>
       ))}
 
-      <div>
-        <button
-          onClick={() => setStrategiesExpanded(!expanded)}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${
-            isOnStrategies
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
-          }`}
-        >
-          <BookOpen className="w-5 h-5 flex-shrink-0" />
-          {showLabels && (
-            <>
-              <span className="text-sm font-medium flex-1 text-left">Stratégies</span>
-              <ChevronRight
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  expanded ? 'rotate-90' : ''
-                }`}
-              />
-            </>
-          )}
-        </button>
-
-        {showLabels && expanded && (
-          <div className="ml-4 mt-1 pl-4 border-l border-border/30 space-y-3 py-1">
-            {isOfficerOrAdmin && (
-              <Link
-                to="/strategies/new"
-                onClick={onNavigate}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 hover:bg-amber-600/10 rounded-md transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Nouvelle Stratégie
-              </Link>
+      {isStrategiesActive && (
+        <div>
+          <button
+            onClick={() => setStrategiesExpanded(!expanded)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group ${isOnStrategies
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
+              }`}
+          >
+            <BookOpen className="w-5 h-5 flex-shrink-0" />
+            {showLabels && (
+              <>
+                <span className="text-sm font-medium flex-1 text-left">Stratégies</span>
+                <ChevronRight
+                  className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-90' : ''
+                    }`}
+                />
+              </>
             )}
+          </button>
 
-            {Object.keys(groupedByRaid).length === 0 && (
-              <p className="text-xs text-muted-foreground/50 px-3 py-1">Aucune stratégie</p>
-            )}
+          {showLabels && expanded && (
+            <div className="ml-4 mt-1 pl-4 border-l border-border/30 space-y-3 py-1">
+              {isOfficerOrAdmin && (
+                <Link
+                  to="/strategies/new"
+                  onClick={onNavigate}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 hover:bg-amber-600/10 rounded-md transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nouvelle Stratégie
+                </Link>
+              )}
 
-            {Object.entries(groupedByRaid).map(([raidName, bosses]) => (
-              <div key={raidName}>
-                <p className="text-[10px] font-semibold text-amber-500/60 uppercase tracking-wider px-3 mb-1">
-                  {raidName}
-                </p>
-                <div className="space-y-0.5">
-                  {bosses.map((strat) => {
-                    const isActive = location.pathname === `/strategies/${strat.id}`;
-                    return (
-                      <Link
-                        key={strat.id}
-                        to={`/strategies/${strat.id}`}
-                        onClick={onNavigate}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
-                          isActive
-                            ? 'bg-amber-600/20 text-amber-400'
-                            : 'text-muted-foreground hover:bg-muted/50 hover:text-slate-200'
-                        }`}
-                      >
-                        <Swords className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{strat.bossName}</span>
-                      </Link>
-                    );
-                  })}
+              {Object.keys(groupedByRaid).length === 0 && (
+                <p className="text-xs text-muted-foreground/50 px-3 py-1">Aucune stratégie</p>
+              )}
+
+              {Object.entries(groupedByRaid).map(([raidName, bosses]) => (
+                <div key={raidName}>
+                  <p className="text-[10px] font-semibold text-amber-500/60 uppercase tracking-wider px-3 mb-1">
+                    {raidName}
+                  </p>
+                  <div className="space-y-0.5">
+                    {bosses.map((strat) => {
+                      const isActive = location.pathname === `/strategies/${strat.id}`;
+                      return (
+                        <Link
+                          key={strat.id}
+                          to={`/strategies/${strat.id}`}
+                          onClick={onNavigate}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${isActive
+                              ? 'bg-amber-600/20 text-amber-400'
+                              : 'text-muted-foreground hover:bg-muted/50 hover:text-slate-200'
+                            }`}
+                        >
+                          <Swords className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{strat.bossName}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 
@@ -366,9 +390,8 @@ export function DashboardLayout() {
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside
-        className={`hidden md:flex ${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-col`}
+        className={`hidden md:flex ${sidebarOpen ? 'w-64' : 'w-20'
+          } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-col`}
       >
         {/* Logo */}
         <div className="p-6 border-b border-border/50">
@@ -514,10 +537,14 @@ export function DashboardLayout() {
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-64">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium text-foreground">{user?.battletag}</p>
                   <p className="text-xs text-muted-foreground">{user?.appRole || 'Membre'}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <ThemeSwitcher />
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

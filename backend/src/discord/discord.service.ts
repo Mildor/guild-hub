@@ -30,7 +30,9 @@ export class DiscordService {
 
   async announceNewEvent(event: any, creator: any): Promise<void> {
     const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
-    const eventUrl = frontendUrl ? `${frontendUrl}/events/${event.id}` : undefined;
+    const eventUrl = frontendUrl
+      ? `${frontendUrl}/events/${event.id}`
+      : undefined;
 
     const payload = {
       embeds: [
@@ -66,7 +68,9 @@ export class DiscordService {
     reminderType: 'ONE_DAY' | 'THREE_HOURS',
   ): Promise<void> {
     const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
-    const eventUrl = frontendUrl ? `${frontendUrl}/events/${event.id}` : undefined;
+    const eventUrl = frontendUrl
+      ? `${frontendUrl}/events/${event.id}`
+      : undefined;
 
     const reminderLabel =
       reminderType === 'ONE_DAY' ? 'dans 24 heures' : 'dans 3 heures';

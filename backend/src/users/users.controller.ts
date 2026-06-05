@@ -21,6 +21,7 @@ import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateSharedAccountDto } from './dto/update-shared-account.dto';
 import { CreateSharedProfileDto } from './dto/create-shared-profile.dto';
 import { RenameSharedProfileDto } from './dto/rename-shared-profile.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -41,15 +42,23 @@ export class UsersController {
   }
 
   @Get('me/shared-account')
-  @ApiOperation({ summary: 'Retourne la configuration de compte partage du compte connecte' })
-  @ApiResponse({ status: 200, description: 'Configuration partagee retournee avec succes.' })
+  @ApiOperation({
+    summary: 'Retourne la configuration de compte partage du compte connecte',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Configuration partagee retournee avec succes.',
+  })
   getMySharedAccount(@Req() req: Request & { user: { userId: string } }) {
     return this.usersService.getMySharedAccountConfig(req.user.userId);
   }
 
   @Patch('me/shared-account')
   @ApiOperation({ summary: 'Active ou desactive le mode compte partage' })
-  @ApiResponse({ status: 200, description: 'Configuration partagee mise a jour.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Configuration partagee mise a jour.',
+  })
   updateMySharedAccount(
     @Req() req: Request & { user: { userId: string } },
     @Body() dto: UpdateSharedAccountDto,
@@ -60,6 +69,22 @@ export class UsersController {
     );
   }
 
+  @Patch('me/preferences')
+  @ApiOperation({ summary: 'Met a jour les preferences de theme de l’utilisateur' })
+  @ApiResponse({
+    status: 200,
+    description: 'Preferences mises a jour avec succes.',
+  })
+  updateMyPreferences(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    return this.usersService.updatePreferences(
+      req.user.userId,
+      dto.theme,
+    );
+  }
+
   @Patch('me/shared-account/profiles')
   @ApiOperation({ summary: 'Cree un nouveau profil partage (max 5)' })
   @ApiResponse({ status: 200, description: 'Profil partage cree avec succes.' })
@@ -67,18 +92,28 @@ export class UsersController {
     @Req() req: Request & { user: { userId: string } },
     @Body() dto: CreateSharedProfileDto,
   ) {
-    return this.usersService.createMySharedProfile(req.user.userId, dto.name ?? '');
+    return this.usersService.createMySharedProfile(
+      req.user.userId,
+      dto.name ?? '',
+    );
   }
 
   @Patch('me/shared-account/profiles/:code')
   @ApiOperation({ summary: 'Renomme un profil partage existant' })
-  @ApiResponse({ status: 200, description: 'Profil partage renomme avec succes.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profil partage renomme avec succes.',
+  })
   renameMySharedProfile(
     @Req() req: Request & { user: { userId: string } },
     @Param('code') code: SharedProfile,
     @Body() dto: RenameSharedProfileDto,
   ) {
-    return this.usersService.renameMySharedProfile(req.user.userId, code, dto.name);
+    return this.usersService.renameMySharedProfile(
+      req.user.userId,
+      code,
+      dto.name,
+    );
   }
 
   @Get(':id')

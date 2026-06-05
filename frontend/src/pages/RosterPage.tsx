@@ -7,6 +7,10 @@ import {
     useGetAllCharacters,
     useGetMyCharacters,
     useToggleRoster,
+    useToggleBench,
+    useSetRosterCharacter,
+    useSetBenchCharacter,
+    useLeaveRoster,
     type CharacterWithUser,
 } from "@/api/queries";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -17,8 +21,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getClassColorStyle } from "@/lib/wowColors";
+import { CharacterSheetModal } from "@/components/characters/CharacterSheetModal";
 
 const roleLabels: Record<GameRole, string> = {
     TANK: "Tanks",
@@ -28,22 +35,24 @@ const roleLabels: Record<GameRole, string> = {
 
 function CharacterCard({ character }: { character: CharacterWithUser }) {
     return (
-        <div className="rounded-lg border border-border/60 bg-card/70 p-4 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-base truncate">
-                    {character.name}
+        <CharacterSheetModal character={character}>
+            <button type="button" className="w-full text-left rounded-lg border border-border/60 bg-card/70 p-4 space-y-2 hover:bg-card/90 hover:border-primary/50 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-base truncate">
+                        {character.name}
+                    </p>
+                    <Badge variant="outline" className="font-semibold">
+                        iLvl {Math.round(character.ilvl)}
+                    </Badge>
+                </div>
+                <p className="text-sm" style={getClassColorStyle(character.class)}>
+                    {character.class}
                 </p>
-                <Badge variant="outline" className="font-semibold">
-                    iLvl {Math.round(character.ilvl)}
-                </Badge>
-            </div>
-            <p className="text-sm" style={getClassColorStyle(character.class)}>
-                {character.class}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-                {character.user?.battletag || "Inconnu"}
-            </p>
-        </div>
+                <p className="text-xs text-muted-foreground truncate">
+                    {character.user?.battletag || "Inconnu"}
+                </p>
+            </button>
+        </CharacterSheetModal>
     );
 }
 
@@ -58,13 +67,16 @@ function RosterCurrentTab() {
         };
 
         for (const character of roster ?? []) {
-            if (!character.inRoster) {
-                continue;
+            if (character.inRoster) {
+                base[character.gameRole].push(character);
             }
-            base[character.gameRole].push(character);
         }
 
         return base;
+    }, [roster]);
+
+    const benchCharacters = useMemo(() => {
+        return (roster ?? []).filter(c => c.inBench);
     }, [roster]);
 
     if (isLoading) {
@@ -78,6 +90,12 @@ function RosterCurrentTab() {
 
     return (
         <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-2">
+                <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-300">Roster Actuel</Badge>
+                <span className="text-sm text-muted-foreground font-medium">
+                    Tanks {groupedRoster.TANK.length}/2 | Healers {groupedRoster.HEALER.length}/4 | DPS {groupedRoster.DPS.length}/14
+                </span>
+            </div>
             {(Object.keys(roleLabels) as GameRole[]).map((role) => (
                 <Card key={role} className="bg-card/40 border-border/50">
                     <CardHeader>
@@ -106,6 +124,18 @@ function RosterCurrentTab() {
                     </CardContent>
                 </Card>
             ))}
+
+            {benchCharacters.length > 0 && (
+                <div className="pt-6 border-t border-border/40">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                        Banc de touche (Bench)
+                        <Badge variant="secondary">{benchCharacters.length}</Badge>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {benchCharacters.map(c => <CharacterCard key={c.id} character={c} />)}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -116,9 +146,10 @@ function RosterManagementTab() {
         user?.appRole === AppRole.ADMIN || user?.appRole === AppRole.OFFICER;
     const { data: allCharacters, isLoading } = useGetAllCharacters(canManage);
     const toggleRosterMutation = useToggleRoster(user?.userId);
+    const toggleBenchMutation = useToggleBench(user?.userId);
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState<"ALL" | GameRole>("ALL");
-    const [rosterFilter, setRosterFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
+    const [rosterFilter, setRosterFilter] = useState<"ALL" | "IN" | "OUT" | "BENCH">("ALL");
     const [conflictFilter, setConflictFilter] = useState<"ALL" | "ONLY">("ALL");
     const [sortBy, setSortBy] = useState<"BATTLETAG" | "ILVL_DESC" | "ILVL_ASC" | "NAME">("BATTLETAG");
     const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
@@ -164,9 +195,7 @@ function RosterManagementTab() {
             (character) => character.inRoster,
         ).length;
         const totalConflicts = usersWithCharacters.filter((entry) => {
-            const rosterCount = entry.characters.filter(
-                (character) => character.inRoster,
-            ).length;
+            const rosterCount = entry.characters.filter((c) => c.inRoster || c.inBench).length;
             return rosterCount !== 1;
         }).length;
 
@@ -197,6 +226,10 @@ function RosterManagementTab() {
                         return false;
                     }
 
+                    if (rosterFilter === "BENCH" && !character.inBench) {
+                        return false;
+                    }
+
                     if (!normalizedSearch) {
                         return true;
                     }
@@ -216,9 +249,7 @@ function RosterManagementTab() {
                 return {
                     ...entry,
                     filteredCharacters: characters,
-                    rosterCount: entry.characters.filter(
-                        (character) => character.inRoster,
-                    ).length,
+                    rosterCount: entry.characters.filter((c) => c.inRoster || c.inBench).length,
                 };
             })
             .filter((entry) => entry.filteredCharacters.length > 0)
@@ -332,13 +363,14 @@ function RosterManagementTab() {
                         value={rosterFilter}
                         onChange={(e) =>
                             setRosterFilter(
-                                e.target.value as "ALL" | "IN" | "OUT",
+                                e.target.value as "ALL" | "IN" | "OUT" | "BENCH",
                             )
                         }
                     >
                         <option value="ALL">Tout statut</option>
                         <option value="IN">Dans roster</option>
                         <option value="OUT">Hors roster</option>
+                        <option value="BENCH">En Bench</option>
                     </Select>
 
                     <Select
@@ -458,9 +490,12 @@ function RosterManagementTab() {
                                     <div className="space-y-2 border-t border-border/60 p-3">
                                         {entry.filteredCharacters.map((character) => {
                                             const isPending =
-                                                toggleRosterMutation.isPending &&
+                                                (toggleRosterMutation.isPending &&
                                                 toggleRosterMutation.variables?.id ===
-                                                    character.id;
+                                                    character.id) || 
+                                                (toggleBenchMutation.isPending && 
+                                                toggleBenchMutation.variables?.id === 
+                                                    character.id);
 
                                             return (
                                                 <div
@@ -469,9 +504,11 @@ function RosterManagementTab() {
                                                 >
                                                     <div className="space-y-1">
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="font-medium">
-                                                                {character.name}
-                                                            </p>
+                                                            <CharacterSheetModal character={character}>
+                                                                <button type="button" className="font-medium hover:underline text-left">
+                                                                    {character.name}
+                                                                </button>
+                                                            </CharacterSheetModal>
                                                             {character.isMain && (
                                                                 <Badge variant="outline">
                                                                     Main
@@ -481,6 +518,16 @@ function RosterManagementTab() {
                                                                 <Badge className="border border-emerald-500/30 bg-emerald-500/15 text-emerald-300">
                                                                     Roster
                                                                 </Badge>
+                                                            )}
+                                                            {character.inBench && (
+                                                                <Badge className="border border-amber-500/30 bg-amber-500/15 text-amber-300">
+                                                                    Bench
+                                                                </Badge>
+                                                            )}
+                                                            {character.statusReason && (
+                                                                <span className="text-xs italic text-muted-foreground ml-2">
+                                                                    Motif : {character.statusReason}
+                                                                </span>
                                                             )}
                                                         </div>
 
@@ -498,24 +545,45 @@ function RosterManagementTab() {
                                                         </p>
                                                     </div>
 
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs text-muted-foreground">
-                                                            Dans le roster
-                                                        </span>
-                                                        <Switch
-                                                            checked={character.inRoster}
-                                                            disabled={isPending}
-                                                            onChange={(e) => {
-                                                                toggleRosterMutation.mutate(
-                                                                    {
-                                                                        id: character.id,
-                                                                        inRoster:
-                                                                            e.target
-                                                                                .checked,
-                                                                    },
-                                                                );
-                                                            }}
-                                                        />
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-muted-foreground">
+                                                                Roster
+                                                            </span>
+                                                            <Switch
+                                                                checked={character.inRoster}
+                                                                disabled={isPending}
+                                                                onChange={(e) => {
+                                                                    toggleRosterMutation.mutate(
+                                                                        {
+                                                                            id: character.id,
+                                                                            inRoster:
+                                                                                e.target
+                                                                                    .checked,
+                                                                        },
+                                                                    );
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-muted-foreground">
+                                                                Bench
+                                                            </span>
+                                                            <Switch
+                                                                checked={character.inBench}
+                                                                disabled={isPending}
+                                                                onChange={(e) => {
+                                                                    toggleBenchMutation.mutate(
+                                                                        {
+                                                                            id: character.id,
+                                                                            inBench:
+                                                                                e.target
+                                                                                    .checked,
+                                                                        },
+                                                                    );
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -543,15 +611,28 @@ function PersonalRosterSelector() {
         user?.userId,
         activeSharedProfile,
     );
+    const { data: roster } = useGetRoster();
+
+    const setRosterMutation = useSetRosterCharacter(user?.userId);
+    const setBenchMutation = useSetBenchCharacter(user?.userId);
+    const leaveRosterMutation = useLeaveRoster(user?.userId);
+
+    const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+    const [rulesChecked, setRulesChecked] = useState({
+        rule1: false,
+        rule2: false,
+        rule3: false,
+    });
+    const [characterToJoin, setCharacterToJoin] = useState<string | null>(null);
+
+    const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+    const [reasonAction, setReasonAction] = useState<"BENCH" | "LEAVE" | null>(null);
+    const [reasonText, setReasonText] = useState("");
 
     const charactersSorted = useMemo(() => {
         return [...(myCharacters ?? [])].sort((a, b) => {
-            if (a.isMain !== b.isMain) {
-                return a.isMain ? -1 : 1;
-            }
-            if (a.ilvl !== b.ilvl) {
-                return b.ilvl - a.ilvl;
-            }
+            if (a.isMain !== b.isMain) return a.isMain ? -1 : 1;
+            if (a.ilvl !== b.ilvl) return b.ilvl - a.ilvl;
             return a.name.localeCompare(b.name, "fr");
         });
     }, [myCharacters]);
@@ -559,6 +640,24 @@ function PersonalRosterSelector() {
     const selectedRoster = useMemo(() => {
         return charactersSorted.find((character) => character.inRoster) ?? null;
     }, [charactersSorted]);
+
+    const selectedBench = useMemo(() => {
+        return charactersSorted.find((character) => character.inBench) ?? null;
+    }, [charactersSorted]);
+
+    const rosterLimits = useMemo(() => {
+        const counts = { TANK: 0, HEALER: 0, DPS: 0 };
+        for (const c of roster ?? []) {
+            if (c.inRoster) {
+                counts[c.gameRole]++;
+            }
+        }
+        return {
+            TANK: counts.TANK >= 2,
+            HEALER: counts.HEALER >= 4,
+            DPS: counts.DPS >= 14
+        };
+    }, [roster]);
 
     if (!canSelectRoster) {
         return null;
@@ -568,30 +667,173 @@ function PersonalRosterSelector() {
         return <Skeleton className="h-36 w-full" />;
     }
 
+    const handleJoinRosterClick = (charId: string) => {
+        setCharacterToJoin(charId);
+        setRulesChecked({ rule1: false, rule2: false, rule3: false });
+        setIsRulesModalOpen(true);
+    };
+
+    const confirmJoinRoster = () => {
+        if (characterToJoin) {
+            setRosterMutation.mutate(characterToJoin);
+        }
+        setIsRulesModalOpen(false);
+    };
+
+    const handleJoinBenchClick = (charId: string) => {
+        setCharacterToJoin(charId);
+        setReasonAction("BENCH");
+        setReasonText("");
+        setIsReasonModalOpen(true);
+    };
+
+    const handleLeaveRosterClick = (charId: string) => {
+        setCharacterToJoin(charId);
+        setReasonAction("LEAVE");
+        setReasonText("");
+        setIsReasonModalOpen(true);
+    };
+
+    const confirmReasonAction = () => {
+        if (!characterToJoin) return;
+        if (reasonAction === "BENCH") {
+            setBenchMutation.mutate({ characterId: characterToJoin, reason: reasonText });
+        } else if (reasonAction === "LEAVE") {
+            leaveRosterMutation.mutate({ characterId: characterToJoin, reason: reasonText });
+        }
+        setIsReasonModalOpen(false);
+    };
+
+    const allRulesChecked = rulesChecked.rule1 && rulesChecked.rule2 && rulesChecked.rule3;
+
     return (
         <Card className="border-border/60 bg-card/40">
             <CardHeader>
-                <CardTitle className="text-lg">Mon personnage roster</CardTitle>
+                <CardTitle className="text-lg">Mon inscription</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                    Choisissez le personnage a inclure dans le roster.
+                    Choisissez d'inscrire votre personnage principal au roster ou au banc de touche.
                 </p>
 
                 {selectedRoster ? (
-                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-                        <p className="text-sm font-semibold text-emerald-300">
-                            Actuellement selectionne: {selectedRoster.name}
-                        </p>
-                        <p className="text-xs text-emerald-200/80">
-                            {selectedRoster.class} - iLvl {Math.round(selectedRoster.ilvl)}
-                        </p>
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 flex justify-between items-center">
+                        <div>
+                            <p className="text-sm font-semibold text-emerald-300">
+                                Actuellement dans le Roster : {selectedRoster.name}
+                            </p>
+                            <p className="text-xs text-emerald-200/80">
+                                {selectedRoster.class} - iLvl {Math.round(selectedRoster.ilvl)}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="secondary" size="sm" onClick={() => handleJoinBenchClick(selectedRoster.id)} disabled={setBenchMutation.isPending || leaveRosterMutation.isPending}>
+                                Passer sur le Bench
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleLeaveRosterClick(selectedRoster.id)} disabled={leaveRosterMutation.isPending || setBenchMutation.isPending}>
+                                Me désinscrire
+                            </Button>
+                        </div>
+                    </div>
+                ) : selectedBench ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 flex justify-between items-center">
+                        <div>
+                            <p className="text-sm font-semibold text-amber-300">
+                                Actuellement sur le Banc (Bench) : {selectedBench.name}
+                            </p>
+                            <p className="text-xs text-amber-200/80">
+                                {selectedBench.class} - iLvl {Math.round(selectedBench.ilvl)}
+                            </p>
+                        </div>
+                        <Button variant="destructive" size="sm" onClick={() => handleLeaveRosterClick(selectedBench.id)} disabled={leaveRosterMutation.isPending}>
+                            Me désinscrire
+                        </Button>
                     </div>
                 ) : (
-                    <p className="text-sm text-muted-foreground">
-                        Aucun personnage roster defini pour le moment.
-                    </p>
+                    <div className="space-y-3">
+                        {charactersSorted.map(c => {
+                            const isRosterFull = rosterLimits[c.gameRole];
+                            return (
+                                <div key={c.id} className="flex items-center justify-between p-3 border border-border/60 rounded-md bg-background/50">
+                                    <div>
+                                        <p className="font-medium text-sm">{c.name} <span className="text-xs text-muted-foreground ml-2">{c.class} ({c.gameRole})</span></p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button 
+                                            size="sm" 
+                                            variant="default"
+                                            disabled={isRosterFull || setRosterMutation.isPending || setBenchMutation.isPending}
+                                            onClick={() => handleJoinRosterClick(c.id)}
+                                        >
+                                            {isRosterFull ? "Roster plein" : "S'inscrire Roster"}
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="secondary"
+                                            disabled={setRosterMutation.isPending || setBenchMutation.isPending}
+                                            onClick={() => setBenchMutation.mutate({ characterId: c.id })}
+                                        >
+                                            S'inscrire Bench
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 )}
+
+                <Dialog open={isRulesModalOpen} onOpenChange={setIsRulesModalOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Règles du Roster</DialogTitle>
+                            <DialogDescription>
+                                Vous devez accepter les règles suivantes pour rejoindre le Roster.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 my-4">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" className="mt-1 w-4 h-4" checked={rulesChecked.rule1} onChange={(e) => setRulesChecked({...rulesChecked, rule1: e.target.checked})} />
+                                <span className="text-sm">Présence obligatoire sur les 2 jours de raid (Lundi et Mercredi) pendant la totalité de la soirée (20h30 - 23h30).</span>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" className="mt-1 w-4 h-4" checked={rulesChecked.rule2} onChange={(e) => setRulesChecked({...rulesChecked, rule2: e.target.checked})} />
+                                <span className="text-sm">Si absence non justifiée, vous serez sorti du roster pour intégrer le bench (réintégration impossible par vous-même).</span>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" className="mt-1 w-4 h-4" checked={rulesChecked.rule3} onChange={(e) => setRulesChecked({...rulesChecked, rule3: e.target.checked})} />
+                                <span className="text-sm">Dans le cas où un soir de raid n'est pas complet, des personnes du bench seront ajoutées pour compléter le roster.</span>
+                            </label>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsRulesModalOpen(false)}>Annuler</Button>
+                            <Button disabled={!allRulesChecked || setRosterMutation.isPending} onClick={confirmJoinRoster}>Accepter & Rejoindre</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isReasonModalOpen} onOpenChange={setIsReasonModalOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                {reasonAction === "BENCH" ? "Inscription au Bench" : "Désinscription du Roster"}
+                            </DialogTitle>
+                            <DialogDescription>
+                                Veuillez indiquer le motif pour les administrateurs.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 my-4">
+                            <Input
+                                placeholder="Motif de votre choix..."
+                                value={reasonText}
+                                onChange={(e) => setReasonText(e.target.value)}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsReasonModalOpen(false)}>Annuler</Button>
+                            <Button disabled={!reasonText.trim()} onClick={confirmReasonAction}>Valider</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </CardContent>
         </Card>
     );

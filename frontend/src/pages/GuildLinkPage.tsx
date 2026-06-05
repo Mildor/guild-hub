@@ -184,28 +184,29 @@ export function GuildLinkPage() {
                         </div>
                     ) : (
                         <div
-                            className="relative overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900 p-6 md:p-8"
+                            className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8"
                             style={{
                                 backgroundImage: raidProgress.backgroundUrl
-                                    ? `linear-gradient(120deg, rgba(2, 6, 23, 0.95), rgba(15, 23, 42, 0.8)), url(${raidProgress.backgroundUrl})`
-                                    : "linear-gradient(120deg, rgba(2, 6, 23, 1), rgba(30, 41, 59, 1))",
+                                    ? `linear-gradient(120deg, var(--background) 95%, var(--card) 80%), url(${raidProgress.backgroundUrl})`
+                                    : undefined,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",
+                                backgroundBlendMode: "multiply",
                             }}
                         >
                             <div className="relative z-10">
-                                <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-300">
+                                <p className="mb-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
                                     Section Progress
                                 </p>
-                                <h2 className="text-2xl font-bold text-slate-50">
+                                <h2 className="text-2xl font-bold text-card-foreground">
                                     Tier 1
                                 </h2>
-                                <p className="mt-2 text-sm text-slate-300">
+                                <p className="mt-2 text-sm text-muted-foreground">
                                     {guildProfile?.name || GUILD_NAME} -{" "}
                                     {raidProgress.summary}
                                 </p>
 
-                                <div className="mt-6 w-full bg-slate-800 h-4 rounded-full">
+                                <div className="mt-6 w-full bg-muted h-4 rounded-full">
                                     <div
                                         className="bg-primary h-full rounded-full transition-all duration-500"
                                         style={{
@@ -213,7 +214,7 @@ export function GuildLinkPage() {
                                         }}
                                     ></div>
                                 </div>
-                                <p className="mt-2 text-xs text-slate-300">
+                                <p className="mt-2 text-xs text-muted-foreground">
                                     {raidProgress.percent}% de boss vaincus
                                 </p>
                             </div>
@@ -298,8 +299,8 @@ export function GuildLinkPage() {
                                                             <WowIcon
                                                                 name={
                                                                     classIcons[
-                                                                        entry
-                                                                            .class
+                                                                    entry
+                                                                        .class
                                                                     ] ||
                                                                     "inv_misc_questionmark"
                                                                 }

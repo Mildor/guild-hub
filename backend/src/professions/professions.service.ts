@@ -151,7 +151,9 @@ export class ProfessionsService {
       });
   }
 
-  private async fetchCharacterProfessionRows(): Promise<CharacterProfessionRow[]> {
+  private async fetchCharacterProfessionRows(): Promise<
+    CharacterProfessionRow[]
+  > {
     return (await this.prisma.$queryRaw(Prisma.sql`
       SELECT
         c.name,
@@ -183,7 +185,8 @@ export class ProfessionsService {
     return PROFESSION_ALIAS_GROUPS.some((group) => {
       const professionMatchesGroup = group.some(
         (alias) =>
-          alias === normalizedProfession || normalizedProfession.includes(alias),
+          alias === normalizedProfession ||
+          normalizedProfession.includes(alias),
       );
 
       const queryMatchesGroup = group.some(

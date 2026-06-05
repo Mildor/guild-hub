@@ -433,6 +433,11 @@ const adminSyncCharacter = async (characterId: string) => {
     return data;
 };
 
+const syncCharacterWcl = async (characterId: string) => {
+    const { data } = await api.post(`/characters/${characterId}/wcl-sync`);
+    return data;
+};
+
 const detectNewCharacters = async () => {
     const { data } = await api.get<DetectNewCharacter[]>(
         "/characters/detect-new",
@@ -522,6 +527,43 @@ export const useSyncCharacter = (userId: string | null | undefined) => {
     });
 };
 
+export const useSyncCharacterWcl = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: syncCharacterWcl,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["characters"],
+            });
+        },
+        onError: (error: any) => {
+            console.error("❌ Erreur sync WCL personnage:", error);
+        },
+    });
+};
+
+const syncMainsWcl = async () => {
+    const { data } = await api.post<{synced: number, total: number}>(`/characters/wcl-sync-mains`);
+    return data;
+};
+
+export const useSyncMainsWcl = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: syncMainsWcl,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["characters"],
+            });
+        },
+        onError: (error) => {
+            console.error("❌ Erreur sync WCL mains:", error);
+        },
+    });
+};
+
 export const useAdminSyncCharacter = () => {
     const queryClient = useQueryClient();
 
@@ -606,6 +648,16 @@ const setRosterCharacter = async (characterId: string) => {
     return data;
 };
 
+const setBenchCharacter = async ({ characterId, reason }: { characterId: string; reason?: string }) => {
+    const { data } = await api.patch(`/characters/${characterId}/bench`, { reason });
+    return data;
+};
+
+const leaveRoster = async ({ characterId, reason }: { characterId: string; reason?: string }) => {
+    const { data } = await api.patch(`/characters/${characterId}/leave-roster`, { reason });
+    return data;
+};
+
 const createCharacter = async (payload: CreateCharacterPayload) => {
     const { data } = await api.post<CharacterWithUser>("/characters", payload);
     return data;
@@ -681,8 +733,64 @@ export const useSetRosterCharacter = (userId: string | null | undefined) => {
                 }),
             ]);
         },
-        onError: (error) => {
+        onError: (error: any) => {
             console.error("❌ Erreur setting roster character:", error);
+            const message = error?.response?.data?.message || "Une erreur est survenue lors de l'inscription au roster.";
+            window.alert(message);
+        },
+    });
+};
+
+export const useSetBenchCharacter = (userId: string | null | undefined) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: setBenchCharacter,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", userId],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+            ]);
+        },
+        onError: (error: any) => {
+            console.error("❌ Erreur setting bench character:", error);
+            const message = error?.response?.data?.message || "Une erreur est survenue lors de l'inscription au bench.";
+            window.alert(message);
+        },
+    });
+};
+
+export const useLeaveRoster = (userId: string | null | undefined) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: leaveRoster,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["characters"] }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", userId],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+            ]);
+        },
+        onError: (error: any) => {
+            console.error("❌ Erreur leave roster:", error);
+            const message = error?.response?.data?.message || "Une erreur est survenue lors de la désinscription.";
+            window.alert(message);
         },
     });
 };
@@ -776,6 +884,35 @@ export const useGetGuildUnlinkedMembers = (realm: string, name: string) => {
         enabled: !!realm && !!name,
         retry: 1,
         staleTime: 60 * 1000,
+    });
+};
+
+const syncUnlinkedMembers = async (characters: Array<{ name: string; realm: string }>) => {
+    const { data } = await api.post("/blizzard/guild/sync-unlinked", { characters });
+    return data;
+};
+
+export const useSyncUnlinkedMembers = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: syncUnlinkedMembers,
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["blizzard", "guild", "unlinked-members"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+            ]);
+        },
+        onError: (error) => {
+            console.error("❌ Erreur sync unlinked:", error);
+        },
     });
 };
 
@@ -940,6 +1077,20 @@ const toggleRosterStatus = async ({
     return data;
 };
 
+const toggleBenchStatus = async ({
+    id,
+    inBench,
+}: {
+    id: string;
+    inBench: boolean;
+}) => {
+    const { data } = await api.patch<CharacterWithUser>(
+        `/characters/${id}/guild-bench`,
+        { inBench },
+    );
+    return data;
+};
+
 export const useToggleRoster = (userId?: string | null) => {
     const queryClient = useQueryClient();
 
@@ -964,6 +1115,44 @@ export const useToggleRoster = (userId?: string | null) => {
             }
 
             await Promise.all(invalidations);
+        },
+        onError: (error: any) => {
+            console.error("❌ Erreur toggling roster:", error);
+            const message = error?.response?.data?.message || "Erreur lors de la modification du statut roster.";
+            window.alert(message);
+        },
+    });
+};
+
+export const useToggleBench = (userId?: string | null) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: toggleBenchStatus,
+        onSuccess: async () => {
+            const invalidations = [
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "roster"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["characters", "all"],
+                }),
+            ];
+
+            if (userId) {
+                invalidations.push(
+                    queryClient.invalidateQueries({
+                        queryKey: ["characters", userId],
+                    }),
+                );
+            }
+
+            await Promise.all(invalidations);
+        },
+        onError: (error: any) => {
+            console.error("❌ Erreur toggling bench:", error);
+            const message = error?.response?.data?.message || "Erreur lors de la modification du statut bench.";
+            window.alert(message);
         },
     });
 };
@@ -1466,3 +1655,42 @@ export const useGetWclAttendance = () => {
         staleTime: import.meta.env.DEV ? 0 : 30 * 60 * 1000,
     });
 };
+
+// ==================== SYSTEM MODULES ====================
+
+export interface SystemModule {
+    id: string;
+    code: string;
+    name: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const useGetModules = () => {
+    return useQuery({
+        queryKey: ["admin", "modules"],
+        queryFn: async () => {
+            const { data } = await api.get<SystemModule[]>("/admin/modules");
+            return data;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+};
+
+export const useUpdateModule = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ code, isActive }: { code: string; isActive: boolean }) => {
+            const { data } = await api.patch<SystemModule>(`/admin/modules/${code}`, {
+                isActive,
+            });
+            return data;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["admin", "modules"] });
+        },
+    });
+};
+

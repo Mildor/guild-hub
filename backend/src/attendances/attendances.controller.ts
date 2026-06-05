@@ -45,7 +45,9 @@ export class AttendancesController {
   })
   upsert(
     @Req()
-    req: { user: { userId?: string; id?: string; role?: AppRole; appRole?: AppRole } },
+    req: {
+      user: { userId?: string; id?: string; role?: AppRole; appRole?: AppRole };
+    },
     @Body() dto: UpsertAttendanceDto,
     @Headers('x-shared-profile') sharedProfileHeader: string | undefined,
   ) {
@@ -66,6 +68,10 @@ export class AttendancesController {
       );
     }
 
-    return this.attendancesService.upsert(targetUserId, dto, sharedProfileHeader);
+    return this.attendancesService.upsert(
+      targetUserId,
+      dto,
+      sharedProfileHeader,
+    );
   }
 }

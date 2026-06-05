@@ -14,10 +14,12 @@ import {
     X,
     ChevronLeft,
     Activity,
+    Sliders,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppRole } from "@/types/auth";
+import { useAuthStore } from "@/store/authStore";
+import { Navigate } from "react-router-dom";
 
 interface NavItem {
     label: string;
@@ -39,18 +41,31 @@ const navItems: NavItem[] = [
     { label: "Sondages", href: "/admin/polls", icon: BarChart3 },
     { label: "Stratégies", href: "/admin/strategies", icon: BookOpen },
     { label: "Warcraft Logs", href: "/admin/wcl-attendance", icon: Activity },
+    { label: "Modules", href: "/admin/modules", icon: Sliders },
 ];
 
 export function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
+    const user = useAuthStore((s) => s.user);
+
+    if (user?.appRole === AppRole.OFFICER && (location.pathname === "/admin" || location.pathname === "/admin/")) {
+        return <Navigate to="/admin/unlinked-members" replace />;
+    }
+
+    const visibleNavItems = navItems.filter((item) => {
+        if (user?.appRole === AppRole.OFFICER) {
+            return item.href === "/admin/unlinked-members";
+        }
+        return true;
+    });
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
     const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
     return (
-        <RoleGuard allowedRoles={[AppRole.ADMIN]}>
+        <RoleGuard allowedRoles={[AppRole.ADMIN, AppRole.OFFICER]}>
             <div className="flex min-h-screen bg-background">
                 {/* Mobile Menu Overlay */}
                 {mobileMenuOpen && (
@@ -86,11 +101,11 @@ export function AdminLayout() {
                     </div>
 
                     <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-                        {navItems.map((item) => {
+                        {visibleNavItems.map((item) => {
                             const isActive =
                                 item.href === "/admin"
-                                    ? location.pathname === "/admin"
-                                    : location.pathname.startsWith(item.href);
+                                     ? location.pathname === "/admin"
+                                     : location.pathname.startsWith(item.href);
 
                             return (
                                 <Link
@@ -100,7 +115,7 @@ export function AdminLayout() {
                                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                         isActive
                                             ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                                     }`}
                                 >
                                     <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -132,7 +147,7 @@ export function AdminLayout() {
                             <Menu className="h-6 w-6" />
                         </button>
                         <h2 className="text-lg font-semibold text-foreground">
-                            {navItems.find(
+                            {visibleNavItems.find(
                                 (item) => location.pathname === item.href,
                             )?.label || "Administration"}
                         </h2>

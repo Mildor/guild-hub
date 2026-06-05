@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   UseGuards,
+  Body,
 } from '@nestjs/common';
 import { BlizzardService } from './blizzard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -52,14 +53,31 @@ export class BlizzardController {
 
   @Get('blizzard/guild/unlinked-members')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(AppRole.ADMIN)
+  @Roles(AppRole.ADMIN, AppRole.OFFICER)
   async getGuildUnlinkedMembers(
     @Query('realm') realm?: string,
     @Query('name') name?: string,
   ) {
-    const guildRealm = (realm || process.env.GUILD_REALM || 'archimonde').trim();
-    const guildName = (name || process.env.GUILD_NAME || 'The Good Place').trim();
+    const guildRealm = (
+      realm ||
+      process.env.GUILD_REALM ||
+      'archimonde'
+    ).trim();
+    const guildName = (
+      name ||
+      process.env.GUILD_NAME ||
+      'The Good Place'
+    ).trim();
 
     return this.blizzardService.getGuildUnlinkedMembers(guildRealm, guildName);
+  }
+
+  @Post('blizzard/guild/sync-unlinked')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN, AppRole.OFFICER)
+  async syncUnlinkedCharacters(
+    @Body() dto: { characters: Array<{ name: string; realm: string }> },
+  ) {
+    return this.blizzardService.syncUnlinkedCharacters(dto.characters);
   }
 }

@@ -57,7 +57,9 @@ export class StrategiesController {
 
   @Get()
   @Roles(AppRole.ADMIN, AppRole.OFFICER, AppRole.MEMBER)
-  @ApiOperation({ summary: 'Retourne toutes les stratégies triées par raid puis boss' })
+  @ApiOperation({
+    summary: 'Retourne toutes les stratégies triées par raid puis boss',
+  })
   @ApiResponse({ status: 200, description: 'Liste des stratégies.' })
   findAll() {
     return this.strategiesService.findAll();

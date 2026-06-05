@@ -34,7 +34,9 @@ const MEMBER_ROLES = ['ADMIN', 'OFFICER', 'MEMBER'] as const;
 export class PollsController {
   constructor(private readonly pollsService: PollsService) {}
 
-  private getAuthUserId(req: { user: { userId?: string; id?: string } }): string {
+  private getAuthUserId(req: {
+    user: { userId?: string; id?: string };
+  }): string {
     const authUserId = req.user?.userId ?? req.user?.id;
     if (!authUserId) {
       throw new UnauthorizedException('Utilisateur non authentifie');
@@ -70,7 +72,11 @@ export class PollsController {
     @Req() req: { user: { userId?: string; id?: string } },
     @Body() dto: VotePollDto,
   ) {
-    return this.pollsService.voteMultiple(pollId, this.getAuthUserId(req), dto.optionIds);
+    return this.pollsService.voteMultiple(
+      pollId,
+      this.getAuthUserId(req),
+      dto.optionIds,
+    );
   }
 
   @Patch(':pollId/toggle')

@@ -45,6 +45,7 @@ model User {
   discordId       String?
   isSharedAccount Boolean  @default(false)
   appRole    AppRole  @default(GUEST)
+  theme      String   @default("dark")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -82,7 +83,10 @@ model Character {
   gameRole   GameRole
   ilvl       Float    @default(0)
   isMain     Boolean  @default(false)
+  wclSynced  Boolean  @default(false)
   inRoster   Boolean  @default(false)
+  inBench    Boolean  @default(false)
+  statusReason String? @db.Text
   sharedProfile SharedProfile?
   guildRank  Int?
   lastSyncAt DateTime @default(now())
@@ -102,6 +106,7 @@ model Character {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   attendances Attendance[]
   professions CharacterProfession[]
+  wclPerformances WclPerformance[]
 
   @@unique([userId, name, realm])
 }
@@ -119,6 +124,30 @@ model CharacterProfession {
 
   @@unique([characterId, profession])
   @@index([profession])
+}
+
+model WclPerformance {
+  id               String   @id @default(uuid()) @db.Uuid
+  characterId      String   @db.Uuid
+  encounterId      Int
+  keyLevel         Int
+  bestRank         Int
+  rankRegion       Int?
+  amount           Float?
+  parsePercent     Float?
+  ilvlParsePercent Float?
+  reportCode       String?
+  fightId          Int?
+  date             DateTime?
+  reportUrl        String
+  metric           String   @default("dps")
+  lastSyncedAt     DateTime @default(now())
+
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([characterId, encounterId, keyLevel])
+  @@index([characterId, encounterId, keyLevel, metric])
 }
 
 model Event {
@@ -223,4 +252,13 @@ model FailedLoginAttempt {
 
   @@index([createdAt])
   @@index([provider])
+}
+
+model SystemModule {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

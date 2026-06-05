@@ -26,7 +26,8 @@ export class AuthService {
     battletag: string,
     bnetAccessToken: string,
   ): Promise<User> {
-    const encryptedAccessToken = this.encryptionService.encrypt(bnetAccessToken);
+    const encryptedAccessToken =
+      this.encryptionService.encrypt(bnetAccessToken);
 
     let user = await this.prisma.user.findUnique({ where: { bnetId } });
 
@@ -65,7 +66,9 @@ export class AuthService {
   async getFailedLoginAttempts(page = 1, limit = 50) {
     const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const safeLimit =
-      Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 50;
+      Number.isFinite(limit) && limit > 0
+        ? Math.min(Math.floor(limit), 200)
+        : 50;
     const skip = (safePage - 1) * safeLimit;
 
     const [items, total] = await Promise.all([

@@ -21,10 +21,13 @@ import { AppRole } from '@prisma/client';
 import { CharactersService } from './characters.service';
 import { BlizzardService } from '../blizzard/blizzard.service';
 import { RaiderioService } from '../raiderio/raiderio.service';
+import { WclService } from '../wcl/wcl.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
 import { ToggleRosterStatusDto } from './dto/toggle-roster-status.dto';
 import { UpdateSharedProfilesDto } from './dto/update-shared-profiles.dto';
+import { ToggleBenchStatusDto } from './dto/toggle-bench-status.dto';
+import { StatusReasonDto } from './dto/status-reason.dto';
 import { ImportSelectedCharactersDto } from './dto/import-selected-characters.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -46,6 +49,7 @@ export class CharactersController {
     private readonly charactersService: CharactersService,
     private readonly blizzardService: BlizzardService,
     private readonly raiderioService: RaiderioService,
+    private readonly wclService: WclService,
   ) {}
 
   @Get(':id/vault-progress')
@@ -99,6 +103,17 @@ export class CharactersController {
     };
   }
 
+  @Get(':realm/:name/3d-viewer')
+  @ApiOperation({ summary: 'Retourne les données pour le viewer 3D' })
+  @ApiResponse({ status: 200, description: 'Données récupérées.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  async getCharacter3DViewerData(
+    @Param('realm') realm: string,
+    @Param('name') name: string,
+  ) {
+    return this.blizzardService.getCharacter3DViewerData(realm, name);
+  }
+
   @Post('sync')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Synchronise les personnages depuis Blizzard' })
@@ -125,6 +140,37 @@ export class CharactersController {
     @Req() req: { user: { userId: string } },
   ) {
     return this.blizzardService.syncSingleCharacter(req.user.userId, id);
+  }
+
+  @Post(':id/wcl-sync')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Synchronise les performances Mythique+ via Warcraft Logs' })
+  @ApiResponse({
+    status: 200,
+    description: 'Performances synchronisees avec succes.',
+  })
+  @ApiResponse({ status: 403, description: 'Acces non autorise.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  async syncWclPerformances(
+    @Param('id') id: string,
+  ) {
+    return this.wclService.syncCharacterPerformances(id);
+  }
+
+  @Post('wcl-sync-mains')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN, AppRole.OFFICER)
+  @ApiOperation({
+    summary:
+      'Synchronise les performances Mythique+ des personnages principaux (mains) via Warcraft Logs',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Synchronisation globale terminée.',
+  })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  syncMainWclPerformances() {
+    return this.wclService.syncMainCharactersPerformances();
   }
 
   @Post(':id/admin-sync')
@@ -369,6 +415,64 @@ export class CharactersController {
     @Body() dto: ToggleRosterStatusDto,
   ) {
     return this.charactersService.toggleRosterStatus(id, dto.inRoster);
+  }
+
+  @Patch(':id/bench')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Definit ce personnage comme personnage bench personnel',
+  })
+  @ApiResponse({ status: 200, description: 'Personnage bench mis a jour.' })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  setBenchCharacter(
+    @Param('id') id: string,
+    @Req() req: { user: { userId: string } },
+    @Body() dto: StatusReasonDto,
+    @Headers('x-shared-profile') sharedProfile: string | undefined,
+  ) {
+    return this.charactersService.setBenchCharacter(
+      req.user.userId,
+      id,
+      sharedProfile,
+      dto.reason,
+    );
+  }
+
+  @Patch(':id/leave-roster')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Se désinscrire complètement du roster et du bench',
+  })
+  @ApiResponse({ status: 200, description: 'Désinscription réussie.' })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  leaveRoster(
+    @Param('id') id: string,
+    @Req() req: { user: { userId: string } },
+    @Body() dto: StatusReasonDto,
+    @Headers('x-shared-profile') sharedProfile: string | undefined,
+  ) {
+    return this.charactersService.leaveRoster(
+      req.user.userId,
+      id,
+      sharedProfile,
+      dto.reason,
+    );
+  }
+
+  @Patch(':id/guild-bench')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AppRole.ADMIN, AppRole.OFFICER)
+  @ApiOperation({ summary: 'Active ou retire un personnage du bench' })
+  @ApiResponse({ status: 200, description: 'Statut bench mis à jour.' })
+  @ApiResponse({ status: 403, description: 'Accès interdit.' })
+  @ApiResponse({ status: 404, description: 'Personnage introuvable.' })
+  toggleBenchStatus(
+    @Param('id') id: string,
+    @Body() dto: ToggleBenchStatusDto,
+  ) {
+    return this.charactersService.toggleBenchStatus(id, dto.inBench);
   }
 
   @Patch(':id')

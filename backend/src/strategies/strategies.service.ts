@@ -75,7 +75,7 @@ export class StrategiesService {
   async update(id: string, dto: UpdateStrategyDto, file?: Express.Multer.File) {
     await this.findOne(id);
 
-    let updateData = { ...dto };
+    const updateData = { ...dto };
 
     // Si un fichier est uploadé, le traiter
     if (file) {

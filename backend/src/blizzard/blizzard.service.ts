@@ -86,9 +86,14 @@ interface BlizzardRaidInstance {
 }
 
 interface BnetCharacterProfile {
+  id?: number;
+  name?: string;
+  realm?: { id: number; name: string; slug: string };
+  character_class?: { id: number; name: string };
   equipped_item_level: number;
   active_spec?: { name: string };
   guild?: { name: string };
+  level?: number;
 }
 
 interface BnetMediaResponse {
@@ -256,6 +261,8 @@ export interface WeeklyRaidProgress {
   resetAt: string;
 }
 
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+
 const SPEC_TO_ROLE: Record<string, 'TANK' | 'HEALER' | 'DPS'> = {
   // Chevalier de la mort
   Sang: 'TANK',
@@ -318,7 +325,7 @@ export class BlizzardService {
     private readonly httpService: HttpService,
     private readonly prisma: PrismaService,
     private readonly encryptionService: EncryptionService,
-  ) {}
+  ) { }
 
   private getBnetRegion(): string {
     return process.env.BNET_REGION || 'eu';
@@ -1368,9 +1375,8 @@ export class BlizzardService {
         ),
       ]);
 
-    let existingCharacter = await this.prisma.character.findFirst({
+    let existingCharacter = await this.prisma.character.findUnique({
       where: {
-        userId,
         blizzardId: character.id,
       },
     });
@@ -1378,7 +1384,6 @@ export class BlizzardService {
     if (!existingCharacter) {
       existingCharacter = await this.prisma.character.findFirst({
         where: {
-          userId,
           name: {
             equals: character.name,
             mode: 'insensitive',
@@ -1390,6 +1395,10 @@ export class BlizzardService {
         },
       });
     }
+
+    const targetUserId = (existingCharacter && existingCharacter.userId !== SYSTEM_USER_ID)
+      ? existingCharacter.userId
+      : userId;
 
     const characterPayload = {
       blizzardId: character.id,
@@ -1410,15 +1419,18 @@ export class BlizzardService {
 
     const syncedCharacter = existingCharacter
       ? await this.prisma.character.update({
-          where: { id: existingCharacter.id },
-          data: characterPayload,
-        })
+        where: { id: existingCharacter.id },
+        data: {
+          userId: targetUserId,
+          ...characterPayload,
+        },
+      })
       : await this.prisma.character.create({
-          data: {
-            userId,
-            ...characterPayload,
-          },
-        });
+        data: {
+          userId: targetUserId,
+          ...characterPayload,
+        },
+      });
 
     await this.upsertCharacterProfessions(syncedCharacter.id, professions);
 
@@ -1973,6 +1985,47 @@ export class BlizzardService {
     }
   }
 
+  async getCharacter3DViewerData(realm: string, characterName: string) {
+    const region = this.getBnetRegion();
+    const accessToken = await this.getClientAccessToken(region);
+    const realmSlug = this.toRealmSlug(realm);
+    const charSlug = encodeURIComponent(characterName.trim().toLowerCase());
+
+    try {
+      const profileResponse = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://${region}.api.blizzard.com/profile/wow/character/${realmSlug}/${charSlug}`,
+          {
+            params: { namespace: `profile-${region}`, locale: 'fr_FR' },
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        )
+      );
+
+      const equipmentResponse = await firstValueFrom(
+        this.httpService.get<any>(
+          `https://${region}.api.blizzard.com/profile/wow/character/${realmSlug}/${charSlug}/equipment`,
+          {
+            params: { namespace: `profile-${region}`, locale: 'fr_FR' },
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        )
+      );
+
+      const raceId = profileResponse.data.race?.id || 1;
+      const genderType = profileResponse.data.gender?.type;
+      const genderId = genderType === 'MALE' ? 0 : 1;
+
+      const equipmentList = equipmentResponse.data.equipped_items || [];
+      const equipmentString = equipmentList.map((eq: any) => eq.item.id).join(',');
+
+      return { raceId, genderId, equipmentString };
+    } catch (error) {
+      this.logger.error(`Erreur 3D viewer pour ${characterName}-${realmSlug}:`, error);
+      throw new NotFoundException('Impossible de récupérer les données pour le viewer 3D');
+    }
+  }
+
   private toRealmSlug(realm: string): string {
     return realm
       .trim()
@@ -2062,5 +2115,63 @@ export class BlizzardService {
       this.itemIconCache.set(itemId, fallbackUrl);
       return fallbackUrl;
     }
+  }
+
+  private async ensureSystemUserExists(): Promise<string> {
+    await this.prisma.user.upsert({
+      where: { id: SYSTEM_USER_ID },
+      update: {},
+      create: {
+        id: SYSTEM_USER_ID,
+        bnetId: 0,
+        battletag: 'SYSTEM_UNLINKED',
+        appRole: 'GUEST',
+      },
+    });
+    return SYSTEM_USER_ID;
+  }
+
+  async syncUnlinkedCharacters(
+    characters: Array<{ name: string; realm: string }>,
+  ): Promise<any> {
+    const systemUserId = await this.ensureSystemUserExists();
+    const token = await this.getClientAccessToken();
+    const results: Character[] = [];
+    const errors: Array<{ name: string; realm: string; reason: string }> = [];
+
+    for (const char of characters) {
+      try {
+        const realmSlug = this.toRealmSlug(char.realm);
+        const details = await this.fetchCharacterProfile(
+          realmSlug,
+          char.name.toLowerCase(),
+          token,
+        );
+
+        if (!details) {
+          throw new Error(`Profil Blizzard introuvable pour ${char.name}-${char.realm}`);
+        }
+
+        const bnetChar: BnetCharacter = {
+          id: details.id || 0,
+          name: details.name || char.name,
+          realm: { slug: details.realm?.slug || realmSlug },
+          playable_class: { name: details.character_class?.name || 'Unknown' },
+          level: details.level || 80,
+          guild: details.guild ? { name: details.guild.name } : undefined,
+        };
+
+        const synced = await this.syncCharacterData(systemUserId, bnetChar, token);
+        results.push(synced);
+      } catch (err) {
+        errors.push({
+          name: char.name,
+          realm: char.realm,
+          reason: err instanceof Error ? err.message : 'Erreur inconnue',
+        });
+      }
+    }
+
+    return { syncedCount: results.length, synced: results, errors };
   }
 }

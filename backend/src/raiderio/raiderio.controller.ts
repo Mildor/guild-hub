@@ -49,12 +49,6 @@ export class RaiderioController {
       throw new NotFoundException(`Character #${id} not found`);
     }
 
-    if (character.userId !== req.user.userId) {
-      throw new ForbiddenException(
-        "Vous ne pouvez acceder qu'a vos propres personnages",
-      );
-    }
-
     return this.raiderioService.getCharacterProfile(
       character.realm,
       character.name,

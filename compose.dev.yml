@@ -38,6 +38,7 @@ services:
             DB_NAME: guild-hub
             REDIS_HOST: redis
             REDIS_PORT: 6379
+            TZ: Europe/Paris
         ports:
             - "3000:3000"
         volumes:
@@ -54,6 +55,9 @@ services:
             context: ./frontend
             dockerfile: Dockerfile
         container_name: guild-hub-frontend-dev
+        environment:
+            CI: "true"
+            TZ: Europe/Paris
         ports:
             - "8073:8073"
         volumes:

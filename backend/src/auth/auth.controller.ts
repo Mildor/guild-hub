@@ -11,7 +11,12 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { AppRole, User } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -75,7 +80,8 @@ export class AuthController {
     const userId = user.userId || user.id;
     const guildName = (process.env.GUILD_NAME || 'The Good Place').trim();
 
-    const allCharacters = await this.blizzardService.getCharactersFromApi(userId);
+    const allCharacters =
+      await this.blizzardService.getCharactersFromApi(userId);
 
     const guildCharacters: OnboardingCharacterResponse[] = allCharacters
       .filter(

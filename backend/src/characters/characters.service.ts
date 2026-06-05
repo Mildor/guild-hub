@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { SharedProfile } from '@prisma/client';
+import { SharedProfile, GameRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
@@ -28,11 +28,15 @@ export class CharactersService {
         userId,
         ...(selectedProfile ? { sharedProfile: selectedProfile } : {}),
       },
+      include: { wclPerformances: true },
     });
   }
 
   findByUserIdForSharedConfig(userId: string) {
-    return this.prisma.character.findMany({ where: { userId } });
+    return this.prisma.character.findMany({ 
+      where: { userId },
+      include: { wclPerformances: true }
+    });
   }
 
   async assignSharedProfiles(
@@ -79,17 +83,36 @@ export class CharactersService {
 
   getRoster() {
     return this.prisma.character.findMany({
-      where: { inRoster: true },
-      include: { user: true },
-      orderBy: [{ gameRole: 'asc' }, { ilvl: 'desc' }],
+      where: { OR: [{ inRoster: true }, { inBench: true }] },
+      include: { user: true, wclPerformances: true },
+      orderBy: [{ inRoster: 'desc' }, { gameRole: 'asc' }, { ilvl: 'desc' }],
     });
   }
 
   getAllCharacters() {
     return this.prisma.character.findMany({
-      include: { user: true },
+      include: { user: true, wclPerformances: true },
       orderBy: [{ name: 'asc' }, { ilvl: 'desc' }],
     });
+  }
+
+  private async checkRosterLimits(gameRole: GameRole) {
+    const count = await this.prisma.character.count({
+      where: { inRoster: true, gameRole },
+    });
+
+    if (gameRole === 'TANK' && count >= 2)
+      throw new BadRequestException(
+        'Le roster est complet pour le rôle Tank (Max 2).',
+      );
+    if (gameRole === 'HEALER' && count >= 4)
+      throw new BadRequestException(
+        'Le roster est complet pour le rôle Healer (Max 4).',
+      );
+    if (gameRole === 'DPS' && count >= 14)
+      throw new BadRequestException(
+        'Le roster est complet pour le rôle DPS (Max 14).',
+      );
   }
 
   async toggleRosterStatus(id: string, inRoster: boolean) {
@@ -98,23 +121,71 @@ export class CharactersService {
     if (!inRoster) {
       return this.prisma.character.update({
         where: { id },
-        data: { inRoster: false },
+        data: { inRoster: false, statusReason: null },
         include: { user: true },
       });
     }
+
+    await this.checkRosterLimits(character.gameRole);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: character.userId },
+      select: { isSharedAccount: true },
+    });
 
     const [, updatedCharacter] = await this.prisma.$transaction([
       this.prisma.character.updateMany({
         where: {
           userId: character.userId,
-          inRoster: true,
+          ...(user?.isSharedAccount
+            ? { sharedProfile: character.sharedProfile }
+            : {}),
+          OR: [{ inRoster: true }, { inBench: true }],
           id: { not: id },
         },
-        data: { inRoster: false },
+        data: { inRoster: false, inBench: false, statusReason: null },
       }),
       this.prisma.character.update({
         where: { id },
-        data: { inRoster: true },
+        data: { inRoster: true, inBench: false, statusReason: null },
+        include: { user: true },
+      }),
+    ]);
+
+    return updatedCharacter;
+  }
+
+  async toggleBenchStatus(id: string, inBench: boolean) {
+    const character = await this.findOneOrFail(id);
+
+    if (!inBench) {
+      return this.prisma.character.update({
+        where: { id },
+        data: { inBench: false, statusReason: null },
+        include: { user: true },
+      });
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: character.userId },
+      select: { isSharedAccount: true },
+    });
+
+    const [, updatedCharacter] = await this.prisma.$transaction([
+      this.prisma.character.updateMany({
+        where: {
+          userId: character.userId,
+          ...(user?.isSharedAccount
+            ? { sharedProfile: character.sharedProfile }
+            : {}),
+          OR: [{ inRoster: true }, { inBench: true }],
+          id: { not: id },
+        },
+        data: { inRoster: false, inBench: false, statusReason: null },
+      }),
+      this.prisma.character.update({
+        where: { id },
+        data: { inRoster: false, inBench: true, statusReason: null },
         include: { user: true },
       }),
     ]);
@@ -151,17 +222,111 @@ export class CharactersService {
       );
     }
 
+    await this.checkRosterLimits(character.gameRole);
+
     const [, updatedCharacter] = await this.prisma.$transaction([
       this.prisma.character.updateMany({
         where: {
           userId,
-          ...(selectedProfile ? { sharedProfile: selectedProfile } : {}),
+          ...(selectedProfile !== undefined
+            ? { sharedProfile: selectedProfile }
+            : {}),
         },
-        data: { inRoster: false },
+        data: { inRoster: false, inBench: false, statusReason: null },
       }),
       this.prisma.character.update({
         where: { id: characterId },
-        data: { inRoster: true },
+        data: { inRoster: true, inBench: false, statusReason: null },
+        include: { user: true },
+      }),
+    ]);
+
+    return updatedCharacter;
+  }
+
+  async setBenchCharacter(
+    userId: string,
+    characterId: string,
+    sharedProfileHeader?: string,
+    reason?: string,
+  ) {
+    const selectedProfile = await this.getSelectedSharedProfile(
+      userId,
+      sharedProfileHeader,
+    );
+
+    const character = await this.prisma.character.findUnique({
+      where: { id: characterId },
+    });
+
+    if (
+      !character ||
+      character.userId !== userId ||
+      (selectedProfile !== null && character.sharedProfile !== selectedProfile)
+    ) {
+      throw new NotFoundException(
+        `Character #${characterId} not found or does not belong to user`,
+      );
+    }
+
+    const [, updatedCharacter] = await this.prisma.$transaction([
+      this.prisma.character.updateMany({
+        where: {
+          userId,
+          ...(selectedProfile !== undefined
+            ? { sharedProfile: selectedProfile }
+            : {}),
+        },
+        data: { inRoster: false, inBench: false, statusReason: null },
+      }),
+      this.prisma.character.update({
+        where: { id: characterId },
+        data: { inRoster: false, inBench: true, statusReason: reason || null },
+        include: { user: true },
+      }),
+    ]);
+
+    return updatedCharacter;
+  }
+
+  async leaveRoster(
+    userId: string,
+    characterId: string,
+    sharedProfileHeader?: string,
+    reason?: string,
+  ) {
+    const selectedProfile = await this.getSelectedSharedProfile(
+      userId,
+      sharedProfileHeader,
+    );
+
+    const character = await this.prisma.character.findUnique({
+      where: { id: characterId },
+    });
+
+    if (
+      !character ||
+      character.userId !== userId ||
+      (selectedProfile !== null && character.sharedProfile !== selectedProfile)
+    ) {
+      throw new NotFoundException(
+        `Character #${characterId} not found or does not belong to user`,
+      );
+    }
+
+    const [, updatedCharacter] = await this.prisma.$transaction([
+      this.prisma.character.updateMany({
+        where: {
+          userId,
+          ...(selectedProfile !== undefined
+            ? { sharedProfile: selectedProfile }
+            : {}),
+        },
+        data: { inRoster: false, inBench: false, statusReason: null },
+      }),
+      this.prisma.character.update({
+        where: { id: characterId },
+        data: { inRoster: false, inBench: false, statusReason: reason || null },
         include: { user: true },
       }),
     ]);
@@ -221,7 +386,10 @@ export class CharactersService {
   }
 
   private async findOneOrFail(id: string) {
-    const character = await this.prisma.character.findUnique({ where: { id } });
+    const character = await this.prisma.character.findUnique({ 
+      where: { id },
+      include: { wclPerformances: true }
+    });
     if (!character) throw new NotFoundException(`Character #${id} not found`);
     return character;
   }
