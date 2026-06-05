@@ -47,5 +47,5 @@ RUN pnpm exec prisma generate
 
 EXPOSE 3000
 
-# Appliquer les migrations PUIS démarrer l'app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Appliquer les modifications de schéma PUIS démarrer l'app
+CMD ["sh", "-c", "npx prisma db push && node dist/src/main.js"]
