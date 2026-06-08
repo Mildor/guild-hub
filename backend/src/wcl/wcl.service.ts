@@ -471,12 +471,17 @@ export class WclService {
             let actualRankGlobal = -1;
             let actualRankEu = -1;
             let amount = 0;
+            let reportUrlFromLeaderboard = '';
 
             if (ranksGlobal && Array.isArray(ranksGlobal)) {
               const idx = ranksGlobal.findIndex((r: any) => r.name.toLowerCase() === name.toLowerCase());
               if (idx !== -1) {
                 actualRankGlobal = idx + 1;
                 amount = ranksGlobal[idx].amount || 0;
+                const rep = ranksGlobal[idx].report;
+                if (rep && rep.code) {
+                  reportUrlFromLeaderboard = `https://www.warcraftlogs.com/reports/${rep.code}#fight=${rep.fightID || 'last'}`;
+                }
               }
             }
             if (ranksEu && Array.isArray(ranksEu)) {
@@ -484,13 +489,19 @@ export class WclService {
               if (idx !== -1) {
                 actualRankEu = idx + 1;
                 if (!amount) amount = ranksEu[idx].amount || 0;
+                if (!reportUrlFromLeaderboard) {
+                  const rep = ranksEu[idx].report;
+                  if (rep && rep.code) {
+                    reportUrlFromLeaderboard = `https://www.warcraftlogs.com/reports/${rep.code}#fight=${rep.fightID || 'last'}`;
+                  }
+                }
               }
             }
 
             if (actualRankGlobal > 0 || actualRankEu > 0) {
               const keyLevel = b + 1;
               const cacheKey = `${encId}_${keyLevel}`;
-              const reportUrl = tempUrls.get(cacheKey) || '';
+              const reportUrl = reportUrlFromLeaderboard || tempUrls.get(cacheKey) || '';
               
               const currentBest = bestRankPerKey.get(cacheKey);
               if (!currentBest || (actualRankGlobal > 0 && actualRankGlobal < currentBest.rank)) {

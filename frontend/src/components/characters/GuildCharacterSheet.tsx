@@ -863,9 +863,6 @@ export function GuildCharacterSheet({ data }: { data: CharacterWithUser | Charac
                                         {perf.amount ? (perf.amount / 1000).toFixed(1) + 'k' : '-'}
                                       </span>
                                       <div className="flex gap-1.5">
-                                        <a href={perf.reportUrl} target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white transition-colors" title="Report">
-                                          <FileText className="w-3.5 h-3.5" />
-                                        </a>
                                         <a href={leaderboardUrl} target="_blank" rel="noopener noreferrer" className="text-amber-500/40 hover:text-amber-500 transition-colors" title="Top 100">
                                           <ExternalLink className="w-3.5 h-3.5" />
                                         </a>

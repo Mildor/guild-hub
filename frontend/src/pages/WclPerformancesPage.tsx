@@ -836,6 +836,11 @@ export function WclPerformancesPage() {
                           if ((perf.metric || 'dps') !== expectedMetric) return acc;
                         } else {
                           if (isRaidPerf) return acc;
+                          if (regionView === 'eu') {
+                            if (perf.rankRegion === null || perf.rankRegion === undefined || perf.rankRegion <= 0) return acc;
+                          } else {
+                            if (perf.bestRank === null || perf.bestRank === undefined || perf.bestRank <= 0) return acc;
+                          }
                         }
 
                         const arr = acc[perf.encounterId] || [];
@@ -952,9 +957,11 @@ export function WclPerformancesPage() {
 
                                       {/* Right side: Links */}
                                       <div className="flex gap-1.5">
-                                        <a href={perf.reportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-7 h-7 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" title="Rapport Warcraft Logs" onClick={(e) => e.stopPropagation()}>
-                                          <FileText className="w-3.5 h-3.5" />
-                                        </a>
+                                        {isRaid && (
+                                          <a href={perf.reportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-7 h-7 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" title="Rapport Warcraft Logs" onClick={(e) => e.stopPropagation()}>
+                                            <FileText className="w-3.5 h-3.5" />
+                                          </a>
+                                        )}
                                         <a href={leaderboardUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-7 h-7 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-colors" title="Classement" onClick={(e) => e.stopPropagation()}>
                                           <ExternalLink className="w-3.5 h-3.5" />
                                         </a>
