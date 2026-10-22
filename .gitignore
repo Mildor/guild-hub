@@ -1,5 +1,13 @@
 .env
 backend/.env.prod
 frontend/.env
-backend/.pnpm-store
-frontend/.pnpm-store
+backend/.pnpm-store/
+frontend/.pnpm-store/
+
+# IDE
+.claude/
+.vscode/
+
+# Maintenance
+docker-compose.maintenance.yml
+maintenance/
