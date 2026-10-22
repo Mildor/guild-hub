@@ -11,3 +11,11 @@ frontend/.pnpm-store/
 # Maintenance
 docker-compose.maintenance.yml
 maintenance/
+
+# IDE
+.claude/
+.vscode/
+
+# Maintenance
+docker-compose.maintenance.yml
+maintenance/
