@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD, Reflector } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule, getOptionsToken, getStorageToken } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -21,6 +21,7 @@ import { RaiderioModule } from './raiderio/raiderio.module';
 import { ProfessionsModule } from './professions/professions.module';
 import { WclModule } from './wcl/wcl.module';
 import { AdminModule } from './admin/admin.module';
+import { GuildConfigModule } from './guild-config/guild-config.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AdminModule } from './admin/admin.module';
     // CacheModule.registerAsync({...}),
     EncryptionModule,
     PrismaModule,
+    GuildConfigModule,
     UsersModule,
     CharactersModule,
     EventsModule,
@@ -59,9 +61,12 @@ import { AdminModule } from './admin/admin.module';
   controllers: [AppController],
   providers: [
     AppService,
+    Reflector,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useFactory: (options: any, storage: any, reflector: Reflector) =>
+        new ThrottlerGuard(options, storage, reflector),
+      inject: [getOptionsToken(), getStorageToken(), Reflector],
     },
   ],
 })

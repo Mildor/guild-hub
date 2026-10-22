@@ -262,3 +262,42 @@ model SystemModule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model GuildConfig {
+  id                  String   @id @default(uuid()) @db.Uuid
+  isConfigured        Boolean  @default(false)
+
+  // Identité de la guilde
+  guildName           String   @default("My WoW Guild")
+  realm               String   @default("Archimonde")
+  realmSlug           String   @default("archimonde")
+  region              String   @default("eu")
+  faction             String?  // Alliance | Horde | Neutral
+
+  // Branding & Thème
+  logoUrl             String?  @db.Text
+  bannerUrl           String?  @db.Text
+  primaryColor        String?  @default("#10b981")
+  theme               String   @default("dark")
+
+  // Landing page & Textes publics
+  welcomeTitle        String?
+  welcomeText         String?  @db.Text
+  recruitmentStatus   String?  @default("OPEN")
+  recruitmentMessage  String?  @db.Text
+  discordInviteUrl    String?
+  wclGuildUrl         String?
+  raiderIoGuildUrl    String?
+
+  // Secrets API (chiffrés via EncryptionService)
+  bnetClientId        String?  @db.Text
+  bnetClientSecret    String?  @db.Text
+  wclClientId         String?  @db.Text
+  wclClientSecret     String?  @db.Text
+  discordWebhookUrl   String?  @db.Text
+  discordBotToken     String?  @db.Text
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
